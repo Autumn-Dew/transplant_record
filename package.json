@@ -1,0 +1,57 @@
+{
+  "name": "boosting-record",
+  "private": true,
+  "version": "1.0.42",
+  "productName": "代肝记录",
+  "description": "一站式代肝工具",
+  "author": "AutumnDew",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "electron": "electron .",
+    "start": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron -- --dev\"",
+    "pack": "vite build && electron-builder"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "concurrently": "^9.0.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^24.13.3",
+    "vite": "^6.0.0",
+    "wait-on": "^8.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "build": {
+    "appId": "com.autumndew.boosting-record",
+    "productName": "代肝记录",
+    "copyright": "Copyright © 2026 AutumnDew",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "代肝记录"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*",
+      "public/**/*"
+    ],
+    "asar": true,
+    "compression": "maximum"
+  }
+}

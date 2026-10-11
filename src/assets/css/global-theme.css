@@ -1,0 +1,39 @@
+/* 全局主题颜色变量 */
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f8f8;
+    --bg-sidebar: #ffffff;
+    --text-primary: #000000;
+    --border-color: #000000;
+    --btn-hover-bg: #000000;
+    --btn-hover-text: #ffffff;
+    --disabled-bg: #e0e0e0;
+    --disabled-text: #999999;
+    --disabled-border: #cccccc;
+}
+
+.theme-dark {
+    --bg-primary: #2c2c2c;
+    --bg-secondary: #292929;
+    --bg-sidebar: #333333;
+    --text-primary: #ffffff;
+    --border-color: #ffffff;
+    --btn-hover-bg: #ffffff;
+    --btn-hover-text: #000000;
+    --disabled-bg: #3a3a3a;
+    --disabled-text: #666666;
+    --disabled-border: #4a4a4a;
+}
+
+/* 全局禁用按钮 */
+.rc-global-btn:disabled,
+.rc-global-btn[disabled] {
+    background: var(--disabled-bg) !important;
+    color: var(--disabled-text) !important;
+    border-color: var(--disabled-border) !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+    pointer-events: none !important;
+}
+
+:focus-visible { outline: none; }
