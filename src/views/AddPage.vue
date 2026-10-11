@@ -28,7 +28,7 @@
         <div class="form-row"><label>游戏</label><SelectBox style="flex:1;min-width:0" v-model="taskForm.game" :options="gameOptions" /></div>
         <div class="form-row"><label>服务项目</label><input v-model="taskForm.service" placeholder="选择或输入" /><button ref="serviceBtnRef" class="pwd-toggle svc-drop-btn" @click="toggleServicePanel">▾</button></div>
         <div class="form-row"><label>状态</label><SelectBox style="flex:1;min-width:0" v-model="taskForm.status" :options="statusOptions" /></div>
-        <div class="form-row"><label>剩余次数</label><input type="number" v-model.number="taskForm.remainingDays" :placeholder="taskForm.status === 2 ? '默认按周期天数' : '默认1'" /></div>
+        <div class="form-row" v-if="Number(taskForm.status) === 2"><label>托管天数</label><input type="number" min="1" v-model.number="taskForm.hostDays" placeholder="如 20（留空按 1 天）" /><span class="form-hint" style="opacity:.55;font-size:11px;margin-left:6px">结束日 = 开始日 + 天数 − 1</span></div>
         <div class="form-row"><label>备注</label><input v-model="taskForm.note" /></div>
         <div class="form-row"><label>密码</label><input :type="showPasswordInput ? 'text' : 'password'" v-model="taskForm.password" placeholder="游戏密码" /><button class="pwd-toggle" @click="showPasswordInput = !showPasswordInput">{{ showPasswordInput ? '隐藏' : '显示' }}</button></div>
 
@@ -47,12 +47,16 @@
 
         <div class="edit-actions">
           <button class="cancel-btn" @click="cancelEdit">取消</button>
-          <button class="save-btn" @click="saveTask">{{ editingId ? '保存' : '添加' }}</button>
+          <button class="save-btn" :style="cfm.styleOf('save-task')" :title="cfm.titleOf('save-task', editingId ? '保存' : '添加')" @click="saveTask">{{ editingId ? '保存' : '添加' }}</button>
         </div>
       </div>
 
       <!-- ========== 蓝图表单 ========== -->
       <div class="edit-form" v-if="activeTab === 'blueprints'">
+        <div class="form-row" v-if="!editingId">
+          <label>从已有选择</label>
+          <SelectBox style="flex:1;min-width:0" v-model="selectedBlueprint" :options="blueprintTemplateOptions" placeholder="— 手动填写 —" @change="applyBlueprintTemplate" />
+        </div>
         <div class="form-row"><label>分组</label><input v-model="blueprintForm.group" placeholder="未分组" list="add-bp-groups" />
           <datalist id="add-bp-groups"><option v-for="g in blueprintGroups" :key="g" :value="g" /></datalist>
         </div>
@@ -65,16 +69,56 @@
           <div class="color-swatches">
             <span v-for="c in presetColors" :key="c" class="color-swatch" :style="{ background: c }" :class="{ active: blueprintForm.color === c }" @click="blueprintForm.color = c"></span>
             <input type="color" v-model="blueprintForm.color" class="color-input" title="自定义颜色" />
+            <input
+              v-model="blueprintForm.color"
+              class="bp-hex-input"
+              :class="{ invalid: !isValidHex(blueprintForm.color) }"
+              placeholder="#RRGGBB"
+              title="可直接输入 HEX"
+              @change="blueprintForm.color = normalizeHex(blueprintForm.color)"
+            />
             <button v-if="blueprintForm.color" class="pwd-toggle" @click="blueprintForm.color = ''">清除</button>
           </div>
         </div>
         <div class="edit-actions">
           <button class="cancel-btn" @click="cancelEdit">取消</button>
-          <button class="save-btn" @click="saveBlueprint">{{ editingId ? '保存' : '添加' }}</button>
+          <button class="save-btn" :style="cfm.styleOf('save-blueprint')" :title="cfm.titleOf('save-blueprint', editingId ? '保存' : '添加')" @click="saveBlueprint">{{ editingId ? '保存' : '添加' }}</button>
         </div>
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="renewal" class="modal-mask" @click.self="cancelRenewal">
+      <div class="edit-popup" style="max-width:460px">
+        <h4>续费确认</h4>
+        <p class="detail-section">检测到同账号的托管项目：本次新增会**在原项目上加天数**并记一笔收费，而不是新建项目。</p>
+        <div class="detail-grid">
+          <div class="detail-field"><span class="dl">原项目</span>
+            <span class="dv">{{ renewal.candidate.gameName || renewal.candidate.game }} · {{ renewal.candidate.service || '—' }}</span>
+          </div>
+          <div class="detail-field"><span class="dl">原周期</span>
+            <span class="dv">{{ renewal.prevStart }} → {{ renewal.prevEnd }}</span>
+          </div>
+          <div class="detail-field"><span class="dl">加天数</span>
+            <input type="number" min="1" v-model.number="renewalDays" class="form-select" />
+          </div>
+          <div class="detail-field"><span class="dl">收费金额</span>
+            <input type="number" min="0" v-model.number="renewalAmount" class="form-select" />
+          </div>
+          <div class="detail-field"><span class="dl">收费日期</span>
+            <input type="date" v-model="renewalPaidAt" class="form-select" />
+          </div>
+          <div class="detail-field"><span class="dl">新结束日</span><span class="dv">{{ renewalEnd }}</span></div>
+        </div>
+        <p class="detail-section">不新建项目：原项目的资料、执行记录与已有订单都不变，只追加一条收费记录。</p>
+        <div class="edit-actions" style="margin-top:16px">
+          <button class="save-btn" :style="cfm.styleOf('confirm-renewal')" :title="cfm.titleOf('confirm-renewal', '确认加天数')" @click="confirmRenewal">确认加天数</button>
+          <button class="cancel-btn" @click="cancelRenewal">取消</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 
   <Teleport to="body">
     <div v-if="servicePanelOpen" class="sb-panel" :style="servicePanelStyle" @click.stop>
@@ -88,13 +132,23 @@
 export default { name: 'AddPage' }
 </script>
 <script setup>
-import { computed, ref, onMounted, nextTick, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { useEditState } from '@/composables/useEditState'
-import { maskAccount, getDisplayName } from '@/composables/useMask'
-import { monthSpanDays, addMonth, fmtDate } from '@/utils/date'
+import { maskAccount, getDisplayName, PLATFORM_OPTIONS } from '@/domain/mask.js'
+import { gameOptions as buildGameOptions, serviceNames, findGame, LEGACY_DEFAULT_SERVICES } from '@/domain/games.js'
+import { isClosed } from '@/domain/project.js'
+import { createProject, updateProject, findRenewalCandidate, addHostingPeriod } from '@/services/projectService.js'
+import { projectsRepo, completionsRepo, gamesRepo, blueprintsRepo, blueprintGroupsRepo } from '@/data/repos.js'
+import { blueprintCopy, isValidHex, normalizeHex } from '@/domain/blueprints.js'
+import { readJSON, writeJSON, KEYS } from '@/data/storage.js'
+import { newId } from '@/domain/completion.js'
+import { addMonth, addDays, fmtDate, isYmd, todayLocal } from '@/utils/date'
+import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import SelectBox from '@/components/SelectBox.vue'
 
 const { editType, editRecord, clearEdit } = useEditState()
+// 多次点击确认（所有写操作统一走这套机制）
+const cfm = useConfirmClick()
 
 const entered = ref(false)
 onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
@@ -109,8 +163,8 @@ function switchTab(tab) { activeTab.value = tab }
 const editingId = computed(() => editRecord.value?.id || null)
 
 const defaultTask = () => ({
-  account: '', game: '终末地', service: '', status: 1,
-  remainingDays: '', note: '', password: '',
+  account: '', game: '', service: '', status: 1,
+  remainingDays: '', hostDays: '', note: '', password: '',
   wechatName: '', qqName: '', bilibiliName: '', xiaohongshuName: '', douyinName: '',
   preferredPlatform: 'wechat',
   totalFee: '', actualFee: '', delayedFee: '',
@@ -126,43 +180,36 @@ const showAccountInput = ref(false)
 const showPasswordInput = ref(false)
 
 // ══════ 一键补全：选择已有记录 ══════
-const existingTasks = computed(() => loadTasks().filter(r => r.status !== 0))
-const existingCompletions = computed(() => {
-  try { return JSON.parse(localStorage.getItem('tr-completions') || '[]') } catch { return [] }
-})
+const existingTasks = computed(() => projectsRepo.state.value.filter(r => r.status !== 0 && !isClosed(r)))
+const existingCompletions = computed(() => completionsRepo.state.value)
 const selectedTemplate = ref('')
 
-// ══════ 服务项目历史（手动输入自动记忆 + 下拉可选） ══════
-const SERVICE_KEY = 'tr-services'
-const DEFAULT_SERVICES = ['基建', '打boss', '大地图探索', '谷地开荒', '武陵开荒', '托管']
-const COMPLETIONS_KEY = 'tr-completions'
-// 「代肝记录」中已完成记录出现过的服务项目
-function loadCompletionServices() {
-  try {
-    const list = JSON.parse(localStorage.getItem(COMPLETIONS_KEY) || '[]')
-    return list.map(c => String(c.service || '').trim()).filter(Boolean)
-  } catch { return [] }
+// ══════ 服务项目（游戏目录 + 手动输入记忆 + 历史记录，合并去重）══════
+const rememberedServices = ref(loadRememberedServices())
+function loadRememberedServices() {
+  const saved = readJSON(KEYS.SERVICES, null)
+  if (Array.isArray(saved) && saved.length) return saved.map(s => String(s).trim()).filter(Boolean)
+  return [...LEGACY_DEFAULT_SERVICES]
 }
-function loadServices() {
-  let base
-  try {
-    const saved = JSON.parse(localStorage.getItem(SERVICE_KEY) || 'null')
-    base = (Array.isArray(saved) && saved.length) ? saved : [...DEFAULT_SERVICES]
-  } catch { base = [...DEFAULT_SERVICES] }
-  // 合并「代肝记录」已完成的记录里的服务项目（去重、保持原顺序）
-  const out = [...base]
-  const seen = new Set(out)
-  for (const s of loadCompletionServices()) {
-    if (!seen.has(s)) { seen.add(s); out.push(s) }
+const serviceOptions = computed(() => {
+  const game = findGame(gamesRepo.state.value, taskForm.value.game)
+  const out = []
+  const seen = new Set()
+  const push = (s) => {
+    const v = String(s || '').trim()
+    if (v && !seen.has(v)) { seen.add(v); out.push(v) }
   }
+  // 1. 当前游戏维护的服务项目  2. 手动记忆过的服务  3. 历史执行记录里的服务
+  serviceNames(game).forEach(push)
+  rememberedServices.value.forEach(push)
+  completionsRepo.state.value.forEach(c => push(c.service))
   return out
-}
-const serviceOptions = ref(loadServices())
+})
 function rememberService(name) {
   const v = String(name || '').trim()
-  if (!v || serviceOptions.value.includes(v)) return
-  serviceOptions.value = [v, ...serviceOptions.value].slice(0, 50)
-  try { localStorage.setItem(SERVICE_KEY, JSON.stringify(serviceOptions.value)) } catch { /* ignore */ }
+  if (!v || rememberedServices.value.includes(v)) return
+  rememberedServices.value = [v, ...rememberedServices.value].slice(0, 50)
+  writeJSON(KEYS.SERVICES, rememberedServices.value)
 }
 
 // 服务项目下拉面板（定位 + 开关）
@@ -192,13 +239,10 @@ function onSvcDocClick(e) {
   servicePanelOpen.value = false
 }
 
-// 下拉选项
-const gameOptions = [{ value: '终末地', label: '终末地' }, { value: '明日方舟', label: '明日方舟' }]
+// 下拉选项：游戏来自「游戏管理」目录（新增游戏后自动出现）
+const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
 const statusOptions = [{ value: 1, label: '未完成（单次）' }, { value: 2, label: '托管' }]
-const platformOptions = [
-  { value: 'wechat', label: '微信' }, { value: 'qq', label: 'QQ' }, { value: 'bilibili', label: 'B站' },
-  { value: 'xiaohongshu', label: '小红书' }, { value: 'douyin', label: '抖音' },
-]
+const platformOptions = PLATFORM_OPTIONS
 const templateOptions = computed(() => [
   ...existingTasks.value.map(t => ({ value: 'task:' + t.id, label: '[代办] ' + (getDisplayName(t) || '未命名') + ' | ' + maskAccount(t.account) })),
   ...existingCompletions.value.map(c => ({ value: 'completion:' + c.id, label: '[记录] ' + (c.displayName || getDisplayName(c) || '未命名') + ' | ' + maskAccount(c.account) })),
@@ -220,105 +264,117 @@ function applyTemplate() {
 }
 
 onMounted(() => {
+  projectsRepo.hydrate()
   if (editRecord.value && editType.value === 'accounts') {
     taskForm.value = { ...editRecord.value }
-  } else if (editRecord.value && editType.value === 'blueprints') {
-    blueprintForm.value = { ...editRecord.value }
   }
+  if (!taskForm.value.game) taskForm.value.game = gameOptions.value[0]?.value || ''
 })
 
-function loadTasks() {
-  try { return JSON.parse(localStorage.getItem('tr-accounts') || '[]') } catch { return [] }
-}
-function saveTasks(data) {
-  localStorage.setItem('tr-accounts', JSON.stringify(data))
-  window.electron?.saveRecords?.(data)
-}
-function loadBlueprints() {
-  try { return JSON.parse(localStorage.getItem('tr-blueprints') || '[]') } catch { return [] }
-}
-function saveBlueprintsData(data) {
-  localStorage.setItem('tr-blueprints', JSON.stringify(data))
-  window.electron?.saveBlueprints?.(data)
-}
+// 编辑目标变化时同步蓝图表单：避免编辑另一条记录时表单残留上一条的数据
+watch([editRecord, editType], ([rec, type]) => {
+  if (rec && type === 'blueprints') blueprintForm.value = { ...defaultBlueprint(), ...rec }
+}, { immediate: true })
 
-// ══════ 蓝图分组（供蓝图表单选择） ══════
-const BP_GROUP_KEY = 'tr-blueprint-groups'
-const blueprintGroups = ref([])
-function loadBlueprintGroups() {
-  try { const g = JSON.parse(localStorage.getItem(BP_GROUP_KEY) || 'null'); if (Array.isArray(g)) blueprintGroups.value = g } catch { /* ignore */ }
-}
-loadBlueprintGroups()
+// ══════ 蓝图记录（统一经由 Repository） ══════
+const blueprintGroups = blueprintGroupsRepo.state
 function rememberBlueprintGroup(name) {
   const v = String(name || '').trim()
   if (!v || blueprintGroups.value.includes(v)) return
-  blueprintGroups.value = [...blueprintGroups.value, v]
-  try { localStorage.setItem(BP_GROUP_KEY, JSON.stringify(blueprintGroups.value)) } catch { /* ignore */ }
+  blueprintGroupsRepo.save([...blueprintGroups.value, v])
 }
-function addCompletion(record) {
-  const list = JSON.parse(localStorage.getItem('tr-completions') || '[]')
-  list.unshift({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    taskId: record.id,
-    date: new Date().toISOString().slice(0, 10),
-    game: record.game,
-    service: String(record.service || ''),
-    account: record.account,
-    fee: record.actualFee || record.totalFee || '',
-    isHosting: record.isHosting || false,
+
+// ══════ 以已有蓝图为基础（仅新增时可选）══════
+// 深拷贝为独立草稿：对草稿的任何修改都不会写回原蓝图。
+const selectedBlueprint = ref('')
+const blueprintTemplateOptions = computed(() => blueprintsRepo.state.value.map(b => ({
+  value: 'bp:' + b.id,
+  label: (b.group ? '[' + b.group + '] ' : '') + (b.name || b.code || '未命名'),
+})))
+function applyBlueprintTemplate() {
+  if (!selectedBlueprint.value) return
+  const src = blueprintsRepo.find(selectedBlueprint.value.replace(/^bp:/, ''))
+  if (!src) return
+  blueprintForm.value = { ...defaultBlueprint(), ...blueprintCopy(src) }
+}
+// ══════ 续费 = 在已有项目上加天数 + 记一笔收费（不新建项目）══════
+const renewal = ref(null)
+const renewalDays = ref(30)
+const renewalAmount = ref(0)
+const renewalPaidAt = ref('')
+const renewalEnd = computed(() => {
+  const r = renewal.value
+  if (!r) return ''
+  const n = Math.max(1, Math.round(Number(renewalDays.value) || 0))
+  return addDays(r.prevEnd, n)
+})
+function openRenewalPrompt(candidate, form) {
+  const host = candidate.host || {}
+  const prevStart = isYmd(host.startDate) ? host.startDate : fmtDate(candidate.createdAt)
+  const prevEnd = isYmd(host.endDate) ? host.endDate : addMonth(prevStart)
+  renewal.value = { candidate, form, prevStart, prevEnd }
+  // 天数：优先用本次表单填的「托管天数」，留空则沿用原周期天数
+  const formDays = Number(form && form.hostDays)
+  renewalDays.value = Number.isFinite(formDays) && formDays > 0 ? Math.round(formDays) : (Number(host.cycleDays) || 30)
+  const fee = form && form.actualFee !== '' && form.actualFee != null ? form.actualFee : (form && form.totalFee)
+  renewalAmount.value = Number(fee) || 0
+  renewalPaidAt.value = todayLocal()
+}
+function confirmRenewal() {
+  const r = renewal.value
+  if (!r) return
+  if (!cfm.trigger('confirm-renewal')) return
+  const n = Math.max(1, Math.round(Number(renewalDays.value) || 0))
+  addHostingPeriod(r.candidate.id, {
+    days: n,
+    amount: Number(renewalAmount.value) || 0,
+    paidAt: renewalPaidAt.value,
   })
-  localStorage.setItem('tr-completions', JSON.stringify(list))
+  rememberService(r.form.service)
+  renewal.value = null
+  clearEdit()
+  taskForm.value = defaultTask()
 }
+function cancelRenewal() { renewal.value = null }
 
 function saveTask() {
   const data = { ...taskForm.value }
-  const list = loadTasks()
   if (editingId.value) {
-    const idx = list.findIndex(r => r.id === editingId.value)
-    if (idx >= 0) list[idx] = { ...list[idx], ...data }
-  } else {
-    data.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-    data.createdAt = new Date().toISOString()
-    // 续费：同账号 status===2 中 createdAt 最晚者作为「前一个托管」（支持多次续费链）
-    // 新项目创建日 = 前项目到期日（前项目创建日 + 1 个月），并锁定待激活
-    if (data.status === 2 && data.account) {
-      const siblings = list
-        .filter(r => r.status === 2 && r.account === data.account && r.createdAt)
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-      const prev = siblings[0]
-      if (prev) {
-        const startDate = addMonth(fmtDate(new Date(prev.createdAt)))
-        data.createdAt = new Date(startDate + 'T00:00:00').toISOString()
-        data.locked = true
-        data.prevTaskId = prev.id
-      }
-    }
-    // 次数：托管兜底按周期天数（创建日 + 1 个月），单次兜底 1
-    if (!data.remainingDays && data.remainingDays !== 0) {
-      data.remainingDays = data.status === 2 ? monthSpanDays(data.createdAt) : 1
-    }
-    list.unshift(data)
+    if (!cfm.trigger('save-task')) return
+    updateProject(String(editingId.value), data)
+    rememberService(data.service)
+    clearEdit()
+    taskForm.value = defaultTask()
+    return
   }
+  // 新增托管且同账号已有生效托管 → 询问是否作为「续费」，不静默沿用日期
+  if (Number(data.status) === 2 && data.account) {
+    const candidate = findRenewalCandidate({ account: data.account, game: data.game })
+    if (candidate) { openRenewalPrompt(candidate, data); return }
+  }
+  if (!cfm.trigger('save-task')) return
+  createProject(data)
   rememberService(data.service)
-  saveTasks(list)
   clearEdit()
   taskForm.value = defaultTask()
 }
 
 function saveBlueprint() {
+  if (!cfm.trigger('save-blueprint')) return
   const data = { ...blueprintForm.value }
-  const list = loadBlueprints()
+  // 颜色落库前规范化：空值与非法值不会写进记录（字号已下线，不再写入该字段）
+  data.color = normalizeHex(data.color)
   if (editingId.value) {
-    const idx = list.findIndex(r => r.id === editingId.value)
-    if (idx >= 0) list[idx] = { ...list[idx], ...data }
+    const patch = { ...data }
+    delete patch.id
+    blueprintsRepo.update(String(editingId.value), patch)
   } else {
-    data.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-    list.unshift(data)
+    blueprintsRepo.add({ ...data, id: newId('bp') })
   }
   rememberBlueprintGroup(data.group)
-  saveBlueprintsData(list)
   clearEdit()
   blueprintForm.value = defaultBlueprint()
+  selectedBlueprint.value = ''
 }
 
 function cancelEdit() { clearEdit() }
@@ -347,4 +403,12 @@ onUnmounted(() => document.removeEventListener('click', onSvcDocClick))
   background: var(--bg-secondary);
   cursor: pointer;
 }
+
+/* ── 颜色：HEX 直填（非法值给出提示，不静默丢弃）── */
+.bp-hex-input {
+  width: 96px; height: 26px; padding: 0 6px;
+  border: 2px solid var(--border-color); background: var(--bg-primary);
+  color: var(--text-primary); font-family: monospace; font-size: 12px;
+}
+.bp-hex-input.invalid { border-color: #d00; color: #d00; }
 </style>

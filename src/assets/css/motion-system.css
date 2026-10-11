@@ -1,0 +1,157 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Motion System — 孤星动效语汇
+   把「动画」拆成有语义的几种语法，不同场景用不同语法，
+   而不是所有东西都淡入位移。
+
+   时长阶梯：高频 < 200ms ｜ 模块 220–280ms ｜ 页面 300–420ms
+   只动画 transform / opacity / clip-path（不做布局抖动）。
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --mv-tick:    0.16s;   /* 高频操作 */
+  --mv-module:  0.26s;   /* 模块 / 列表项 */
+  --mv-stage:   0.38s;   /* 页面级 */
+  --mv-settle:  0.5s;    /* 数据归位 */
+
+  --mv-ease-frame:  cubic-bezier(0.2, 0, 0, 1);      /* 框架展开 */
+  --mv-ease-mech:   cubic-bezier(0.34, 1.16, 0.64, 1); /* 工业机械分段 */
+  --mv-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);     /* 数据归位 */
+  --mv-ease-out:    cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ── 关键帧 ───────────────────────────────────────────────── */
+
+/* 框架展开：自上而下扫开 */
+@keyframes mv-frame-open {
+  0%   { opacity: 0; clip-path: inset(0 0 96% 0); transform: translateY(-3px); }
+  55%  { opacity: 1; clip-path: inset(0 0 0 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); transform: none; }
+}
+
+/* 机械分段：列表 / 卡片进入（带轻微过冲） */
+@keyframes mv-module-in {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 收束离场：右移 + 压缩 */
+@keyframes mv-module-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateX(16px) scaleY(0.88); }
+}
+
+/* 数据归位：数字 / 标签变化时自下而上就位 */
+@keyframes mv-data-settle {
+  0%   { opacity: 0; transform: translateY(70%); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* 仪表扫过：状态切换时一次刻度扫描（静态渐变，无发光） */
+@keyframes mv-gauge-sweep {
+  0%   { background-size: 0% 100%; }
+  100% { background-size: 100% 100%; }
+}
+
+/* 版式重组：预设切换时元素依次归位 */
+@keyframes mv-relayout {
+  0%   { opacity: 0.25; transform: translateY(7px); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* 刻度指示：当前项标识条滑动（配合 transition 使用） */
+@keyframes mv-indicator-in {
+  from { transform: scaleY(0.2); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+
+/* ── 工具类 ───────────────────────────────────────────────── */
+
+.mv-settle { animation: mv-settle-flash var(--mv-settle) var(--mv-ease-out); }
+@keyframes mv-settle-flash {
+  0%   { background-color: rgba(216, 121, 56, 0.22); }
+  100% { background-color: transparent; }
+}
+
+.mv-data { animation: mv-data-settle var(--mv-module) var(--mv-ease-settle); display: inline-block; }
+
+.mv-gauge { animation: mv-gauge-sweep var(--mv-module) var(--mv-ease-out); }
+
+.mv-relayout { animation: mv-relayout var(--mv-module) var(--mv-ease-mech) both; }
+.mv-relayout:nth-child(1) { animation-delay: 0ms; }
+.mv-relayout:nth-child(2) { animation-delay: 26ms; }
+.mv-relayout:nth-child(3) { animation-delay: 52ms; }
+.mv-relayout:nth-child(4) { animation-delay: 78ms; }
+.mv-relayout:nth-child(5) { animation-delay: 104ms; }
+.mv-relayout:nth-child(6) { animation-delay: 130ms; }
+.mv-relayout:nth-child(n+7) { animation-delay: 150ms; }
+
+/* ── TransitionGroup：列表增删（模块调度）──────────────────── */
+.mv-list-move,
+.mv-list-enter-active { transition: transform var(--mv-module) var(--mv-ease-mech), opacity var(--mv-module) ease; }
+.mv-list-leave-active {
+  transition: transform var(--mv-tick) var(--mv-ease-frame), opacity var(--mv-tick) ease;
+  position: absolute; left: 0; right: 0; z-index: 1;
+}
+.mv-list-enter-from { opacity: 0; transform: translateY(-6px) scaleY(0.97); }
+.mv-list-leave-to { opacity: 0; transform: translateX(16px) scaleY(0.88); }
+
+/* ── 页面转场：按页面语义区分语法 ─────────────────────────── */
+
+/* 列表型：自上而下框架展开 */
+.mv-page-list-enter-active { transition: opacity var(--mv-stage) var(--mv-ease-mech), transform var(--mv-stage) var(--mv-ease-mech); }
+.mv-page-list-enter-from { opacity: 0; transform: translateY(10px); }
+.mv-page-list-leave-active { transition: opacity var(--mv-tick) ease; }
+.mv-page-list-leave-to { opacity: 0; }
+
+/* 表单型：自左侧推入 */
+.mv-page-form-enter-active { transition: opacity var(--mv-stage) var(--mv-ease-out), transform var(--mv-stage) var(--mv-ease-out); }
+.mv-page-form-enter-from { opacity: 0; transform: translateX(-10px); }
+.mv-page-form-leave-active { transition: opacity var(--mv-tick) ease; }
+.mv-page-form-leave-to { opacity: 0; }
+
+/* 文档型：自上而下扫开（框架展开） */
+.mv-page-doc-enter-active { transition: opacity var(--mv-stage) var(--mv-ease-frame), clip-path var(--mv-stage) var(--mv-ease-frame); }
+.mv-page-doc-enter-from { opacity: 0; clip-path: inset(0 0 100% 0); }
+.mv-page-doc-leave-active { transition: opacity var(--mv-tick) ease; }
+.mv-page-doc-leave-to { opacity: 0; }
+
+/* 低频型：仅淡入 */
+.mv-page-quiet-enter-active { transition: opacity var(--mv-module) ease; }
+.mv-page-quiet-enter-from { opacity: 0; }
+.mv-page-quiet-leave-active { transition: opacity var(--mv-tick) ease; }
+.mv-page-quiet-leave-to { opacity: 0; }
+
+/* 页面级入场动画（由 .local-music.entered 触发；默认状态始终可见） */
+@keyframes mv-page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 页面转场：离开的元素脱离文档流，避免与进入页重叠造成布局跳动。
+   不使用 mode="out-in"：即使离开过渡被打断，新页面也会立即插入。
+   （页面根元素固定为 .local-music，这里显式列出，避免属性选择器不可靠） */
+.local-music.mv-page-list-leave-active,
+.local-music.mv-page-form-leave-active,
+.local-music.mv-page-doc-leave-active,
+.local-music.mv-page-quiet-leave-active {
+  position: absolute; inset: 0; z-index: 0;
+}
+
+/* ── 导航指示条（导航选中转换）────────────────────────────── */
+.mv-nav-indicator {
+  position: absolute; left: 0; top: 0; width: 3px; height: 28px;
+  background: var(--accent, #D87938);
+  transition: transform var(--mv-module) var(--mv-ease-mech);
+  pointer-events: none;
+}
+
+/* ── 减少动态效果 ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mv-tick: 0.01ms; --mv-module: 0.01ms; --mv-stage: 0.01ms; --mv-settle: 0.01ms;
+  }
+  .mv-relayout, .mv-data, .mv-settle, .mv-gauge { animation: none !important; }
+  .mv-list-move, .mv-list-enter-active, .mv-list-leave-active,
+  [class*="mv-page-"][class$="-active"] { transition: none !important; }
+  .mv-nav-indicator { transition: none !important; }
+}

@@ -1,23 +1,32 @@
 <template>
   <div class="local-music" :class="{ entered: entered }">
     <div class="local-header">
-      <div><h2>数据管理</h2><p class="desc">管理价格数据（终末地 / 明日方舟）</p></div>
+      <div><h2>数据管理</h2><p class="desc">价格数据 · 游戏与服务项目（游戏目录为唯一数据源，创建项目 / 筛选 / 统计 / 价格表自动同步）</p></div>
     </div>
 
     <div class="local-toolbar">
-      <SelectBox v-model="game" :options="gameOptions" width="130px" />
       <span class="view-tabs">
-        <span class="tl-entry-btn" :class="{ active: mode === 'preset' }" @click="mode = 'preset'">预设</span>
-        <span class="tl-entry-btn" :class="{ active: mode === 'custom' }" @click="mode = 'custom'">自定义</span>
-        <span class="tl-entry-btn" :class="{ active: mode === 'all' }" @click="mode = 'all'">全部</span>
+        <span class="tl-entry-btn" :class="{ active: section === 'prices' }" @click="section = 'prices'">价格数据</span>
+        <span class="tl-entry-btn" :class="{ active: section === 'games' }" @click="section = 'games'">游戏与服务</span>
       </span>
-      <button class="rc-global-btn" @click="addCategory">+ 类别</button>
-      <div class="toolbar-spacer"></div>
-      <button class="rc-global-btn" @click="downloadJSON">下载</button>
-      <button class="rc-global-btn" @click="saveToLocal">保存</button>
+      <template v-if="section === 'prices'">
+        <SelectBox v-model="game" :options="gameOptions" width="130px" />
+        <span class="view-tabs">
+          <span class="tl-entry-btn" :class="{ active: mode === 'preset' }" @click="mode = 'preset'">预设</span>
+          <span class="tl-entry-btn" :class="{ active: mode === 'custom' }" @click="mode = 'custom'">自定义</span>
+          <span class="tl-entry-btn" :class="{ active: mode === 'all' }" @click="mode = 'all'">全部</span>
+        </span>
+        <button class="rc-global-btn" @click="addCategory">+ 类别</button>
+        <div class="toolbar-spacer"></div>
+        <button class="rc-global-btn" @click="downloadJSON">下载</button>
+        <button class="rc-global-btn" @click="saveToLocal">保存</button>
+      </template>
     </div>
 
-    <div class="ad-body">
+    <!-- 游戏与服务：原先的独立「游戏管理」页面已并入此处（不再有独立导航入口，游戏不使用图标） -->
+    <GameSection v-if="section === 'games'" />
+
+    <div v-else class="ad-body">
       <div class="ad-shop">
         <div class="ad-cat-head">
           <span class="ad-cat-name" style="padding-left:8px">店铺信息</span>
@@ -83,21 +92,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { usePrices } from '@/composables/usePrices.js'
 import SelectBox from '@/components/SelectBox.vue'
+import GameSection from '@/components/GameSection.vue'
+import { gamesRepo } from '@/data/repos.js'
+import { gameOptions as buildGameOptions } from '@/domain/games.js'
+import { readShopForGame, writeShopForGame } from '@/data/shop-info.js'
 
 const { prices, save: persist } = usePrices()
-const game = ref('endfield')
+// 数据管理分为两个分类：价格数据 / 游戏与服务（原「游戏管理」页面已并入）
+const section = ref('prices')
+const game = ref('')
 const mode = ref('all')
-const gameOptions = [{ value: 'endfield', label: '终末地' }, { value: 'ak', label: '明日方舟' }]
+// 游戏列表来自「游戏管理」目录
+const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
 const modeOptions = [{ value: 'preset', label: '预设' }, { value: 'custom', label: '自定义' }]
 
 const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
+onMounted(() => {
+  gamesRepo.hydrate()
+  if (!gameOptions.value.some(o => o.value === game.value)) {
+    game.value = gameOptions.value[0]?.value || 'endfield'
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
+})
 
 // ══════ 店铺信息（数组：位置/名称/内容，供价格一览头/尾展示） ══════
-const SHOP_KEY = 'tr-shop-info'
 const positionOptions = [{ value: 'head', label: '头部' }, { value: 'tail', label: '尾部' }]
 function defaultShopInfo() {
   return [
@@ -115,20 +136,20 @@ function normalizeShop(list) {
   }))
 }
 function loadShopInfo() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SHOP_KEY) || 'null')
-    if (Array.isArray(saved)) {
-      if (saved.length) shopInfo.value = normalizeShop(saved)
-    } else if (saved && typeof saved === 'object') {
-      // 兼容旧结构 { contact, gameName }
-      shopInfo.value = [
-        { id: 'c1', label: '代肝联系方式', value: saved.contact || '', position: 'head' },
-        { id: 'c2', label: '代肝游戏名称', value: saved.gameName || '', position: 'head' },
-      ]
-    }
-  } catch { /* ignore */ }
+  const { list: saved } = readShopForGame(game.value, gameOptions.value.map(o => o.value))
+  if (Array.isArray(saved)) {
+    if (saved.length) shopInfo.value = normalizeShop(saved)
+  } else if (saved && typeof saved === 'object') {
+    // 兼容旧结构 { contact, gameName }
+    shopInfo.value = [
+      { id: 'c1', label: '代肝联系方式', value: saved.contact || '', position: 'head' },
+      { id: 'c2', label: '代肝游戏名称', value: saved.gameName || '', position: 'head' },
+    ]
+  }
 }
 onMounted(loadShopInfo)
+// 切换游戏时加载该游戏的店铺信息（避免把 A 的店铺信息写到 B）
+watch(game, () => loadShopInfo())
 function addShopInfo() {
   shopInfo.value.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), label: '', value: '', position: 'head' })
 }
@@ -181,11 +202,7 @@ function moveItem(cat, i, dir) {
 }
 
 function saveToLocal() {
-  try {
-    localStorage.setItem(SHOP_KEY, JSON.stringify(shopInfo.value.map(s => ({
-      id: s.id, label: s.label, value: s.value, position: s.position,
-    }))))
-  } catch { /* ignore */ }
+  writeShopForGame(game.value, shopInfo.value, gameOptions.value.map(o => o.value))
   try { persist() } catch { /* ignore */ }
 }
 function downloadJSON() {

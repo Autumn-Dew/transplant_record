@@ -303,9 +303,12 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import html2canvas from 'html2canvas'
 import SelectBox from '@/components/SelectBox.vue'
 import { maskAccount, getDisplayName } from '@/composables/useMask'
-import { fmtDate as toDateStr, addMonth } from '@/utils/date'
+import { fmtDate as toDateStr, addMonth, isYmd } from '@/utils/date'
 import { completeTaskById, localToday } from '@/utils/taskComplete'
-import { playOvercharge } from '@/utils/sound'
+import { hostProgress, isHosting } from '@/domain/project.js'
+import { projectsRepo } from '@/data/repos.js'
+import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
+import { useConfirmClick } from '@/composables/useConfirmClick.js'
 
 const emit = defineEmits(['update:label'])
 
@@ -353,7 +356,8 @@ function calcDays() {
   const [ty, tm, td] = dateTo.value.split('-').map(Number)
   const from = new Date(fy, fm - 1, fd)
   const to = new Date(ty, tm - 1, td)
-  totalDays.value = Math.round((to - from) / (1000 * 60 * 60 * 24))
+  // 天数含首尾（08-01 → 08-30 = 30 天），与托管天数口径统一
+  totalDays.value = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1
   const now = new Date()
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const diff = Math.round((todayDate - from) / (1000 * 60 * 60 * 24)) + 1
@@ -380,12 +384,10 @@ watch(dateTo, () => { calcDays() }, { immediate: true })
 const hostingTasks = ref(loadHostingTasks())
 const selectedTaskId = ref('')
 function loadHostingTasks() {
-  try {
-    // 仅列出「当前生效」的托管：排除提前续费(locked)与「今日已确认」的项目
-    const today = localToday()
-    return JSON.parse(localStorage.getItem('tr-accounts') || '[]')
-      .filter(r => r.status === 2 && !r.locked && r.lastConfirmDate !== today)
-  } catch { return [] }
+  // 仅列出「当前生效」的托管：排除提前续费(locked)与「今日已确认」的项目
+  // 统一经 Repository 读取（不再直接读 localStorage）
+  const today = localToday()
+  return projectsRepo.state.value.filter(r => isHosting(r) && !r.locked && r.lastConfirmDate !== today)
 }
 // 项目选择按游戏排序（终末地优先）
 const GAME_ORDER = ['终末地', '明日方舟', '异环']
@@ -397,7 +399,11 @@ const hostingOptions = computed(() => {
       const name = getDisplayName(t) || maskAccount(t.account) || '未命名'
       const acct = maskAccount(t.account) || '—'
       const game = t.game || '终末地'
-      const days = (t.remainingDays != null && t.remainingDays !== '') ? t.remainingDays : '—'
+      // 剩余天数跟随托管进度（含首尾、暂停顺延），旧 remainingDays 仅作兜底
+  const hp = (t.status === 2 || t.hosting) ? hostProgress(t) : null
+  const days = hp
+    ? Math.max(0, hp.totalDays - hp.dayIndex + 1)
+    : ((t.remainingDays != null && t.remainingDays !== '') ? t.remainingDays : '—')
       return { value: t.id, label: `${game} | ${name} | ${acct} | 剩余${days}天` }
     })
 })
@@ -419,46 +425,16 @@ const confirmBtnTitle = computed(() => {
   if (selectedConfirmedToday.value) return '该项目今日已确认，明日可再次确认'
   return '确认完成当前页选中的托管项目（同代肝代办）'
 })
-// ── 确认完成（同代肝代办：四次确认 + 逐层音效）──
-const confirmClicks = ref(new Map())
-const confirmTimers = new Map()
-const CONFIRM_COLORS = { 1: '#ff4444', 2: '#ff8800', 3: '#aa44ff' }
-const confirmStage = computed(() => {
-  const id = selectedTaskId.value
-  return id ? (confirmClicks.value.get(id) || 0) : 0
-})
-const confirmBtnText = computed(() => {
-  const n = confirmStage.value
-  if (n === 1) return '再次点击确认（2/4）'
-  if (n === 2) return '再次点击确认（3/4）'
-  if (n === 3) return '最后一次点击执行（4/4）'
-  return '确认完成'
-})
-function getConfirmStyle() {
-  const n = confirmStage.value
-  if (n >= 1 && n <= 3) return { borderColor: CONFIRM_COLORS[n], color: CONFIRM_COLORS[n] }
-  return {}
-}
+// ── 确认完成（同代肝代办：多次点击机制见 composables/useConfirmClick + 逐层音效）──
+const confirmCfm = useConfirmClick()
+const confirmStage = computed(() => (selectedTaskId.value ? confirmCfm.countOf(selectedTaskId.value) : 0))
+const confirmBtnText = computed(() => confirmCfm.titleOf(selectedTaskId.value || 'unselected', '确认完成'))
+function getConfirmStyle() { return confirmCfm.styleOf(selectedTaskId.value || 'unselected') }
 function handleConfirm() {
   const id = selectedTaskId.value
   if (!id || !selectedTask.value) return
-  const cur = confirmClicks.value.get(id) || 0
-  playOvercharge(cur)
-  if (cur >= 3) {
-    confirmClicks.value.delete(id)
-    if (confirmTimers.has(id)) { clearTimeout(confirmTimers.get(id)); confirmTimers.delete(id) }
-    confirmClicks.value = new Map(confirmClicks.value)
-    confirmTaskDone()
-  } else {
-    confirmClicks.value.set(id, cur + 1)
-    confirmClicks.value = new Map(confirmClicks.value)
-    if (confirmTimers.has(id)) clearTimeout(confirmTimers.get(id))
-    confirmTimers.set(id, setTimeout(() => {
-      confirmClicks.value.delete(id)
-      confirmClicks.value = new Map(confirmClicks.value)
-      confirmTimers.delete(id)
-    }, 3000))
-  }
+  if (!confirmCfm.trigger(id)) return
+  confirmTaskDone()
 }
 
 function confirmTaskDone() {
@@ -471,12 +447,11 @@ function confirmTaskDone() {
 }
 
 // ── 回填：保存「变更后」，下次填入「变更前」──
-const ROLL_KEY = 'tr-report-roll'
 function loadRoll() {
-  try { return JSON.parse(localStorage.getItem(ROLL_KEY) || '{}') } catch { return {} }
+  return readJSON(KEYS.REPORT_ROLL, {}) || {}
 }
 function saveRoll(s) {
-  try { localStorage.setItem(ROLL_KEY, JSON.stringify(s)) } catch {}
+  writeJSON(KEYS.REPORT_ROLL, s)
 }
 
 function applyTask() {
@@ -487,11 +462,15 @@ function applyTask() {
   const GAME_MAP = { '终末地': 'endfield', '明日方舟': 'ak', '异环': 'nte' }
   const g = GAME_MAP[t.game]
   if (g && g !== reportGame.value) switchGame(g)
-  // 日期：创建日 ~ 创建日 + 1 个月
-  const startStr = t.createdAt ? toDateStr(t.createdAt) : toDateStr(new Date())
+  // 日期：同步为托管项目的**真实起止**（含首尾天数）。
+  // 托管超过一个月时不再截到一个月的近似值 —— 天数与日期区间都按项目实际情况同步，
+  // 第几天由 calcDays 按「今天 − 开始日 + 1」算出。
+  const host = t.host || {}
+  const startStr = isYmd(host.startDate) ? host.startDate : (t.createdAt ? toDateStr(t.createdAt) : toDateStr(new Date()))
+  const endStr = isYmd(host.endDate) ? host.endDate : addMonth(startStr)
   programmaticDate = true
   dateFrom.value = startStr
-  dateTo.value = addMonth(startStr)
+  dateTo.value = endStr
   calcDays()
   // 回填：按 label 把上次保存的「变更后」填入「变更前」
   // 放到 nextTick：等 watch(reportGame) 先把 resources 重置为新游戏的默认项后再回填

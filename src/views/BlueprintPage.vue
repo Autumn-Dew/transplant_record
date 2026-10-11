@@ -143,6 +143,14 @@
               <div v-if="detailEditMode" class="color-swatches">
                 <span v-for="c in presetColors" :key="c" class="color-swatch" :style="{ background: c }" :class="{ active: detailRecord.color === c }" @click="detailRecord.color = c"></span>
                 <input type="color" v-model="detailRecord.color" class="color-input" title="自定义颜色" />
+                <input
+                  v-model="detailRecord.color"
+                  class="bp-hex"
+                  :class="{ invalid: !isValidHex(detailRecord.color) }"
+                  placeholder="#RRGGBB"
+                  title="可直接输入 HEX"
+                  @change="detailRecord.color = normalizeHex(detailRecord.color)"
+                />
                 <button v-if="detailRecord.color" class="pwd-toggle" @click="detailRecord.color = ''">清除</button>
               </div>
               <span v-else class="dv">
@@ -155,7 +163,8 @@
           </datalist>
           <div class="edit-actions" style="margin-top:16px">
             <button v-if="!detailEditMode" class="save-btn" @click="detailEditMode = true">编辑</button>
-            <button v-else class="save-btn" @click="saveDetail">保存</button>
+            <button v-else class="save-btn" :style="cfm.styleOf('save-detail')" :title="cfm.titleOf('save-detail', '保存')" @click="saveDetail">保存</button>
+            <button v-if="!detailEditMode" class="cancel-btn" :style="cfm.styleOf('duplicate')" :title="cfm.titleOf('duplicate', '以此为基础新建')" @click="duplicateDetail">以此为基础新建</button>
             <button class="cancel-btn" @click="closeDetail">{{ detailEditMode ? '取消' : '关闭' }}</button>
           </div>
         </div>
@@ -168,41 +177,28 @@
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useEditState } from '@/composables/useEditState'
 import { useRowSelect } from '@/composables/useRowSelect'
-import { playOvercharge } from '@/utils/sound'
+import { useConfirmClick } from '@/composables/useConfirmClick.js'
+import { blueprintsRepo, blueprintGroupsRepo } from '@/data/repos.js'
+import { isValidHex, normalizeHex, normalizeFontSize, duplicateBlueprint } from '@/domain/blueprints.js'
 
 const navigateToAdd = inject('navigateToAdd')
 const { startAdd } = useEditState()
+// 多次点击确认（所有写操作统一走这套机制）
+const cfm = useConfirmClick()
 
 const entered = ref(false)
 onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
 function staggerStyle(idx) { return { transitionDelay: (0.24 + Math.max(0, idx) * 0.023) + 's' } }
 
-const STORAGE_KEY = 'tr-blueprints'
-const GROUP_KEY = 'tr-blueprint-groups'
 const presetColors = ['#FF1744', '#FF6D00', '#FFEA00', '#00E676', '#00B0FF', '#2979FF', '#9C27B0', '#F50057']
-const records = ref([])
-function loadRecords() {
-  try { records.value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') } catch { records.value = [] }
-}
-function saveRecords() {
-  const plain = JSON.parse(JSON.stringify(records.value))
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plain))
-  try { window.electron?.saveBlueprints?.(plain) } catch { /* ignore */ }
-}
-loadRecords()
-onMounted(async () => {
-  if (!records.value.length) {
-    try { const d = await window.electron?.loadBlueprints?.(); if (d?.length) { records.value = d; saveRecords() } } catch {}
-  }
-})
 
-// ══════ 分组 ══════
-function loadGroups() {
-  try { const g = JSON.parse(localStorage.getItem(GROUP_KEY) || 'null'); if (Array.isArray(g)) return g } catch { /* ignore */ }
-  return []
-}
-const groups = ref(loadGroups())
-function saveGroups() { try { localStorage.setItem(GROUP_KEY, JSON.stringify(groups.value)) } catch { /* ignore */ } }
+// ══════ 数据（统一经由 Repository）══════
+const records = blueprintsRepo.state
+const groups = blueprintGroupsRepo.state
+onMounted(() => { blueprintsRepo.hydrate() })
+
+function saveRecords() { blueprintsRepo.persist() }
+function saveGroups(list) { blueprintGroupsRepo.save(list ?? groups.value) }
 
 // ══════ 分组重命名（批量修改该组下所有蓝图） ══════
 const renamingGroup = ref('')
@@ -213,11 +209,15 @@ function commitRename(oldName) {
   const v = String(renameValue.value || '').trim()
   if (!v || v === oldName) { cancelRename(); return }
   if (groups.value.includes(v)) { cancelRename(); return } // 防止与其它组重名合并
-  records.value = records.value.map(r =>
-    String(r.group || '').trim() === oldName ? { ...r, group: v } : r)
+  blueprintsRepo.replaceAll(records.value.map(r =>
+    String(r.group || '').trim() === oldName ? { ...r, group: v } : r))
   const i = groups.value.indexOf(oldName)
-  if (i >= 0) { const arr = [...groups.value]; arr[i] = v; groups.value = arr; saveGroups() }
-  saveRecords()
+  if (i >= 0) { const arr = [...groups.value]; arr[i] = v; saveGroups(arr) }
+  // 详情弹窗若正打开着该组内的记录 → 同步组名，避免稍后保存把旧组名写回（数据不同步）
+  if (detailRecord.value && String(detailRecord.value.group || '').trim() === oldName) {
+    const synced = blueprintsRepo.find(detailRecord.value.id)
+    if (synced) { detailRecord.value = { ...synced }; detailOriginal.value = synced }
+  }
   cancelRename()
 }
 
@@ -304,8 +304,7 @@ function moveGroup(name, dir) {
   const arr = [...groups.value]
   const [x] = arr.splice(i, 1)
   arr.splice(t, 0, x)
-  groups.value = arr
-  saveGroups()
+  saveGroups(arr)
 }
 function moveInGroup(groupName, item, dir) {
   const isUng = groupName === '未分组'
@@ -320,8 +319,7 @@ function moveInGroup(groupName, item, dir) {
   const arr = [...records.value]
   arr[ai] = other
   arr[bi] = item
-  records.value = arr
-  saveRecords()
+  blueprintsRepo.replaceAll(arr)
 }
 
 // ══════ 记录颜色竖线 ══════
@@ -333,37 +331,15 @@ function rowStyle(item, idx) {
   return base
 }
 
-const DELETE_COLORS = { 1: '#ff4444', 2: '#ff8800', 3: '#aa44ff' }
-const deleteClicks = ref(new Map())
-function getDeleteStyle(id) {
-  const n = deleteClicks.value.get(id) || 0
-  if (n >= 1 && n <= 3) return { borderColor: DELETE_COLORS[n], color: DELETE_COLORS[n] }
-  return {}
-}
-function deleteTitle(id) {
-  const n = deleteClicks.value.get(id) || 0
-  if (n === 1) return '再次点击删除（2/4）'
-  if (n === 2) return '再次点击删除（3/4）'
-  if (n === 3) return '最后一次点击删除（4/4）'
-  return '删除'
-}
+// ── 删除（多次点击保护，机制见 composables/useConfirmClick）──
+const deleteCfm = useConfirmClick()
+function getDeleteStyle(id) { return deleteCfm.styleOf(id) }
+function deleteTitle(id) { return deleteCfm.titleOf(id, '删除') }
 function handleDelete(item) {
-  const cur = deleteClicks.value.get(item.id) || 0
-  playOvercharge(cur)
-  if (cur >= 3) {
-    deleteClicks.value.delete(item.id)
-    deleteClicks.value = new Map(deleteClicks.value)
-    records.value = records.value.filter(r => r.id !== item.id)
-    saveRecords()
-  } else {
-    deleteClicks.value.set(item.id, cur + 1)
-    deleteClicks.value = new Map(deleteClicks.value)
-    clearTimeout(item.__deleteTimer)
-    item.__deleteTimer = setTimeout(() => {
-      deleteClicks.value.delete(item.id)
-      deleteClicks.value = new Map(deleteClicks.value)
-    }, 3000)
-  }
+  if (!deleteCfm.trigger(item.id)) return
+  blueprintsRepo.remove(item.id)
+  // 详情弹窗正打开着同一条 → 关闭，避免停留在一条已删除的记录上
+  if (detailRecord.value && String(detailRecord.value.id) === String(item.id)) closeDetail()
 }
 
 function copyCode(item) {
@@ -388,20 +364,44 @@ function closeDetail() {
   detailEditMode.value = false
   detailOriginal.value = null
 }
+// 以当前详情记录为基础新建：深拷贝为**完全独立**的新蓝图，随后直接在弹窗里编辑副本。
+// 副本与原记录互不影响（分组 / 字段 / 颜色 / 字号都各自独立）。
+function duplicateDetail() {
+  const rec = detailRecord.value
+  if (!rec || !rec.id) return
+  if (!cfm.trigger('duplicate')) return
+  const copy = duplicateBlueprint(rec)
+  blueprintsRepo.add(copy)
+  rememberGroup(copy.group)
+  const saved = blueprintsRepo.find(copy.id)
+  if (saved) {
+    detailOriginal.value = saved
+    detailRecord.value = { ...saved }
+    detailEditMode.value = true
+  }
+}
 function rememberGroup(name) {
   const v = String(name || '').trim()
   if (!v || groups.value.includes(v)) return
-  groups.value = [...groups.value, v]
-  saveGroups()
+  saveGroups([...groups.value, v])
 }
 function saveDetail() {
+  if (!cfm.trigger('save-detail')) return
   detailEditMode.value = false
   try {
-    if (detailOriginal.value) {
-      Object.assign(detailOriginal.value, detailRecord.value)
+    const rec = detailRecord.value
+    if (rec && rec.id) {
+      const patch = { ...rec }
+      delete patch.id
+      // 字号 / 颜色落库前规范化：空值与越界值不会写进历史记录
+      if ('fontSize' in patch) patch.fontSize = normalizeFontSize(patch.fontSize)
+      if ('color' in patch) patch.color = normalizeHex(patch.color)
+      blueprintsRepo.update(String(rec.id), patch)
+      // 保存后刷新弹窗与列表，避免弹窗停留在旧副本上（数据不同步）
+      const saved = blueprintsRepo.find(rec.id)
+      if (saved) { detailRecord.value = { ...saved }; detailOriginal.value = saved }
     }
-    rememberGroup(detailRecord.value.group)
-    saveRecords()
+    rememberGroup(rec?.group)
   } catch (e) {
     console.error('保存失败', e)
   }
@@ -511,4 +511,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   margin-right: 4px;
   vertical-align: middle;
 }
+
+/* ── 颜色：HEX 直填（非法值给出提示，不静默丢弃）── */
+.bp-hex {
+  width: 92px; height: 24px; padding: 0 6px;
+  border: 1px solid var(--border-color); background: var(--bg-primary);
+  color: var(--text-primary); font-family: monospace; font-size: 11px;
+}
+.bp-hex.invalid { border-color: #d00; color: #d00; }
 </style>

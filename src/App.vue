@@ -2,7 +2,7 @@
   <div class="rc-main-container" :class="[themeClass]">
     <!-- 标题栏 -->
     <div class="rc-title-bar">
-      <h2>代肝记录 · 客户管理</h2>
+      <h2>代肝工作终端 · TRANSPLANT RECORD</h2>
       <div class="rc-window-controls">
         <button class="rc-window-btn rc-btn-minimize" @click="minimize" title="最小化">─</button>
         <button class="rc-window-btn rc-btn-maximize" @click="maximize" :title="isMaximized ? '还原' : '最大化'">{{ isMaximized ? '❐' : '□' }}</button>
@@ -15,6 +15,8 @@
       <!-- 左侧窄侧边栏 -->
       <div class="rc-sub-sidebar">
         <div class="rc-sub-func-group">
+          <!-- 导航选中转换：工业橙标识条滑到当前页 -->
+          <span class="mv-nav-indicator" :style="navIndicatorStyle"></span>
           <button
             v-for="item in navItems"
             :key="item.key"
@@ -47,15 +49,12 @@
         </div>
       </div>
 
-      <!-- 右侧内容区 -->
+      <!-- 右侧内容区：按页面语义使用不同转场语法 -->
       <div class="rc-player-content">
-        <AccountPage v-if="activeTab === 'accounts'" />
-        <BlueprintPage v-else-if="activeTab === 'blueprints'" />
-        <WorkDiary v-else-if="activeTab === 'diary'" />
-        <AddPage v-else-if="activeTab === 'add'" />
-        <PricePage v-else-if="activeTab === 'prices'" />
-        <AdminPage v-else-if="activeTab === 'admin'" />
-        <SettingsPage v-else-if="activeTab === 'settings'" />
+        <Transition :name="pageTransition">
+          <component :is="currentPage" v-if="activeTab !== 'report'" :key="activeTab" />
+          <div v-else key="report-slot" class="rc-report-slot"></div>
+        </Transition>
         <!-- 每日汇报常驻渲染（v-show）：切换到其他页面不重建，保留多页内容 -->
         <ReportPage v-show="activeTab === 'report'" />
       </div>
@@ -118,6 +117,28 @@ const navItems = [
   },
 ]
 
+// ── 页面转场：按页面语义选择动效语法（列表 / 表单 / 文档 / 低频）──
+const pageComponents = {
+  accounts: AccountPage, blueprints: BlueprintPage, diary: WorkDiary,
+  add: AddPage, prices: PricePage, admin: AdminPage, settings: SettingsPage,
+}
+const currentPage = computed(() => pageComponents[activeTab.value] || null)
+const pageTransition = computed(() => {
+  const k = activeTab.value
+  if (k === 'accounts') return 'mv-page-list'
+  if (k === 'add') return 'mv-page-form'
+  if (k === 'prices' || k === 'admin' || k === 'blueprints') return 'mv-page-doc'
+  return 'mv-page-quiet'
+})
+
+// ── 导航选中转换：工业橙标识条滑动到当前页 ──
+const NAV_STEP = 56   // 按钮 40px + 间隙 16px
+const navIndicatorStyle = computed(() => {
+  const i = navItems.findIndex(x => x.key === activeTab.value)
+  if (i < 0) return { opacity: '0' }
+  return { opacity: '1', transform: `translateY(${i * NAV_STEP + 6}px)` }
+})
+
 // 提供给子组件的新增导航函数
 function navigateToAdd(type) {
   activeTab.value = 'add'
@@ -169,7 +190,9 @@ function onGlobalClick(e) {
 </script>
 
 <style>
+@import '@/assets/css/design-tokens.css';
 @import '@/assets/css/motion-tokens.css';
+@import '@/assets/css/motion-system.css';
 @import '@/assets/css/global-theme.css';
 @import '@/assets/css/page-common.css';
 
@@ -177,8 +200,8 @@ function onGlobalClick(e) {
 
 html, body, #app {
   width: 100vw; height: 100vh; overflow: hidden;
-  background: #121212; color: #fff;
-  font-family: "Microsoft YaHei", sans-serif;
+  background: var(--bg-primary); color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
 * { scrollbar-width: none; -ms-overflow-style: none; }
@@ -192,17 +215,28 @@ html, body, #app {
   color: var(--text-primary);
 }
 
-/* ── 标题栏 ── */
+/* ── 标题栏：工程编号 + 等宽字距（孤星风格） ── */
 .rc-title-bar {
+  position: relative;
   height: 32px;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px;
+  font-weight: 700; font-size: 12px;
   -webkit-app-region: drag;
-  background: var(--bg-primary);
+  background: var(--bg-sidebar);
+  color: var(--sb-fg);
   border-bottom: 2px solid var(--border-color);
   flex-shrink: 0;
 }
-.rc-title-bar h2 { margin: 0; font-size: 13px; }
+.rc-title-bar::before {
+  content: '';
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 14px; background: var(--accent);
+}
+.rc-title-bar h2 {
+  margin: 0; font-size: 12px;
+  font-family: var(--font-mono);
+  letter-spacing: 3px;
+}
 
 .rc-window-controls {
   position: absolute; right: 0; top: 0;
@@ -214,7 +248,7 @@ html, body, #app {
   border: none; background: transparent;
   cursor: pointer; font-size: 13px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-primary);
+  color: var(--sb-fg);
 }
 .rc-btn-minimize:hover,
 .rc-btn-maximize:hover,
@@ -240,6 +274,7 @@ html, body, #app {
   flex-shrink: 0;
 }
 .rc-sub-func-group {
+  position: relative;
   display: flex; flex-direction: column;
   align-items: center; gap: 16px; width: 100%;
 }
@@ -254,22 +289,24 @@ html, body, #app {
 }
 .rc-sub-divider {
   width: 80%; height: 2px;
-  background: var(--border-color);
+  background: var(--sb-line);
 }
 .rc-sub-func-btn {
   width: 40px; height: 40px;
-  border: 2px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  border: 2px solid var(--sb-line);
+  background: transparent;
+  color: var(--sb-fg);
   display: flex; align-items: center; justify-content: center;
   position: relative;
   transition: var(--motion-btn-hover) var(--motion-easing-ease);
   cursor: pointer; border-radius: 0; flex-shrink: 0;
 }
+/* 当前页标识条改由 mv-nav-indicator 滑动呈现（布局已迁移到 motion-system.css） */
 .rc-sub-func-btn:hover,
 .rc-sub-func-btn.active {
-  background: var(--btn-hover-bg);
-  color: var(--btn-hover-text);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
 .rc-sub-icon {
   width: 20px; height: 20px;
@@ -278,6 +315,8 @@ html, body, #app {
 
 /* ── 内容区域 ── */
 .rc-player-content {
-  flex: 1; overflow: hidden;
+  flex: 1; overflow: hidden; position: relative;
 }
+/* 每日汇报常驻渲染时，转场仍需一个单子元素占位 */
+.rc-report-slot { height: 0; overflow: hidden; }
 </style>

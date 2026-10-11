@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Lone Trail Design Tokens — 复古未来主义 / 航天工业 / 科研档案
+   （原创设计转化：色彩与排版语言取自航天科研机构视觉体系，
+     不使用任何游戏素材、Logo 或商业美术资源）
+
+   视觉语言要点：
+     · 深空蓝黑  + 航天暖白  + 工业橙  三色主体
+     · 零圆角、细线框、等宽数据标识、工程编号、留白与信息密度对比
+     · 华丽感来自排版 / 层级 / 线条 / 编号，而非发光、粒子、扫光
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 基础色板 ── */
+  --lt-space: #101923;      /* 深空蓝黑 */
+  --lt-cream: #E8E2D3;      /* 航天暖白 */
+  --lt-orange: #D87938;     /* 工业橙 */
+  --lt-alert: #A84238;      /* 警示红 */
+  --lt-gauge: #71818A;      /* 仪表灰蓝 */
+  --lt-paper: #EFE9DE;      /* 档案纸（暖白底） */
+  --lt-paper-2: #E4DDD0;    /* 档案纸（次级） */
+  --lt-ink: #141B22;        /* 墨色（正文） */
+
+  /* ── 语义色（浅色 / 档案模式）── */
+  --accent: var(--lt-orange);
+  --accent-ink: #101923;
+  --warn: var(--lt-alert);
+  --gauge: var(--lt-gauge);
+
+  /* ── 字体 ── */
+  --font-ui: "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono: "Fira Code", "Cascadia Code", Consolas, "Courier New", monospace;
+
+  /* ── 工程编号 / 数据标识 ── */
+  --tag-letter-spacing: 2px;
+  --tag-font-size: 10px;
+
+  /* ── 线条阶梯 ── */
+  --rule-hair: 1px;
+  --rule-line: 2px;
+  --rule-heavy: 3px;
+
+  /* ── 动效（与 motion-tokens.css 协同） ── */
+  --motion-frame: 0.34s;
+}
+
+/* 深色 / 航天终端模式 */
+.theme-dark {
+  --accent: var(--lt-orange);
+  --accent-ink: #101923;
+  --warn: #C4553F;
+  --gauge: #8B9AA3;
+}
+
+/* ── 通用装饰类 ────────────────────────────────────────────── */
+
+/* 工程编号：如 [A-01] */
+.lt-tag {
+  font-family: var(--font-mono);
+  font-size: var(--tag-font-size);
+  letter-spacing: var(--tag-letter-spacing);
+  opacity: 0.65;
+}
+
+/* 分节标题：左侧色条 + 等宽编号 */
+.lt-section {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--tag-font-size);
+  letter-spacing: var(--tag-letter-spacing);
+  opacity: 0.7;
+}
+.lt-section::before {
+  content: '';
+  width: 3px; height: 12px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* 仪表刻度线（静态装饰，用于分区之间） */
+.lt-ruler {
+  height: 6px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border-color) 0,
+    var(--border-color) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+  opacity: 0.35;
+}
+
+/* 强调边框（工业橙） */
+.lt-frame-accent { border-color: var(--accent) !important; }
+
+/* ── 动效 ────────────────────────────────────────────────── */
+
+/* 框架展开：页面/模块入场（细线扫开后内容归位） */
+@keyframes lt-frame-in {
+  0%   { opacity: 0; transform: translateY(6px); clip-path: inset(0 0 100% 0); }
+  60%  { opacity: 1; clip-path: inset(0 0 0 0); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 数据归位：数值/状态变化时的短暂强调（不阻塞交互） */
+@keyframes lt-settle {
+  0%   { background-color: rgba(216, 121, 56, 0.18); }
+  100% { background-color: transparent; }
+}
+
+.lt-enter { animation: lt-frame-in var(--motion-frame) var(--motion-easing-enter) both; }
+.lt-settle { animation: lt-settle var(--motion-duration-glacial) var(--motion-easing-ease-out); }
+
+/* 减少动态效果：尊重系统偏好，静态状态依然完整 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

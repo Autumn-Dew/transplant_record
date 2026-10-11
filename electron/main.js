@@ -8,6 +8,8 @@ const RECORDS_FILE = path.join(DATA_DIR, 'boosting-records.json')
 const BLUEPRINTS_FILE = path.join(DATA_DIR, 'blueprints.json')
 const WORKDIARY_FILE = path.join(DATA_DIR, 'workdiary.json')
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json')
+const COMPLETIONS_FILE = path.join(DATA_DIR, 'completions.json')
+const GAMES_FILE = path.join(DATA_DIR, 'games.json')
 
 // 单实例锁
 const gotTheLock = app.requestSingleInstanceLock()
@@ -215,6 +217,26 @@ ipcMain.handle('load-prices', async () => {
 
 ipcMain.handle('save-prices', async (_e, data) => {
   await saveJsonFile(PRICES_FILE, data)
+  return true
+})
+
+// 执行记录（历史事实，独立落盘）
+ipcMain.handle('load-completions', async () => {
+  return await loadJsonFile(COMPLETIONS_FILE, [])
+})
+
+ipcMain.handle('save-completions', async (_e, records) => {
+  await saveJsonFile(COMPLETIONS_FILE, records)
+  return true
+})
+
+// 游戏与服务项目目录
+ipcMain.handle('load-games', async () => {
+  return await loadJsonFile(GAMES_FILE, null)
+})
+
+ipcMain.handle('save-games', async (_e, data) => {
+  await saveJsonFile(GAMES_FILE, data)
   return true
 })
 

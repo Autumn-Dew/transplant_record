@@ -1,9 +1,9 @@
 import { computed, ref, watch } from 'vue'
-import { K_THEME } from '@/constants/storage-keys'
+import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
 
 const isDark = ref(false)
 
-const saved = localStorage.getItem(K_THEME)
+const saved = readJSON(KEYS.THEME, null)
 if (saved) {
   isDark.value = saved === 'dark'
 }
@@ -14,7 +14,7 @@ function syncTheme() {
 syncTheme()
 
 watch(isDark, (val) => {
-  localStorage.setItem(K_THEME, val ? 'dark' : 'light')
+  writeJSON(KEYS.THEME, val ? 'dark' : 'light')
   syncTheme()
 })
 

@@ -73,10 +73,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import html2canvas from 'html2canvas'
 import { usePrices } from '@/composables/usePrices.js'
+import { gamesRepo } from '@/data/repos.js'
+import { gameOptions as buildGameOptions } from '@/domain/games.js'
 import SelectBox from '@/components/SelectBox.vue'
+import { readShopForGame } from '@/data/shop-info.js'
 
 const { getGame } = usePrices()
 const game = ref('endfield')
@@ -86,23 +89,25 @@ const bgUrl = ref(null)
 const shopList = ref([])
 const shopHead = computed(() => shopList.value.filter(s => s.position !== 'tail'))
 const shopTail = computed(() => shopList.value.filter(s => s.position === 'tail'))
-const gameOptions = [{ value: 'endfield', label: '终末地' }, { value: 'ak', label: '明日方舟' }]
+// 游戏列表与「数据管理」共用同一份数据（游戏与服务），不再写死
+const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
 
-const SHOP_KEY = 'tr-shop-info'
 function loadShopInfo() {
+  // 店铺信息每个游戏独立（旧的全游戏共用数据会自动迁移：原内容复制给每个游戏）
   try {
-    const saved = JSON.parse(localStorage.getItem(SHOP_KEY) || 'null')
-    if (Array.isArray(saved)) {
-      shopList.value = saved
-    } else if (saved && typeof saved === 'object') {
-      shopList.value = [
-        { id: 'c1', label: '代肝联系方式', value: saved.contact || '', position: 'head' },
-        { id: 'c2', label: '代肝游戏名称', value: saved.gameName || '', position: 'head' },
-      ]
-    }
+    const { list } = readShopForGame(game.value, gameOptions.value.map(o => o.value))
+    shopList.value = Array.isArray(list) ? list : []
   } catch { /* ignore */ }
 }
-onMounted(loadShopInfo)
+onMounted(() => {
+  gamesRepo.hydrate()
+  // 当前游戏若已不在游戏列表里，回退到第一个可用游戏
+  const opts = gameOptions.value.filter(o => o.value && o.value !== 'all')
+  if (opts.length && !opts.some(o => o.value === game.value)) game.value = opts[0].value
+  loadShopInfo()
+})
+// 切换游戏时加载该游戏的店铺信息
+watch(game, loadShopInfo)
 
 const entered = ref(false)
 onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })

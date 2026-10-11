@@ -22,6 +22,10 @@ contextBridge.exposeInMainWorld("electron", {
   saveWorkDiary: (records) => ipcRenderer.invoke("save-workdiary", records),
   loadPrices: () => ipcRenderer.invoke("load-prices"),
   savePrices: (data) => ipcRenderer.invoke("save-prices", data),
+  loadCompletions: () => ipcRenderer.invoke("load-completions"),
+  saveCompletions: (records) => ipcRenderer.invoke("save-completions", records),
+  loadGames: () => ipcRenderer.invoke("load-games"),
+  saveGames: (data) => ipcRenderer.invoke("save-games", data),
 
   // 退出
   appQuit: () => ipcRenderer.send("app-quit"),

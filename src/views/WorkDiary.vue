@@ -43,7 +43,16 @@
       <div class="summary-strip">
         <span class="summary-chip">总记录 <strong>{{ records.length }}</strong></span>
         <span class="summary-chip">已完成 <strong>{{ completedCount }}</strong></span>
-        <span class="summary-chip">总收费 <strong>¥{{ totalFee }}</strong></span>
+        <span class="summary-chip">记录总收费 <strong>¥{{ totalFee }}</strong></span>
+        <span class="summary-chip">本月入账 <strong>¥{{ monthIncome }}</strong></span>
+      </div>
+
+      <!-- 收入统计：按每笔收费（订单）的归属日期归月 -->
+      <div class="income-strip" v-if="monthlyIncome.length">
+        <span class="income-title">收入统计</span>
+        <span v-for="m in monthlyIncome" :key="m.month" class="income-chip">
+          {{ m.month }} <strong>¥{{ m.total }}</strong><em>{{ m.count }} 笔</em>
+        </span>
       </div>
 
       <!-- 数据列表 -->
@@ -58,10 +67,15 @@
         >
           <div class="song-info">
             <div class="song-name">{{ item.displayName || getDisplayName(item) || '未命名' }}</div>
-            <div class="song-artist">{{ maskAccount(item.account) || '无账号' }} · {{ item.date }} {{ item.time || '' }}</div>
+            <div class="song-artist">{{ maskAccount(item.account) || '无账号' }} · {{ doneDate(item) }} {{ item.time || '' }}</div>
           </div>
 
-          <div class="col-fixed">{{ item.game || '终末地' }}</div>
+          <div class="col-fixed">{{ item.gameName || item.game || '—' }}</div>
+
+          <div class="col-fixed">
+            <span v-if="(item.result || 'done') === 'done'">已完成</span>
+            <span v-else class="fee-dim">{{ resultLabel(item) }}</span>
+          </div>
 
           <div class="col-fixed">
             <span v-if="item.service">{{ item.service }}</span>
@@ -106,13 +120,15 @@
           <h4>详细信息</h4>
           <div class="detail-grid">
             <p class="detail-section">基本信息</p>
-            <div class="detail-field"><span class="dl">游戏</span><span class="dv">{{ detailRecord.game || '终末地' }}</span></div>
+            <div class="detail-field"><span class="dl">游戏</span><span class="dv">{{ detailRecord.gameName || detailRecord.game || '—' }}</span></div>
             <div class="detail-field"><span class="dl">服务项目</span><span class="dv">{{ detailRecord.service || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">类型</span><span class="dv">{{ detailRecord.status === 2 ? '托管' : '单次' }}</span></div>
+            <div class="detail-field"><span class="dl">类型</span><span class="dv">{{ detailRecord.wasHosting ? '托管' : '单次' }}</span></div>
+            <div class="detail-field"><span class="dl">执行结果</span><span class="dv">{{ resultLabel(detailRecord) }}</span></div>
+            <div class="detail-field"><span class="dl">计划日期</span><span class="dv">{{ detailRecord.plannedDate || detailRecord.date || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">实际完成</span><span class="dv">{{ doneDate(detailRecord) }} {{ detailRecord.time || '' }}</span></div>
             <div class="detail-field"><span class="dl">账号</span><span class="dv">{{ detailRecord.account || '—' }}</span></div>
             <div class="detail-field"><span class="dl">密码</span><span class="dv">{{ detailRecord.password || '—' }}</span></div>
             <div class="detail-field"><span class="dl">收费</span><span class="dv">{{ detailRecord.fee ? '¥' + detailRecord.fee : '—' }}</span></div>
-            <div class="detail-field"><span class="dl">完成时间</span><span class="dv">{{ detailRecord.date }} {{ detailRecord.time || '' }}</span></div>
             <p class="detail-section">平台名称</p>
             <div class="detail-field"><span class="dl">首选</span><span class="dv">{{ detailRecord.preferredPlatform || '—' }}</span></div>
             <div class="detail-field"><span class="dl">微信</span><span class="dv">{{ detailRecord.wechatName || '—' }}</span></div>
@@ -136,11 +152,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRowSelect } from '@/composables/useRowSelect'
-import { playOvercharge } from '@/utils/sound'
+import { useConfirmClick } from '@/composables/useConfirmClick.js'
+import { maskAccount, getDisplayName } from '@/domain/mask.js'
+import { RESULT_LABEL } from '@/domain/completion.js'
+import { completionsRepo, projectsRepo } from '@/data/repos.js'
+import { revenueStats } from '@/services/projectService.js'
+import { todayLocal } from '@/utils/date.js'
 
-const STORAGE_KEY = 'tr-completions'
 const { isSelected, toggleSelect, selectLimit } = useRowSelect()
 
 // ══════ 入场动画 ══════
@@ -150,32 +170,13 @@ function staggerStyle(idx) {
   return { transitionDelay: (0.24 + idx * 0.023) + 's' }
 }
 
-// ══════ 工具函数 ══════
-function maskAccount(acct) {
-  if (!acct) return ''
-  const s = String(acct).replace(/\*/g, '')
-  if (s.length <= 2) return s
-  if (s.length <= 5) return s[0] + '***' + s[s.length - 1]
-  if (s.length <= 7) return s.slice(0, 2) + '***' + s.slice(-2)
-  return s.slice(0, 3) + '****' + s.slice(-4)
-}
-function getDisplayName(item) {
-  const order = ['wechat', 'qq', 'bilibili', 'xiaohongshu', 'douyin']
-  const map = { wechat: item.wechatName, qq: item.qqName, bilibili: item.bilibiliName, xiaohongshu: item.xiaohongshuName, douyin: item.douyinName }
-  if (item.preferredPlatform && map[item.preferredPlatform]) return map[item.preferredPlatform]
-  for (const p of order) { if (map[p]) return map[p] }
-  return map['wechat'] || ''
-}
+// ══════ 数据（统一经由 Repository）══════
+const records = completionsRepo.state
+onMounted(() => { completionsRepo.hydrate(); projectsRepo.hydrate() })
 
-// ══════ 数据持久化 ══════
-const records = ref([])
-function loadRecords() {
-  try { records.value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') } catch { records.value = [] }
-}
-function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records.value))
-}
-loadRecords()
+// 实际完成日期（v2）；兼容 v1 的 date 字段
+function doneDate(item) { return item.completedDate || item.date || '' }
+function resultLabel(item) { return RESULT_LABEL[item.result || 'done'] || '已完成' }
 
 // ══════ 搜索 ══════
 const searchQuery = ref('')
@@ -221,7 +222,7 @@ const filteredRecords = computed(() => {
       (r.game || '').toLowerCase().includes(q) ||
       String(r.service ?? '').includes(q) ||
       String(r.fee ?? '').includes(q) ||
-      (r.date || '').includes(q) ||
+      doneDate(r).includes(q) ||
       (r.note || '').toLowerCase().includes(q)
     ))
   }
@@ -232,8 +233,8 @@ const filteredRecords = computed(() => {
     if (ha !== hb) return ha - hb
     if (sortMode.value === 'fee') return (Number(b.fee) || 0) - (Number(a.fee) || 0)
     if (sortMode.value === 'game') return (a.game || '').localeCompare(b.game || '')
-    const da = (a.date || '') + (a.time || '')
-    const db = (b.date || '') + (b.time || '')
+    const da = doneDate(a) + (a.time || '')
+    const db = doneDate(b) + (b.time || '')
     return db.localeCompare(da)
   })
 })
@@ -242,38 +243,19 @@ const filteredRecords = computed(() => {
 const totalFee = computed(() => records.value.reduce((s, r) => s + (Number(r.fee) || 0), 0))
 const completedCount = computed(() => records.value.filter(r => r.status === 0).length)
 
-// ══════ 删除（4段保护：红→橙→紫→执行） ══════
-const DELETE_COLORS = { 1: '#ff4444', 2: '#ff8800', 3: '#aa44ff' }
-const deleteClicks = ref(new Map())
-function getDeleteStyle(id) {
-  const n = deleteClicks.value.get(id) || 0
-  if (n >= 1 && n <= 3) return { borderColor: DELETE_COLORS[n], color: DELETE_COLORS[n] }
-  return {}
-}
-function deleteTitle(id) {
-  const n = deleteClicks.value.get(id) || 0
-  if (n === 1) return '再次点击删除（2/4）'
-  if (n === 2) return '再次点击删除（3/4）'
-  if (n === 3) return '最后一次点击删除（4/4）'
-  return '删除'
-}
+// ══════ 收入统计（收入在这里统计）══════
+// 口径：每一笔收费（订单）独立，按「收费归属日期」归月；
+//       与执行记录里的金额快照（记录总收费）互不干扰。
+const monthIncome = computed(() => revenueStats({ month: todayLocal().slice(0, 7) }).total)
+const monthlyIncome = computed(() => revenueStats().byMonth)
+
+// ══════ 删除（多次点击保护，机制见 composables/useConfirmClick） ══════
+const deleteCfm = useConfirmClick()
+function getDeleteStyle(id) { return deleteCfm.styleOf(id) }
+function deleteTitle(id) { return deleteCfm.titleOf(id, '删除') }
 function handleDelete(item) {
-  const cur = deleteClicks.value.get(item.id) || 0
-  playOvercharge(cur)
-  if (cur >= 3) {
-    deleteClicks.value.delete(item.id)
-    deleteClicks.value = new Map(deleteClicks.value)
-    records.value = records.value.filter(r => r.id !== item.id)
-    saveRecords()
-  } else {
-    deleteClicks.value.set(item.id, cur + 1)
-    deleteClicks.value = new Map(deleteClicks.value)
-    clearTimeout(item.__deleteTimer)
-    item.__deleteTimer = setTimeout(() => {
-      deleteClicks.value.delete(item.id)
-      deleteClicks.value = new Map(deleteClicks.value)
-    }, 3000)
-  }
+  if (!deleteCfm.trigger(item.id)) return
+  completionsRepo.remove(item.id)
 }
 
 // ══════ 详细信息弹窗 ══════
@@ -290,6 +272,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <style scoped>
 .fee-dim { opacity: 0.35; }
+/* ── 收入统计 ── */
+.income-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
+.income-title { font-family: monospace; font-size: 11px; opacity: 0.5; letter-spacing: 1px; }
+.income-chip {
+  font-family: monospace; font-size: 11px; padding: 2px 8px;
+  border: 1px solid var(--border-color); opacity: 0.85;
+}
+.income-chip strong { font-weight: 800; }
+.income-chip em { font-style: normal; opacity: 0.55; margin-left: 4px; font-size: 10px; }
 .song-info { flex: 1.4; }
 .song-actions { margin-left: 4px; flex-shrink: 0; }
 .song-item { box-shadow: inset 18px 0 14px -14px var(--bar-top, rgba(128,128,128,0.35)); }

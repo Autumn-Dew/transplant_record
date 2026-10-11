@@ -1,9 +1,9 @@
 import { ref, watch } from 'vue'
+import { KEYS, readJSON, writeJSON } from '../data/storage.js'
 
 // 全局共享的「最多可选中数量」X（所有记录页共用同一个值）
-const LIMIT_KEY = 'tr-select-limit'
 function loadLimit() {
-  const n = Number(localStorage.getItem(LIMIT_KEY))
+  const n = Number(readJSON(KEYS.SELECT_LIMIT, 3))
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 3
 }
 
@@ -12,7 +12,7 @@ const selectLimit = ref(loadLimit())
 watch(selectLimit, (v) => {
   const n = Math.max(1, Math.floor(Number(v) || 1))
   if (n !== selectLimit.value) selectLimit.value = n
-  try { localStorage.setItem(LIMIT_KEY, String(n)) } catch { /* ignore */ }
+  writeJSON(KEYS.SELECT_LIMIT, n)
 })
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "boosting-record",
   "private": true,
-  "version": "1.0.42",
+  "version": "1.0.43",
   "productName": "代肝记录",
   "description": "一站式代肝工具",
   "author": "AutumnDew",
@@ -11,7 +11,9 @@
     "build": "vite build",
     "electron": "electron .",
     "start": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron -- --dev\"",
-    "pack": "vite build && electron-builder"
+    "pack": "vite build && electron-builder",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "ui:smoke": "electron tools/ui-smoke.cjs"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",

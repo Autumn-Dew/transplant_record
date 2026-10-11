@@ -58,7 +58,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useConfirmClick } from '@/composables/useConfirmClick.js'
 
 const entered = ref(false)
 onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
@@ -80,36 +81,21 @@ async function toggleAutoLaunch() {
   }
 }
 
-// 清除数据（4段保护）
-const clearClicks = ref(0)
-const CLEAR_COLORS = { 1: '#ff4444', 2: '#ff8800', 3: '#aa44ff' }
-const clearStyle = computed(() => {
-  if (clearClicks.value >= 1 && clearClicks.value <= 3) return { borderColor: CLEAR_COLORS[clearClicks.value], color: CLEAR_COLORS[clearClicks.value] }
-  return {}
-})
-const clearLabel = computed(() => {
-  if (clearClicks.value === 1) return '再次点击清除（2/4）'
-  if (clearClicks.value === 2) return '再次点击清除（3/4）'
-  if (clearClicks.value === 3) return '最后一次点击执行（4/4）'
-  return '清除所有数据'
-})
-let clearTimer = null
+// 清除数据（多次点击保护，机制见 composables/useConfirmClick）
+const clearCfm = useConfirmClick()
+const clearStyle = computed(() => clearCfm.styleOf('clear-data'))
+const clearLabel = computed(() => clearCfm.titleOf('clear-data', '清除'))
 function handleClearData() {
-  if (clearClicks.value >= 3) {
-    // 清除所有 tr- 开头的 localStorage 键
-    Object.keys(localStorage).filter(k => k.startsWith('tr-')).forEach(k => localStorage.removeItem(k))
-    // 也清除 Electron 持久化文件
-    window.electron?.saveRecords?.([])
-    window.electron?.saveBlueprints?.([])
-    window.electron?.saveWorkDiary?.([])
-    clearClicks.value = 0
-    clearTimer && clearTimeout(clearTimer)
-    location.reload()
-    return
-  }
-  clearClicks.value++
-  clearTimer && clearTimeout(clearTimer)
-  clearTimer = setTimeout(() => { clearClicks.value = 0 }, 3000)
+  if (!clearCfm.trigger('clear-data')) return
+  // 清除所有 tr- 开头的 localStorage 键
+  Object.keys(localStorage).filter(k => k.startsWith('tr-')).forEach(k => localStorage.removeItem(k))
+  // 也清除 Electron 持久化文件
+  window.electron?.saveRecords?.([])
+  window.electron?.saveBlueprints?.([])
+  window.electron?.saveWorkDiary?.([])
+  window.electron?.saveCompletions?.([])
+  window.electron?.saveGames?.([])
+  location.reload()
 }
 
 function quitApp() {

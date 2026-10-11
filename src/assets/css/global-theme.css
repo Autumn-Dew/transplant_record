@@ -1,28 +1,35 @@
-/* 全局主题颜色变量 */
+/* 全局主题颜色变量 — 孤星（Lone Trail）视觉体系
+   浅色 = 航天档案纸（暖白底 + 墨色字 + 工业橙强调）
+   深色 = 深空蓝黑终端                                                */
 :root {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f8f8;
-    --bg-sidebar: #ffffff;
-    --text-primary: #000000;
-    --border-color: #000000;
-    --btn-hover-bg: #000000;
-    --btn-hover-text: #ffffff;
-    --disabled-bg: #e0e0e0;
-    --disabled-text: #999999;
-    --disabled-border: #cccccc;
+    --bg-primary: #EFE9DE;
+    --bg-secondary: #E4DDD0;
+    --bg-sidebar: #101923;
+    --text-primary: #141B22;
+    --border-color: #101923;
+    --btn-hover-bg: #101923;
+    --btn-hover-text: #E8E2D3;
+    --disabled-bg: #D8D1C4;
+    --disabled-text: #8B857A;
+    --disabled-border: #B9B2A5;
+    /* 侧边栏（深空蓝黑）上的前景色 */
+    --sb-fg: #E8E2D3;
+    --sb-line: rgba(232, 226, 211, 0.35);
 }
 
 .theme-dark {
-    --bg-primary: #2c2c2c;
-    --bg-secondary: #292929;
-    --bg-sidebar: #333333;
-    --text-primary: #ffffff;
-    --border-color: #ffffff;
-    --btn-hover-bg: #ffffff;
-    --btn-hover-text: #000000;
-    --disabled-bg: #3a3a3a;
-    --disabled-text: #666666;
-    --disabled-border: #4a4a4a;
+    --bg-primary: #101923;
+    --bg-secondary: #17222E;
+    --bg-sidebar: #0B121A;
+    --text-primary: #E8E2D3;
+    --border-color: #E8E2D3;
+    --btn-hover-bg: #E8E2D3;
+    --btn-hover-text: #101923;
+    --disabled-bg: #223040;
+    --disabled-text: #6E7C86;
+    --disabled-border: #33465A;
+    --sb-fg: #E8E2D3;
+    --sb-line: rgba(232, 226, 211, 0.3);
 }
 
 /* 全局禁用按钮 */

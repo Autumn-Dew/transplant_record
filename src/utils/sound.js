@@ -1,6 +1,9 @@
 // 按钮音效工具
 // 路径用 import.meta.env.BASE_URL 拼接：dev=「/」，打包(file://)=「./」，两者都能取到 public 下的音频
-const BASE = import.meta.env.BASE_URL || './'
+// 注意：非 Vite 环境（如 node 下跑测试）没有 import.meta.env，必须容错，否则整个模块加载就会抛错。
+const BASE = (import.meta.env && import.meta.env.BASE_URL) || './'
+// 非浏览器环境（无 Audio）直接跳过播放，调用方无需判断
+const HAS_AUDIO = typeof Audio !== 'undefined'
 
 // 「四次点击才生效」按钮的逐层音效（第 1、2、3、4 次点击）
 export const OVERCHARGE_SFX = [
@@ -15,9 +18,6 @@ export const SINGLE_SFX = 'pr_basic_getmana_pr_58.wav'
 
 // 全局开关（如需静音可复用）
 let enabled = true
-export function setSfxEnabled(v) { enabled = !!v }
-export function isSfxEnabled() { return enabled }
-
 const cache = new Map()
 function getAudio(name) {
   let a = cache.get(name)
@@ -31,7 +31,7 @@ function getAudio(name) {
 
 // 播放指定音效（失败静默，绝不打断交互）
 export function playSfx(name) {
-  if (!enabled || !name) return
+  if (!enabled || !name || !HAS_AUDIO) return
   try {
     const a = getAudio(name)
     try { a.currentTime = 0 } catch { /* 尚未元数据加载完成 */ }

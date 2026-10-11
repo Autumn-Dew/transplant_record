@@ -3,7 +3,9 @@
    所有页面组件共享此文件中的样式。
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── 页面容器 ── */
+/* ── 页面容器 ──
+   默认可见：入场动效由 `.entered` 触发的 animation 增强，
+   绝不把「是否可见」交给 JS 状态（否则一旦动画被阻断会整页不可见）。 */
 .local-music {
   width: 100%;
   height: 100%;
@@ -12,28 +14,34 @@
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  opacity: 0;
-  transition: opacity 0.25s ease;
 }
 .local-music::-webkit-scrollbar { display: none; }
-.local-music.entered { opacity: 1; }
+.local-music.entered { animation: mv-page-enter var(--mv-stage, 0.38s) var(--mv-ease-mech, ease-out); }
 
-/* ── Header ── */
+/* ── Header（孤星风格：工业橙标识条 + 细线分隔 + 等宽副标题） ── */
 .local-header {
-  padding: 16px;
+  padding: 16px 16px 12px 22px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 2px solid transparent;
+  border-bottom: 1px solid var(--border-color);
   position: relative;
 }
+.local-header::before {
+  content: '';
+  position: absolute; left: 8px; top: 18px; width: 3px; height: 20px;
+  background: var(--accent);
+}
 .local-header h2 {
-  font-size: 20px;
+  font-size: 19px;
   margin: 0 0 4px;
+  letter-spacing: 1.5px;
 }
 .desc {
-  font-size: 12px;
-  opacity: .7;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.4px;
+  opacity: .6;
 }
 /* 颜色图例 */
 .legend {
@@ -804,3 +812,27 @@
 .local-music.entered .local-toolbar::after,
 .local-music.entered .folder-strip::after,
 .local-music.entered .summary-strip::after { transform: scaleX(1); }
+
+/* ══════════════════════════════════════════════════════════════════
+   编辑弹窗统一为「侧边抽屉」：与项目详情窗口保持一致的弹出方式
+   （结构、交互、字段均不变，仅版式由居中改为右侧滑出）
+   ══════════════════════════════════════════════════════════════════ */
+.modal-mask {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+}
+.modal-mask .edit-popup {
+  width: 560px;
+  max-width: 94vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  border-radius: 0;
+  overflow-y: auto;
+  animation: drawer-slide-in var(--motion-duration-normal, 180ms) var(--motion-easing-ease, ease) both;
+}
+@keyframes drawer-slide-in {
+  from { transform: translateX(28px); opacity: 0.35; }
+  to { transform: translateX(0); opacity: 1; }
+}

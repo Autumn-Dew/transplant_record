@@ -28,6 +28,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span>新增</span>
         </button>
+        <span class="view-tabs view-switch">
+          <span class="tl-entry-btn" :class="{ active: view === 'all' }" @click="view = 'all'">全部</span>
+          <span class="tl-entry-btn" :class="{ active: view === 'todo' }" @click="view = 'todo'">代办</span>
+        </span>
         <span class="view-tabs">
           <span class="tl-entry-btn" :class="{ active: sortMode === 'hosting' }" @click="setSortMode('hosting')">托管</span>
           <span class="tl-entry-btn" :class="{ active: sortMode === 'time' }" @click="setSortMode('time')">时间</span>
@@ -46,8 +50,9 @@
         </div>
       </div>
 
+
       <!-- 统计概览 -->
-      <div class="summary-strip">
+      <div class="summary-strip" v-if="view === 'all' || view === 'todo'">
         <span class="summary-chip">总记录 <strong>{{ activeRecords.length }}</strong></span>
         <span class="summary-chip">未完成 <strong>{{ pendingCount }}</strong></span>
         <span class="summary-chip">托管中 <strong>{{ hostingCount }}</strong></span>
@@ -55,15 +60,15 @@
       </div>
 
       <!-- 游戏筛选 -->
-      <div class="folder-strip" v-if="gameChips.length > 1">
+      <div class="folder-strip" v-if="view === 'all' && gameChips.length > 1">
         <span class="folder-chip" :class="{ active: gameFilter === '' }" @click="gameFilter = ''">全部 <span class="folder-count">{{ activeRecords.length }}</span></span>
         <span v-for="chip in gameChips" :key="chip.name" class="folder-chip" :class="{ active: gameFilter === chip.name }" @click="gameFilter = chip.name">{{ chip.name }} <span class="folder-count">{{ chip.count }}</span></span>
       </div>
 
       <!-- 数据列表 -->
-      <div class="song-list" :key="listKey">
+      <div class="song-list" :key="listKey" v-if="view === 'all' || view === 'todo'">
         <div
-          v-for="(item, idx) in filteredRecords"
+          v-for="(item, idx) in visibleRecords"
           :key="item.id"
           class="song-item"
           :class="{ dimmed: isGrayed(item), hosting: item.status === 2, selected: isSelected(item.id) }"
@@ -75,7 +80,7 @@
             <div class="song-artist">{{ maskAccount(item.account) || '无账号' }}</div>
           </div>
 
-          <div class="col-fixed">{{ item.game || '终末地' }}</div>
+          <div class="col-fixed">{{ item.gameName || item.game || '—' }}</div>
 
           <div class="col-fixed">
             <span v-if="item.service">{{ item.service }}</span>
@@ -85,8 +90,8 @@
           <div class="col-fixed">
             <span v-if="isLocked(item)">待激活</span>
             <span v-else-if="isConfirmedToday(item)">今日已确认</span>
-            <span v-else-if="item.remainingDays != null && item.remainingDays !== ''">{{ item.remainingDays }}次</span>
-            <span v-else-if="item.status === 2">托管</span>
+            <span v-else-if="item.state === 'paused'">暂停中</span>
+            <span v-else-if="isHosting(item)">{{ hostProgress(item).completed }}/{{ hostProgress(item).planned }}次</span>
             <span v-else>单次</span>
           </div>
 
@@ -118,9 +123,13 @@
               data-sfx-overcharge
               @click.stop="handleDelete(item)"
               :style="getDeleteStyle(item.id)"
-              :title="deleteTitle(item.id)"
+              :title="deleteTitle(item)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M10 11v6M14 11v6M5 6h14v14a2 2 0 012 2H7a2 2 0 01-2-2V6z"/></svg>
+            </button>
+            <button class="song-btn" @click.stop="todaySkip(item)" :style="getActionStyle('skip', item)" :title="actionTitle('skip', item)">
+              <!-- 跳过今天：图像图标（三角 + 竖线），不再用符号 -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l10 7-10 7V5z" /><path d="M19 5v14" /></svg>
             </button>
           </div>
         </div>
@@ -136,104 +145,18 @@
         </div>
       </div>
 
-      <!-- 详细信息弹窗 -->
-      <div class="modal-mask" v-if="showDetail" @click.self="closeDetail">
-        <div class="edit-popup">
-          <h4>详细信息</h4>
-          <div class="detail-grid">
-            <p class="detail-section">基本信息</p>
-            <div class="detail-field"><span class="dl">游戏</span>
-              <SelectBox v-if="detailEditMode" style="flex:1" v-model="detailRecord.game" :options="gameOptions" />
-              <span class="dv" v-else>{{ detailRecord.game || '终末地' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">服务项目</span>
-              <input v-if="detailEditMode" v-model="detailRecord.service" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.service || '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">类型</span>
-              <SelectBox v-if="detailEditMode" style="flex:1" v-model="detailRecord.status" :options="typeOptions" />
-              <span class="dv" v-else>{{ detailRecord.status === 2 ? '托管' : '单次' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">创建时间</span>
-              <input v-if="detailEditMode" type="datetime-local" v-model="editCreatedAt" class="form-select" />
-              <span class="dv" v-else>{{ formatTime(detailRecord.createdAt) }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">账号</span>
-              <template v-if="detailEditMode">
-                <input v-model="detailRecord.account" class="form-select" :type="showAccount ? 'text' : 'password'" />
-                <button class="pwd-toggle" @click="showAccount = !showAccount">{{ showAccount ? '隐藏' : '显示' }}</button>
-              </template>
-              <span class="dv" v-else :class="{ copyable: detailRecord.account }" @click="copyText(detailRecord.account)" :title="detailRecord.account ? '点击复制' : ''">{{ maskAccount(detailRecord.account) || '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">密码</span>
-              <template v-if="detailEditMode">
-                <input v-model="detailRecord.password" class="form-select" :type="showPassword ? 'text' : 'password'" />
-                <button class="pwd-toggle" @click="showPassword = !showPassword">{{ showPassword ? '隐藏' : '显示' }}</button>
-              </template>
-              <span class="dv" v-else :class="{ copyable: detailRecord.password }" @click="copyText(detailRecord.password)" :title="detailRecord.password ? '点击复制' : ''">{{ detailRecord.password ? '••••••' : '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">状态</span><span class="dv">{{ detailRecord.status === 0 ? '已完成' : detailRecord.status === 2 ? '托管中' : '未完成' }}</span></div>
-            <div class="detail-field"><span class="dl">收费</span>
-              <input v-if="detailEditMode" type="number" v-model="detailRecord.totalFee" class="form-select" placeholder="总收费" />
-              <span class="dv" v-else>{{ detailRecord.actualFee || detailRecord.totalFee ? '¥' + (detailRecord.actualFee || detailRecord.totalFee) : '—' }}</span>
-            </div>
-            <template v-if="detailRecord.status === 2">
-              <div class="detail-field"><span class="dl">剩余次数</span>
-                <input v-if="detailEditMode" type="number" v-model="detailRecord.remainingDays" class="form-select" />
-                <span class="dv" v-else>{{ detailRecord.remainingDays != null ? detailRecord.remainingDays : '—' }}</span>
-              </div>
-              <div class="detail-field" v-if="detailRecord.lastConfirmDate"><span class="dl">上次确认</span><span class="dv">{{ detailRecord.lastConfirmDate }}</span></div>
-            </template>
-            <p class="detail-section">平台名称</p>
-            <div class="detail-field"><span class="dl">首选</span>
-              <SelectBox v-if="detailEditMode" style="flex:1" v-model="detailRecord.preferredPlatform" :options="platformOptions" />
-              <span class="dv" v-else>{{ detailRecord.preferredPlatform || 'wechat' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">微信</span>
-              <input v-if="detailEditMode" v-model="detailRecord.wechatName" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.wechatName || '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">QQ</span>
-              <input v-if="detailEditMode" v-model="detailRecord.qqName" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.qqName || '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">B站</span>
-              <input v-if="detailEditMode" v-model="detailRecord.bilibiliName" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.bilibiliName || '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">小红书</span>
-              <input v-if="detailEditMode" v-model="detailRecord.xiaohongshuName" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.xiaohongshuName || '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">抖音</span>
-              <input v-if="detailEditMode" v-model="detailRecord.douyinName" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.douyinName || '—' }}</span>
-            </div>
-            <p class="detail-section">费用</p>
-            <div class="detail-field"><span class="dl">总收费</span>
-              <input v-if="detailEditMode" type="number" v-model="detailRecord.totalFee" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.totalFee ? '¥' + detailRecord.totalFee : '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">实际收费</span>
-              <input v-if="detailEditMode" type="number" v-model="detailRecord.actualFee" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.actualFee ? '¥' + detailRecord.actualFee : '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">延后收费</span>
-              <input v-if="detailEditMode" type="number" v-model="detailRecord.delayedFee" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.delayedFee ? '¥' + detailRecord.delayedFee : '—' }}</span>
-            </div>
-            <div class="detail-field"><span class="dl">备注</span>
-              <input v-if="detailEditMode" v-model="detailRecord.note" class="form-select" />
-              <span class="dv" v-else>{{ detailRecord.note || '—' }}</span>
-            </div>
-          </div>
-          <div class="edit-actions" style="margin-top:16px">
-            <button v-if="!detailEditMode" class="save-btn" @click="detailEditMode = true">编辑</button>
-            <button v-else class="save-btn" @click="saveDetail">保存</button>
-            <button class="cancel-btn" @click="closeDetail">{{ detailEditMode ? '取消' : '关闭' }}</button>
-          </div>
-        </div>
-      </div>
+      <!-- 项目详情：与「代肝记录」同一套弹窗版式（实现见 components/ProjectDetail.vue） -->
+      <ProjectDetail
+        v-if="detail"
+        :detail="detail"
+        :game-options="gameOptions"
+        @close="closeDetail"
+        @save="onDetailSave"
+        @archive="onDetailArchive"
+        @restore="onDetailRestore"
+        @add-period="onDetailAddPeriod"
+        @remove="onDetailRemove"
+      />
     </div>
   </div>
 </template>
@@ -242,24 +165,31 @@
 export default { name: 'AccountPage' }
 </script>
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useEditState } from '@/composables/useEditState'
 import { useRowSelect } from '@/composables/useRowSelect'
-import { maskAccount, getDisplayName } from '@/composables/useMask'
-import { monthSpanDays } from '@/utils/date'
-import { playOvercharge } from '@/utils/sound'
-import SelectBox from '@/components/SelectBox.vue'
+import { useConfirmClick } from '@/composables/useConfirmClick.js'
+import { maskAccount, getDisplayName, PLATFORM_OPTIONS } from '@/domain/mask.js'
+import { RESULT } from '@/domain/completion.js'
+import { confirmExecution, todayTaskItems } from '@/services/projectService.js'
+import ProjectDetail from '@/components/ProjectDetail.vue'
+import { projectsRepo, gamesRepo } from '@/data/repos.js'
+import { completeTaskById } from '@/utils/taskComplete.js'
+import {
+  updateProject, archiveProject, hardDeleteProject, canHardDelete,
+  restoreProject, addHostingPeriod,
+} from '@/services/projectService.js'
+import { buildProjectDetail } from '@/services/projectDetail.js'
+import { gameOptions as buildGameOptions } from '@/domain/games.js'
+import { isHosting, hostProgress, isClosed, STATE_LABEL } from '@/domain/project.js'
 
 const navigateToAdd = inject('navigateToAdd')
 const { startAdd } = useEditState()
 
-// 下拉选项
-const gameOptions = [{ value: '终末地', label: '终末地' }, { value: '明日方舟', label: '明日方舟' }]
+// 下拉选项：游戏来自「游戏管理」目录（新增游戏后自动出现）
+const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
 const typeOptions = [{ value: 1, label: '单次' }, { value: 2, label: '托管' }]
-const platformOptions = [
-  { value: 'wechat', label: '微信' }, { value: 'qq', label: 'QQ' }, { value: 'bilibili', label: 'B站' },
-  { value: 'xiaohongshu', label: '小红书' }, { value: 'douyin', label: '抖音' },
-]
+const platformOptions = PLATFORM_OPTIONS
 
 // ══════ 入场动画 ══════
 const entered = ref(false)
@@ -269,33 +199,10 @@ function staggerStyle(idx) {
   return { transitionDelay: (base + idx * interval) + 's' }
 }
 
-// ══════ 数据持久化 ══════
-const STORAGE_KEY = 'tr-accounts'
+// ══════ 数据（统一经由 Repository，页面不再直接读写 localStorage）══════
 const { isSelected, toggleSelect, selectLimit } = useRowSelect()
-const records = ref([])
-function loadRecords() {
-  try { records.value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') } catch { records.value = [] }
-}
-function saveRecords() {
-  const plain = JSON.parse(JSON.stringify(records.value))
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plain))
-  try { window.electron?.saveRecords?.(plain) } catch { /* ignore */ }
-}
-loadRecords()
-onMounted(async () => {
-  // 仅首次/无本地数据时从 Electron 加载
-  if (!records.value.length) {
-    try { const d = await window.electron?.loadRecords?.(); if (d?.length) { records.value = d; saveRecords() } } catch {}
-  }
-})
-
-// 其它页面（每日汇报）确认完成后通知本页刷新
-function onAccountsChanged() {
-  loadRecords()
-  records.value = [...records.value]
-}
-onMounted(() => window.addEventListener('tr-accounts-changed', onAccountsChanged))
-onUnmounted(() => window.removeEventListener('tr-accounts-changed', onAccountsChanged))
+const records = projectsRepo.state
+onMounted(() => { projectsRepo.hydrate() })
 
 // ══════ 工具函数（maskAccount / getDisplayName 见 @/composables/useMask）══════
 function formatTime(iso) {
@@ -304,132 +211,43 @@ function formatTime(iso) {
   const p = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-function toDatetimeLocal(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const p = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
-}
 
-// ══════ 确认完成（4段保护） ══════
-const confirmClicks = ref(new Map())
-const confirmTimers = new Map()
-const CONFIRM_COLORS = { 1: '#ff4444', 2: '#ff8800', 3: '#aa44ff' }
-function getConfirmStyle(id) {
-  const n = confirmClicks.value.get(id) || 0
-  if (n >= 1 && n <= 3) return { borderColor: CONFIRM_COLORS[n], color: CONFIRM_COLORS[n] }
-  return {}
-}
-function confirmTitle(id) {
-  const n = confirmClicks.value.get(id) || 0
-  if (n === 1) return '再次点击确认（2/4）'
-  if (n === 2) return '再次点击确认（3/4）'
-  if (n === 3) return '最后一次点击执行（4/4）'
-  return '确认完成'
-}
+// ══════ 确认完成（多次点击保护：连点 4 次生效，机制见 composables/useConfirmClick） ══════
+const confirmCfm = useConfirmClick()
+function getConfirmStyle(id) { return confirmCfm.styleOf(id) }
 function confirmButtonTitle(item) {
   if (isLocked(item)) return '上一托管未完成，暂不可确认'
   if (isConfirmedToday(item)) return '今日已确认，明日可再次确认'
-  return confirmTitle(item.id)
+  return confirmCfm.titleOf(item.id, '确认完成')
 }
 
 function handleConfirm(item) {
-  const id = item.id
-  const cur = confirmClicks.value.get(id) || 0
-  playOvercharge(cur)
-  if (cur >= 3) {
-    confirmClicks.value.delete(id)
-    if (confirmTimers.has(id)) { clearTimeout(confirmTimers.get(id)); confirmTimers.delete(id) }
-    confirmClicks.value = new Map(confirmClicks.value)
-    executeConfirm(item)
-  } else {
-    confirmClicks.value.set(id, cur + 1)
-    confirmClicks.value = new Map(confirmClicks.value)
-    if (confirmTimers.has(id)) clearTimeout(confirmTimers.get(id))
-    confirmTimers.set(id, setTimeout(() => {
-      confirmClicks.value.delete(id)
-      confirmClicks.value = new Map(confirmClicks.value)
-      confirmTimers.delete(id)
-    }, 3000))
-  }
+  if (!confirmCfm.trigger(item.id)) return
+  executeConfirm(item)
 }
 
-function addCompletion(record, wasHosting) {
-  const list = JSON.parse(localStorage.getItem('tr-completions') || '[]')
-  list.unshift({
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    taskId: record.id,
-    date: new Date().toISOString().slice(0, 10),
-    time: new Date().toTimeString().slice(0, 8),
-    game: record.game,
-    service: record.service || '',
-    account: record.account,
-    displayName: getDisplayName(record),
-    wechatName: record.wechatName || '', qqName: record.qqName || '',
-    bilibiliName: record.bilibiliName || '', xiaohongshuName: record.xiaohongshuName || '', douyinName: record.douyinName || '',
-    preferredPlatform: record.preferredPlatform || 'wechat',
-    fee: record.actualFee || record.totalFee || '',
-    totalFee: record.totalFee || '', actualFee: record.actualFee || '', delayedFee: record.delayedFee || '',
-    status: record.status || 1,
-    wasHosting: !!wasHosting,
-    note: record.note || '',
-    password: record.password || '',
-  })
-  localStorage.setItem('tr-completions', JSON.stringify(list))
-}
-
+// 确认完成：统一走 service / repository
+//   * 每次实际执行都会生成一条独立的执行记录（不再只在最后一天记录）
+//   * 托管次数用尽自动完成，并解锁续费项目
 function executeConfirm(item) {
-  const wasHosting = item.status === 2
-  const fallback = wasHosting ? monthSpanDays(item.createdAt) : 1
-  const cur = (item.remainingDays != null && item.remainingDays !== '') ? Number(item.remainingDays) : fallback
-  item.remainingDays = cur - 1
-  item.lastConfirmDate = todayStr.value
-  if (item.remainingDays <= 0) {
-    item.status = 0
-    addCompletion(item, wasHosting)
-    // 解锁续费项目：上一项目完成 → 直接后继可确认
-    records.value.forEach(r => { if (r.locked && r.prevTaskId === item.id) r.locked = false })
-  }
-  saveRecords()
-  // 替换数组引用，强制 filteredRecords / 排序重算（让灰显项立即沉底）
-  records.value = [...records.value]
+  completeTaskById(item.id)
 }
 
-// ══════ 删除（4段保护） ══════
-const deleteClicks = ref(new Map())
-const deleteTimers = new Map()
-function getDeleteStyle(id) {
-  const n = deleteClicks.value.get(id) || 0
-  if (n >= 1 && n <= 3) return { borderColor: CONFIRM_COLORS[n], color: CONFIRM_COLORS[n] }
-  return {}
+// ══════ 删除（多次点击保护） ══════
+const deleteCfm = useConfirmClick()
+function getDeleteStyle(id) { return deleteCfm.styleOf(id) }
+// 有历史执行记录或被续费引用的项目一律「归档」，其余才物理删除
+function deleteAction(item) {
+  return canHardDelete(item.id).ok ? '删除' : '归档（保留历史记录）'
 }
-function deleteTitle(id) {
-  const n = deleteClicks.value.get(id) || 0
-  if (n === 1) return '再次点击删除（2/4）'
-  if (n === 2) return '再次点击删除（3/4）'
-  if (n === 3) return '最后一次点击删除（4/4）'
-  return '删除'
+function deleteTitle(item) { return deleteCfm.titleOf(item.id, deleteAction(item)) }
+function removeRecord(item) {
+  if (canHardDelete(item.id).ok) hardDeleteProject(item.id)
+  else archiveProject(item.id)
 }
 function handleDelete(item) {
-  const id = item.id
-  const cur = deleteClicks.value.get(id) || 0
-  playOvercharge(cur)
-  if (cur >= 3) {
-    deleteClicks.value.delete(id)
-    if (deleteTimers.has(id)) { clearTimeout(deleteTimers.get(id)); deleteTimers.delete(id) }
-    deleteClicks.value = new Map(deleteClicks.value)
-    records.value = records.value.filter(r => r.id !== id)
-    saveRecords()
-  } else {
-    deleteClicks.value.set(id, cur + 1)
-    deleteClicks.value = new Map(deleteClicks.value)
-    if (deleteTimers.has(id)) clearTimeout(deleteTimers.get(id))
-    deleteTimers.set(id, setTimeout(() => {
-      deleteClicks.value.delete(id)
-      deleteClicks.value = new Map(deleteClicks.value)
-      deleteTimers.delete(id)
-    }, 3000))
-  }
+  if (!deleteCfm.trigger(item.id)) return
+  removeRecord(item)
 }
 
 // ══════ 锁定态（续费项目：上一托管未完成） ══════
@@ -477,7 +295,20 @@ function rowStyle(item, idx) {
 }
 const searchQuery = ref('')
 const gameFilter = ref('')
+const view = ref('all')       // all | todo
+
+// 「代办」视图：与「全部」共用同一份列表与样式，只筛出今日未确定的托管与未确定的单项
+const todoIds = computed(() => new Set(todayTaskItems(todayStr.value).map(t => String(t.id))))
+const visibleRecords = computed(() => (
+  view.value === 'todo'
+    ? filteredRecords.value.filter(r => todoIds.value.has(String(r.id)))
+    : filteredRecords.value
+))
 const sortMode = ref('hosting') // time | fee | hosting | game
+
+function stateText(state) {
+  return STATE_LABEL[state] || state || '—'
+}
 const listKey = ref(0)
 function setSortMode(mode) {
   if (sortMode.value === mode) return
@@ -488,7 +319,7 @@ function setSortMode(mode) {
   requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
 }
 const filteredRecords = computed(() => {
-  let list = records.value.filter(r => r.status !== 0)
+  let list = records.value.filter(r => r.status !== 0 && !isClosed(r))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(r => (
@@ -527,48 +358,52 @@ const pendingCount = computed(() => records.value.filter(r => r.status === 1).le
 const hostingCount = computed(() => records.value.filter(r => r.status === 2).length)
 const totalFeeSum = computed(() => activeRecords.value.reduce((s, r) => s + (Number(r.totalFee) || 0), 0))
 
-// ══════ 详细信息弹窗 ══════
-const showDetail = ref(false)
-const detailRecord = ref({})
-const detailOriginal = ref(null)
-const detailEditMode = ref(false)
-const showPassword = ref(false)
-const showAccount = ref(false)
-const editCreatedAt = computed({
-  get: () => toDatetimeLocal(detailRecord.value.createdAt),
-  set: (val) => { if (val) detailRecord.value.createdAt = new Date(val).toISOString() }
-})
+// ══════ 项目详情抽屉（数据组装见 services/projectDetail.js）══════
+// 编辑只 patch 当前项目：历史周期、逐期收入与执行记录都不受影响。
+const detail = ref(null)
+function refreshDetail() {
+  if (!detail.value) return
+  const next = buildProjectDetail(String(detail.value.project.id))
+  if (!next) { detail.value = null; return }   // 项目已不存在（物理删除后）
+  detail.value = next
+}
+// ══════ 今日代办：直接从列表操作（原「今日」选项卡已移除）══════
+// 与「确认 / 删除」走同一套多次点击机制（composables/useConfirmClick）
+const actionCfm = useConfirmClick()
+// 今日代办只保留「跳过今天」（不再提供「记录异常」与「延后到明天」）
+const ACTION_LABEL = { skip: '跳过今天' }
+function actionKey(kind, item) { return kind + ':' + String(item.id) }
+function getActionStyle(kind, item) { return actionCfm.styleOf(actionKey(kind, item)) }
+function actionTitle(kind, item) { return actionCfm.titleOf(actionKey(kind, item), ACTION_LABEL[kind]) }
+function runAction(kind, item) {
+  const key = actionKey(kind, item)
+  if (!actionCfm.trigger(key)) return
+  if (kind === 'skip') confirmExecution(String(item.id), { result: RESULT.SKIPPED, plannedDate: todayStr.value })
+}
+function todaySkip(item) { runAction('skip', item) }
 function openDetailDialog(item) {
-  detailOriginal.value = item
-  detailRecord.value = { ...item }
-  detailEditMode.value = false
-  showPassword.value = false
-  showAccount.value = false
-  showDetail.value = true
+  detail.value = buildProjectDetail(String(item.id))
 }
-function closeDetail() {
-  showDetail.value = false
-  detailEditMode.value = false
-  showPassword.value = false
-  showAccount.value = false
-  detailOriginal.value = null
+function closeDetail() { detail.value = null }
+function onDetailSave(patch) {
+  if (!detail.value) return
+  updateProject(String(detail.value.project.id), patch || {})
+  refreshDetail()
 }
-function saveDetail() {
-  // 先退出编辑模式，确保无论后续是否出错都能退出
-  detailEditMode.value = false
-  showPassword.value = false
-  showAccount.value = false
-  try {
-    if (detailOriginal.value) {
-      Object.assign(detailOriginal.value, detailRecord.value)
-    }
-    saveRecords()
-  } catch (e) {
-    console.error('保存失败', e)
-  }
+function onDetailArchive() { if (detail.value) { archiveProject(detail.value.project.id); refreshDetail() } }
+function onDetailRestore() { if (detail.value) { restoreProject(detail.value.project.id); refreshDetail() } }
+// ── 续费 = 在原项目上加天数 + 记一笔收费（不新建项目）──
+function onDetailAddPeriod(payload) {
+  if (!detail.value) return
+  const id = detail.value.project.id
+  addHostingPeriod(id, payload || {})
+  refreshDetail()
 }
-function copyText(text) {
-  if (text) navigator.clipboard?.writeText(text)
+function onDetailRemove() {
+  if (!detail.value) return
+  const r = hardDeleteProject(detail.value.project.id)
+  if (r && r.ok) closeDetail()
+  else refreshDetail()
 }
 
 // ══════ 新增 ══════
@@ -583,6 +418,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
+.today-wrap { padding: 0 12px 16px; }
+.view-switch { margin-right: 4px; }
+
 .col-time { opacity: 0.6; font-size: 11px; }
 .col-note { opacity: 0.5; }
 .song-info { flex: 1.4; }
