@@ -111,7 +111,8 @@ test('编辑器内有紧凑的分组背景选择入口', () => {
   assert.match(sheet, /背景 · \{\{ reportBg\.label \}\}/, '按钮上显示当前背景名')
   // 紧凑：面板为绝对定位浮层，展开时不挤压工作区
   assert.match(sheet, /\.rp-bg-panel\s*\{[^}]*position:\s*absolute/, '选择面板为浮层')
-  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*height:\s*46px/, '缩略图为固定高度')
+  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*height:\s*58px/, '缩略图为固定高度（够大才看得出构图差异）')
+  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*width:\s*100%/, '缩略图铺满色卡宽度')
 })
 
 test('切换背景不会写入主题键，切换主题不会动背景键', () => {

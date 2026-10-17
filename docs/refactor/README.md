@@ -8,7 +8,9 @@
 | [`data-model.md`](./data-model.md) | 数据模型、存储键、迁移与回滚 | 想改数据结构 |
 | [`workflow.md`](./workflow.md) | 业务流程：创建 / 每日执行 / 续期 / 归档 | 想改业务规则 |
 | [`visual-design.md`](./visual-design.md) | 视觉与动效方案（令牌、转场、版式重排） | 想改界面与动效 |
-| [`rev13-progress.md`](./rev13-progress.md) | **最新**：续费字段并排（scoped 样式问题）/ 天数增减实测 / 列表列宽 / 分组折叠真根因 | 想了解当前状态 |
+| [`rev15-progress.md`](./rev15-progress.md) | **最新**：视觉升级（孤星/P3R 两套构图语言、构图层令牌、汇报排版跟随背景）+ 统计带对比度 / 标题栏 / 背景色卡三条反馈 | 想了解当前状态 |
+| [`rev14-progress.md`](./rev14-progress.md) | 四套平级主题 + 每日汇报背景分组（与应用主题解耦） | 查上一轮改动 |
+| [`rev13-progress.md`](./rev13-progress.md) | 续费字段并排（scoped 样式问题）/ 天数增减实测 / 列表列宽 / 分组折叠真根因 | 查上一轮改动 |
 | [`rev12-progress.md`](./rev12-progress.md) | 天数可增可减 / 记录按周期完成统计 / 备份可加载 / 续费版式 / 弹窗半屏 | 查上一轮改动 |
 | [`rev11-progress.md`](./rev11-progress.md) | 真实数据体检（查出周期天数与结束日差一天）/ 备份移设置页 / 蓝图备注 | 查上一轮改动 |
 | [`rev10-progress.md`](./rev10-progress.md) | 改天数实测结论 / 真实数据放 testdata / 数据备份 / 汇报显示备注 / 记录页统计与排序 | 查上一轮改动 |

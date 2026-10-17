@@ -32,6 +32,18 @@
     --accent-ink: #101923;
     --warn: #A84238;
     --gauge: #71818A;
+    /* ── 构图层：面板三级 + 铭牌 + 线条阶梯 ──
+       孤星的结构感来自「更亮的承载面」压在「纸面」上，
+       再用深色铭牌做数据锚点，形成纸—铭牌—细线的三层纵深。 */
+    --surface-raised: #F6F1E7;   /* 主面板 / 承载面 */
+    --surface-sunken: #E0D8C8;   /* 工具条 / 凹陷区 */
+    --surface-plate: #101923;    /* 铭牌（数据带 / 图例 / 表头） */
+    --plate-fg: #E8E2D3;
+    --plate-fg-dim: rgba(232, 226, 211, 0.55);
+    --plate-line: rgba(232, 226, 211, 0.22);
+    --rule-strong: rgba(20, 27, 34, 0.62);
+    --rule-soft: rgba(20, 27, 34, 0.14);
+    --figure-ink: #101923;
 }
 
 /* ── 孤星 · 终端（深色） ──────────────────────────────────────── */
@@ -53,6 +65,16 @@
     --accent-ink: #101923;
     --warn: #C4553F;
     --gauge: #8B9AA3;
+    /* 构图层：深色下铭牌比页面底色更亮一档，仍是「亮面压暗面」的纵深关系 */
+    --surface-raised: #16212D;
+    --surface-sunken: #0B131B;
+    --surface-plate: #1D2A38;
+    --plate-fg: #E8E2D3;
+    --plate-fg-dim: rgba(232, 226, 211, 0.5);
+    --plate-line: rgba(232, 226, 211, 0.16);
+    --rule-strong: rgba(232, 226, 211, 0.5);
+    --rule-soft: rgba(232, 226, 211, 0.12);
+    --figure-ink: #E8E2D3;
 }
 
 /* ── P3R · 白昼（浅色） ──────────────────────────────────────────
@@ -75,6 +97,18 @@
     --accent-ink: #F4F6FA;
     --warn: #C9411F;
     --gauge: #56708F;
+    /* 构图层：P3R 的「面」是高饱和色块 + 纯白承载面 */
+    --surface-raised: #FFFFFF;
+    --surface-sunken: #E3EAF6;
+    --surface-plate: #071B3A;    /* 深蓝色块：海报主视觉区 */
+    --plate-fg: #F4F6FA;
+    --plate-fg-dim: rgba(244, 246, 250, 0.62);
+    --plate-line: rgba(244, 246, 250, 0.26);
+    --rule-strong: #0A1F42;
+    --rule-soft: rgba(10, 31, 66, 0.14);
+    --figure-ink: #1264C8;
+    --band-cyan: #28B8F2;        /* 方向性次级色块 */
+    --band-yellow: #F5D83D;      /* 少量高对比强调 */
 }
 
 /* ── P3R · 深夜（深色） ──────────────────────────────────────────
@@ -96,6 +130,18 @@
     --accent-ink: #071B3A;
     --warn: #F07858;
     --gauge: #7FA0CC;
+    /* 构图层：深色下深蓝色块与页面底色靠明度差分层 */
+    --surface-raised: #0C2450;
+    --surface-sunken: #05132B;
+    --surface-plate: #1264C8;
+    --plate-fg: #FFFFFF;
+    --plate-fg-dim: rgba(255, 255, 255, 0.66);
+    --plate-line: rgba(255, 255, 255, 0.24);
+    --rule-strong: #2A6FC4;
+    --rule-soft: rgba(42, 111, 196, 0.26);
+    --figure-ink: #F5D83D;
+    --band-cyan: #28B8F2;
+    --band-yellow: #F5D83D;
 }
 
 /* 全局禁用按钮 */

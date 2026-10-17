@@ -1,298 +1,597 @@
 /* ══════════════════════════════════════════════════════════════════
-   P3R 主题 — 深海军蓝 / 明蓝 / 明黄 · 斜切构图 · 月相与刻度
+   P3R 主题 · 视觉语言 —— 几何平面 / 现代都市海报
 
-   原创视觉转译：只取「斜切分割、锐角面板、日历与月相意象」这类几何语言，
+   原创视觉转译：只取「斜切分割、锐角色块、日历与月相意象」这类几何语言，
    不使用任何游戏素材、Logo、角色或界面截图。
 
-   本文件只负责 P3R 两套主题（.theme-p3r-dark / .theme-p3r-light）的
-   调色板、装饰与动效；语义变量在 global-theme.css 中统一定义。
+   ⚠ 硬约束：本文件**不改动任何布局**
+     不设置 padding / margin / width / height / min-height / font-size /
+     gap / flex 方向 / display 类型 / position（绝对定位的装饰伪元素除外）。
+
+   与孤星的区别（不是换色，是两种图形语言）：
+     孤星：直角、双细线、装订脊、等宽小字、明度纵深（纸面压铭牌）
+     P3R ：无细线框、大色块、斜切、裁角、粗体大字、色块之间靠明度与方向对比
    ══════════════════════════════════════════════════════════════════ */
 
 :is(.theme-p3r-dark, .theme-p3r-light) {
   /* ── P3R 调色板 ── */
-  --p3r-navy: #071B3A;        /* 深海军蓝 */
-  --p3r-blue: #1264C8;        /* 主蓝 */
-  --p3r-cyan: #28B8F2;        /* 明亮青蓝 */
-  --p3r-yellow: #F5D83D;      /* 强调黄 */
-  --p3r-white: #F4F6FA;       /* 冷白 */
-  --p3r-muted: #A8B8D0;       /* 次级文字 */
-  --p3r-alert: #F07858;       /* 警告橙红 */
-  /* 锐角 / 斜切角度，集中管理便于统一调性 */
-  --p3r-cut: 10px;
+  --p3r-navy: #071B3A;
+  --p3r-blue: #1264C8;
+  --p3r-cyan: #28B8F2;
+  --p3r-yellow: #F5D83D;
+  --p3r-white: #F4F6FA;
+  --p3r-muted: #A8B8D0;
+  --p3r-alert: #F07858;
+  --p3r-slant: 104deg;      /* 统一斜向，形成秩序感 */
 }
 
-/* 深色：强调色用明黄，正文冷白 */
+/* 深浅两套只换「面」的明度，几何关系完全一致 */
 .theme-p3r-dark {
   --p3r-fg-muted: var(--p3r-muted);
   --p3r-line: rgba(40, 184, 242, 0.42);
   --p3r-rule: rgba(40, 184, 242, 0.16);
   --p3r-panel: #0C2450;
   --p3r-key: var(--p3r-yellow);
+  --p3r-row-hover: #1462B8;
+  --p3r-head-block: #0B2E63;   /* 页头色块：比页面底色亮、比主蓝暗，形成三级明度 */
 }
-/* 浅色：强调色用主蓝，正文深蓝；黄色只作色块与短线 */
 .theme-p3r-light {
   --p3r-fg-muted: #5B6E8C;
   --p3r-line: rgba(18, 100, 200, 0.38);
   --p3r-rule: rgba(7, 27, 58, 0.12);
   --p3r-panel: #E5EBF5;
   --p3r-key: var(--p3r-blue);
+  --p3r-row-hover: #1264C8;
+  --p3r-head-block: #071B3A;
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   字体与排版：紧凑、等宽数据、醒目的粗体标题
-   ══════════════════════════════════════════════════════════════════ */
-
-:is(.theme-p3r-dark, .theme-p3r-light) .local-header h2 {
-  letter-spacing: 1px;
-  font-weight: 900;
-  position: relative;
-  padding-left: 14px;
-}
-/* 标题左侧：明黄斜条 —— P3R 的「编号/刻度」意象 */
-:is(.theme-p3r-dark, .theme-p3r-light) .local-header h2::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 6px;
-  height: 1.05em;
-  transform: translateY(-50%) skewX(-14deg);
-  background: var(--p3r-yellow);
-}
-.theme-p3r-light .local-header h2::before {
-  /* 浅色底上用主蓝，明黄留作点缀 */
-  background: var(--p3r-blue);
-}
-
-:is(.theme-p3r-dark, .theme-p3r-light) .local-header .desc {
-  letter-spacing: 0.4px;
-  opacity: 0.72;
-}
-
-/* 数字层级：数据用等宽 + 更重，突出「读数」感 */
-:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip strong,
-:is(.theme-p3r-dark, .theme-p3r-light) .mono {
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   标题栏与侧栏
+   一、应用框架
    ══════════════════════════════════════════════════════════════════ */
 
 :is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar {
-  position: relative;
-  overflow: hidden;
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  border-bottom-color: transparent;
 }
-/* 标题栏底部斜向分割线 + 右侧月相 */
+.theme-p3r-dark .rc-title-bar { background: #04122A; }
+/* 底边：青蓝 → 主蓝 → 明黄 的斜切色带（绝对定位，压在原 border 位置） */
 :is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar::before {
   content: '';
   position: absolute;
+  /* 基础样式是 left:12px / top:50% / translateY(-50%) 的小竖条。
+     这里改成贴底整宽色带时，left、top、transform 必须一并复位 ——
+     否则 top:50% 会胜出，4px 色带横穿标题文字，标题就被「遮挡」了。 */
   left: 0;
   right: 0;
+  top: auto;
   bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--p3r-blue) 0%, var(--p3r-cyan) 42%, transparent 42.2%);
-  opacity: 0.85;
+  height: 4px;
+  width: auto;
+  transform: none;
+  background: linear-gradient(90deg,
+    var(--p3r-cyan) 0 44%,
+    var(--p3r-blue) 44% 82%,
+    var(--p3r-yellow) 82% 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 24px 100%);
 }
+/* 右端月相：半月的减法图形 */
 :is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar::after {
   content: '';
   position: absolute;
-  right: 120px;
+  right: 118px;
   top: 50%;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   transform: translateY(-50%);
   border-radius: 50%;
   pointer-events: none;
-  /* 月相：一侧实心、一侧镂空半月 */
-  background: radial-gradient(circle at 68% 50%, transparent 0 42%, var(--p3r-cyan) 43% 100%);
-  opacity: 0.5;
-}
-.theme-p3r-light .rc-title-bar::after { opacity: 0.42; }
-
-/* 侧栏分隔线：改成刻度尺（时钟刻度意象） */
-:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-divider {
-  height: 6px;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--sb-line) 0,
-    var(--sb-line) 1px,
-    transparent 1px,
-    transparent 5px
-  );
+  background: radial-gradient(circle at 70% 50%, transparent 0 44%, var(--p3r-cyan) 45% 100%);
   opacity: 0.55;
 }
-
-/* 导航激活项：斜切高亮块 */
-:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn.active {
-  position: relative;
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar h2 {
+  font-weight: 900;
+  letter-spacing: 2px;
 }
-:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn.active::before {
-  content: '';
-  position: absolute;
-  inset: 4px 6px;
-  background: var(--p3r-cyan);
-  opacity: 0.16;
-  clip-path: polygon(0 0, 100% 0, calc(100% - var(--p3r-cut)) 100%, 0 100%);
-  pointer-events: none;
-}
-/* 导航滑块本身也做斜切，移动时带方向感 */
-:is(.theme-p3r-dark, .theme-p3r-light) .mv-nav-indicator {
-  clip-path: polygon(0 0, 100% 0, calc(100% - var(--p3r-cut)) 100%, 0 100%);
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   统计条：小方块 + 紧凑排布
-   ══════════════════════════════════════════════════════════════════ */
-
-:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip {
-  position: relative;
-  padding-left: 12px;
-  letter-spacing: 0.4px;
-}
-:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 4px;
-  height: 10px;
-  transform: translateY(-50%) skewX(-14deg);
-  background: var(--p3r-cyan);
-  opacity: 0.8;
-}
-.theme-p3r-dark .summary-chip:nth-child(2n)::before { background: var(--p3r-yellow); }
-
-/* 收入统计的月度 chip：只做角标，不裁剪文字（clip-path 会切掉右侧内容） */
-:is(.theme-p3r-dark, .theme-p3r-light) .income-chip {
-  position: relative;
-  border-left: 3px solid var(--p3r-cyan);
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   列表项
-
-   ⚠ 这里刻意**不设置任何布局属性**（border / position / padding 等）。
-   孤星主题的行首色块由 `.song-item::after` 绝对定位在列表容器上，
-   hover 底色由 `.song-item::before` 铺开；一旦改动 border-left 或
-   position，列表左边缘会多出间隔、色块也会错位，所以 P3R 只换颜色。
-   ══════════════════════════════════════════════════════════════════ */
-
-/* hover：沿用孤星那套 `::before` 铺底 + 文字反色的机制，
-   只是这里把两端的颜色显式配对，避免出现「深蓝字落在深蓝底上」。
-   注意 --btn-hover-bg / --btn-hover-text 在 P3R 两套主题里都已成对定义。 */
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover {
-  color: var(--btn-hover-text);
-}
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-name,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-artist,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-duration,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-main,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-sub,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-dim,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-col,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .bp-col,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .status-tag,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .col-fixed,
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-index {
-  color: inherit;
-  opacity: 1;
-}
-
-/* 列表项进入：快速归位（纯 opacity + 位移动画，不影响布局） */
-@keyframes p3r-row-in {
-  0%   { opacity: 0; transform: translateX(-6px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   按钮与输入
-   ══════════════════════════════════════════════════════════════════ */
-
-:is(.theme-p3r-dark, .theme-p3r-light) .rc-global-btn,
-:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn {
-  letter-spacing: 0.4px;
-}
-/* 分段选择器（预设 / 自定义 / 全部 这类）：激活项加一道斜切角标，
-   不用 clip-path —— 那会连带裁掉文字右半边。 */
-:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn.active {
-  position: relative;
-}
-:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn.active::after {
-  content: '';
-  position: absolute;
-  right: 2px;
-  top: 2px;
-  bottom: 2px;
-  width: 3px;
-  background: var(--p3r-yellow);
-  clip-path: polygon(50% 0, 100% 0, 50% 100%, 0 100%);
-  pointer-events: none;
-  opacity: 0.85;
-}
-
-:is(.theme-p3r-dark, .theme-p3r-light) input,
-:is(.theme-p3r-dark, .theme-p3r-light) select {
-  font-variant-numeric: tabular-nums;
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   弹窗与面板：顶部斜切色带
-   ══════════════════════════════════════════════════════════════════ */
-
-:is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup {
-  position: relative;
-  border-width: 2px;
-  border-color: var(--p3r-line);
-}
-/* 顶部斜带：从左上切到右侧 */
-:is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 5px;
-  background: linear-gradient(
-    90deg,
-    var(--p3r-cyan) 0%,
-    var(--p3r-cyan) 58%,
-    var(--p3r-yellow) 58%,
-    var(--p3r-yellow) 100%
-  );
-  clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
-  pointer-events: none;
-}
-/* 弹窗标题：粗体 + 字距 */
-:is(.theme-p3r-dark, .theme-p3r-light) .edit-popup h4 {
-  letter-spacing: 1.2px;
+/* 品牌标识：纯文本前缀（不加 padding / 背景，不改行盒），黄色高亮 */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar h2::before {
+  content: 'P3R ／ ';
+  color: var(--p3r-yellow);
+  letter-spacing: 2px;
   font-weight: 900;
 }
 
-/* 分区标题：编号感的小色条（覆盖孤星竖线） */
-:is(.theme-p3r-dark, .theme-p3r-light) .detail-section {
+/* 侧栏：深蓝底 + 右缘一条渐隐的青蓝竖线（绝对定位） */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-sidebar {
+  background: #04122A;
+  border-right-color: transparent;
   position: relative;
-  padding-left: 12px;
-  letter-spacing: 1.4px;
 }
-:is(.theme-p3r-dark, .theme-p3r-light) .detail-section::before {
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-sidebar::after {
   content: '';
   position: absolute;
-  left: 0;
-  top: 50%;
-  width: 5px;
-  height: 11px;
-  transform: translateY(-50%) skewX(-14deg);
+  right: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg,
+    var(--p3r-yellow) 0 12%,
+    var(--p3r-cyan) 12% 46%,
+    transparent 46%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+/* 导航项：无细线框，激活 = 明黄实心（裁剪右下角，盒模型仍是 40×40） */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn {
+  border-color: transparent;
+  background: transparent;
+  color: var(--p3r-white);
+  opacity: 0.62;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn:hover {
+  background: rgba(40, 184, 242, 0.18);
+  border-color: transparent;
+  color: var(--p3r-white);
+  opacity: 1;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn.active {
+  background: var(--p3r-yellow);
+  border-color: var(--p3r-yellow);
+  color: var(--p3r-navy);
+  opacity: 1;
+  box-shadow: none;
+}
+/* 导航滑块：斜切青色块 */
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-nav-indicator {
   background: var(--p3r-cyan);
+  opacity: 0.24;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-divider {
+  background: rgba(244, 246, 250, 0.28);
+  opacity: 0.5;
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   动效：斜向切入 / 面板展开 / 数字归位
-   全部走现有 motion token，并尊重 prefers-reduced-motion
+   二、页面头：一张海报（背景斜切，不改任何间距）
    ══════════════════════════════════════════════════════════════════ */
 
-/* 页面切换：从左下斜向切开，而不是淡入 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-header {
+  position: relative;
+  border-bottom-color: transparent;
+  /* 左 60% 大面积深蓝色块（标题压在上面）；右 40% 留白承载图例；
+     中间一道青蓝斜线 + 一道明黄细线，斜切直接参与分区 */
+  background-image:
+    linear-gradient(var(--p3r-slant), var(--p3r-head-block) 0 59.4%, transparent 59.8%),
+    linear-gradient(var(--p3r-slant), transparent 0 59.8%, var(--p3r-cyan) 59.8% 61%, transparent 61.4%),
+    linear-gradient(var(--p3r-slant), transparent 0 62%, var(--p3r-yellow) 62% 62.7%, transparent 63.1%);
+  background-repeat: no-repeat;
+}
+/* 右下角时间刻度：只在留白区，不压文字 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-header::before {
+  content: '';
+  position: absolute;
+  /* 基础样式是 left:8px / top:18px 的小竖条。改成右下刻度带时
+     必须复位 left、top —— 否则 left+top 胜出，刻度带变成一条
+     宽 38%、高 12px 的横条，直接压在页面标题上。 */
+  left: auto;
+  top: auto;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+  height: 12px;
+  background-image: repeating-linear-gradient(90deg,
+    var(--p3r-fg-muted) 0 1px,
+    transparent 1px 14px);
+  opacity: 0.32;
+  pointer-events: none;
+}
+/* 标题：压在深蓝色块上（冷白 + 900 字重 + 负字距，字号与行盒沿用原值） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-header h2 {
+  position: relative;
+  z-index: 1;
+  color: var(--p3r-white);
+  font-weight: 900;
+  letter-spacing: -0.4px;
+}
+/* 标题左侧明黄斜条：绝对定位在原 padding 区内，不占字宽、不推文字 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-header h2::before {
+  content: '';
+  position: absolute;
+  left: -13px;
+  top: 50%;
+  width: 8px;
+  height: 0.8em;
+  transform: translateY(-50%) skewX(-16deg);
+  background: var(--p3r-yellow);
+  pointer-events: none;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-header .desc {
+  position: relative;
+  z-index: 1;
+  color: var(--p3r-white);
+  opacity: 0.74;
+  letter-spacing: 1.4px;
+}
+/* 图例：留白区里的深蓝贴片（不是细线框） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .legend {
+  position: relative;
+  z-index: 1;
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  border-color: transparent;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  opacity: 1;
+}
+.theme-p3r-light .local-music .legend { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .legend .legend-label {
+  color: var(--p3r-white);
+  opacity: 0.5;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .legend .legend-item {
+  color: var(--p3r-white);
+  opacity: 0.92;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .legend .legend-dot {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   三、控制带（.local-toolbar）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-toolbar {
+  background: var(--surface-raised);
+  border-bottom-color: var(--p3r-rule);
+  /* 底部斜切色带：青蓝短段 + 主蓝长段，压在底边上（background 图层，不改盒模型） */
+  background-image: linear-gradient(96deg,
+    var(--p3r-cyan) 0 6%,
+    transparent 6% 9%,
+    var(--p3r-blue) 9% 58%,
+    transparent 58%);
+  background-size: 100% 3px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+}
+/* 按钮：去掉细线框、用底色区分，右下角裁一刀（外框尺寸不变） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .rc-global-btn {
+  border-color: transparent;
+  background: var(--p3r-panel);
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .rc-global-btn:hover {
+  background: var(--p3r-blue);
+  color: var(--p3r-white);
+}
+/* 主操作：明黄实心斜块 —— 工具栏里唯一的高对比元素 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-toolbar > .rc-global-btn:first-child {
+  background: var(--p3r-yellow);
+  color: var(--p3r-navy);
+  font-weight: 900;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .local-toolbar > .rc-global-btn:first-child:hover {
+  background: var(--p3r-cyan);
+  color: var(--p3r-navy);
+}
+/* 分段选择器：激活项深蓝实心 + 右端明黄斜角 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .tl-entry-btn {
+  border-color: transparent;
+  background: var(--p3r-panel);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .tl-entry-btn:hover {
+  background: var(--p3r-blue);
+  color: var(--p3r-white);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .view-tabs .tl-entry-btn.active {
+  position: relative;
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+}
+.theme-p3r-dark .local-music .view-tabs .tl-entry-btn.active { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .view-tabs .tl-entry-btn.active::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  background: var(--p3r-yellow);
+  clip-path: polygon(60% 0, 100% 0, 40% 100%, 0 100%);
+  pointer-events: none;
+}
+/* 搜索框：底边一条青蓝线（height 不变，只换边框与底色） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .search-box {
+  border-color: transparent;
+  border-bottom: 2px solid var(--p3r-blue);
+  background: var(--p3r-panel);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .search-input {
+  font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   四、数据方块阵列（.summary-strip）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-strip {
+  background: var(--surface-sunken);
+  border-bottom-color: transparent;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-strip::after {
+  background: var(--p3r-yellow);
+  height: 3px;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip {
+  background: var(--surface-plate);
+  color: rgba(255, 255, 255, 0.72);
+  border-color: transparent;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  /* 方块底座：底部一条青蓝线，强化「阵列」的几何感（不占位） */
+  box-shadow: inset 0 -3px 0 var(--p3r-cyan);
+}
+/* 阵列里翻转一块：第一块用青蓝（错位与色彩节奏） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip:first-child {
+  background: var(--p3r-cyan);
+  color: #071B3A;
+  box-shadow: none;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip strong {
+  font-weight: 900;
+  color: var(--p3r-white);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.3px;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip:first-child strong {
+  color: #071B3A;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   五、筛选与列表
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .folder-strip {
+  background: var(--surface-raised);
+  border-bottom-color: transparent;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .folder-chip {
+  border-color: transparent;
+  background: var(--p3r-panel);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  /* 裁右下角：与按钮同一套「锐角」造型（不改盒模型） */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .folder-chip:hover {
+  background: var(--p3r-blue);
+  color: var(--p3r-white);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .folder-chip.active {
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  border-color: transparent;
+  box-shadow: inset 3px 0 0 var(--p3r-yellow);
+}
+.theme-p3r-dark .local-music .folder-chip.active { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .folder-chip.active .folder-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--p3r-white);
+}
+
+/* 列表：用留白与底色分区，行距与高度不变 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-list {
+  box-shadow: inset 0 2px 0 var(--p3r-rule);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item {
+  border-bottom-color: var(--p3r-rule);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .song-btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--p3r-white);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-name {
+  font-weight: 800;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-index {
+  font-weight: 800;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .col-fixed {
+  font-weight: 600;
+  opacity: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+/* 行内操作按钮：无边框小方块 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-btn {
+  border-color: transparent;
+  background: var(--p3r-panel);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-btn:hover {
+  background: var(--p3r-blue);
+  color: var(--p3r-white);
+}
+
+/* hover / 选中：青蓝块从左侧铺开（沿用 ::before 机制，只换色与方向） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item::before {
+  background: var(--p3r-row-hover);
+  transform-origin: left center;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover { color: var(--p3r-white); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .song-name,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .song-artist,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .song-duration,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .fee-main,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .fee-sub,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .fee-dim,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .fee-col,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .bp-col,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .status-tag,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .col-fixed,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item:hover .song-index {
+  color: inherit;
+  opacity: 1;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item.selected {
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  box-shadow: inset 4px 0 0 var(--p3r-yellow);
+}
+.theme-p3r-dark .local-music .song-item.selected { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item.selected .song-name,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item.selected .song-artist,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item.selected .col-fixed,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item.selected .song-index,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item.selected .song-duration {
+  color: var(--p3r-white);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   六、弹窗：顶部斜切带 + 左侧竖色带（都是绝对定位装饰）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .modal-mask .edit-popup {
+  position: relative;
+  background: var(--surface-raised);
+  border-color: transparent;
+  animation: p3r-panel-in var(--mv-module) var(--mv-ease-mech) both;
+}
+/* 顶部：青蓝 + 明黄的斜切带 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .modal-mask .edit-popup::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 6px;
+  background: linear-gradient(90deg,
+    var(--p3r-cyan) 0 56%,
+    var(--p3r-yellow) 56% 100%);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 100%, 0 100%);
+  pointer-events: none;
+}
+/* 左侧竖色带：不覆盖文字（内容内边距 16px > 8px 带宽） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .modal-mask .edit-popup::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 8px;
+  background: var(--p3r-navy);
+  pointer-events: none;
+}
+.theme-p3r-dark .local-music .modal-mask .edit-popup::after { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .modal-mask .edit-popup h4 {
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  box-shadow: inset 0 -2px 0 var(--p3r-cyan);
+}
+/* 分区标题：上沿一条青蓝粗线（inset shadow，不占位、不压字） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .detail-section {
+  letter-spacing: 1.4px;
+  font-weight: 900;
+  opacity: 0.55;
+  box-shadow: inset 0 3px 0 var(--p3r-cyan);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .detail-field {
+  border-bottom-color: var(--p3r-rule);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .detail-field .dl {
+  letter-spacing: 0.6px;
+  font-weight: 700;
+}
+/* 主按钮：明黄斜块（边框保留原宽度，只换颜色） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .save-btn {
+  background: var(--p3r-yellow);
+  color: var(--p3r-navy);
+  border-color: var(--p3r-yellow);
+  font-weight: 900;
+  letter-spacing: 1px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .save-btn:hover {
+  background: var(--p3r-cyan);
+  color: var(--p3r-navy);
+  border-color: var(--p3r-cyan);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .cancel-btn {
+  background: var(--p3r-panel);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   七、次级页面
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .bp-header {
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  border-color: transparent;
+  box-shadow: inset 4px 0 0 var(--p3r-yellow);
+}
+.theme-p3r-dark .local-music .bp-header { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .bp-header h2,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .bp-header .desc { color: var(--p3r-white); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .bp-group-head {
+  background: var(--p3r-panel);
+  border-color: transparent;
+  box-shadow: inset 4px 0 0 var(--p3r-cyan);
+  font-weight: 900;
+  letter-spacing: 1.2px;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .wd-summary {
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  border-color: transparent;
+  box-shadow: inset 4px 0 0 var(--p3r-yellow);
+}
+.theme-p3r-light .local-music .wd-summary { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .income-title { color: var(--p3r-white); opacity: 0.7; }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .income-chip {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: transparent;
+  color: var(--p3r-white);
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .setting-row {
+  border-bottom-color: var(--p3r-rule);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .setting-label {
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .theme-picker .tl-entry-btn {
+  font-weight: 800;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .theme-picker .tl-entry-btn.active {
+  background: var(--p3r-navy);
+  color: var(--p3r-white);
+  box-shadow: inset 3px 0 0 var(--p3r-yellow);
+}
+.theme-p3r-light .local-music .theme-picker .tl-entry-btn.active { background: var(--p3r-blue); }
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .section {
+  box-shadow: inset 0 3px 0 var(--p3r-blue);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   八、动效：斜向切入 / 方块归位（不循环、不发光）
+   ══════════════════════════════════════════════════════════════════ */
+
+@keyframes p3r-panel-in {
+  0%   { opacity: 0; transform: translateX(22px); clip-path: polygon(16% 0, 100% 0, 100% 100%, 0 100%); }
+  100% { opacity: 1; transform: translateX(0); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+@keyframes p3r-row-in {
+  0%   { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes p3r-figure-settle {
+  0%   { opacity: 0.4; transform: translateX(-4px) skewX(-4deg); }
+  100% { opacity: 1; transform: translateX(0) skewX(0); }
+}
+
 :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-list-enter-active,
 :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-form-enter-active,
 :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-doc-enter-active {
@@ -307,40 +606,21 @@
   transform: none;
   clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
 }
-
-/* 弹窗：短促的斜切展开 */
-@keyframes p3r-panel-in {
-  0%   { opacity: 0; transform: translateX(18px); clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%); }
-  100% { opacity: 1; transform: translateX(0); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
-}
-:is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup {
-  animation: p3r-panel-in var(--mv-module) var(--mv-ease-mech) both;
-}
-
-/* 重要数字：短暂的斜向扫过（一次，不循环） */
-@keyframes p3r-figure-settle {
-  0%   { opacity: 0.35; transform: translateX(-3px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip strong {
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip strong {
   animation: p3r-figure-settle var(--mv-settle) var(--mv-ease-settle) both;
 }
-
-/* 按钮按压：短促位移，带方向感 */
-:is(.theme-p3r-dark, .theme-p3r-light) .rc-global-btn:active,
-:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn:active {
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item {
+  animation: p3r-row-in var(--mv-module) var(--mv-ease-mech) both;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .rc-global-btn:active,
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .tl-entry-btn:active {
   transform: translateX(1px) skewX(-2deg);
 }
 
-/* 列表项进入：快速归位（keyframes 定义在「列表项」一节，纯位移不改布局） */
-:is(.theme-p3r-dark, .theme-p3r-light) .song-item {
-  animation: p3r-row-in var(--mv-module) var(--mv-ease-mech) both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  :is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup,
-  :is(.theme-p3r-dark, .theme-p3r-light) .song-item,
-  :is(.theme-p3r-dark, .theme-p3r-light) .summary-chip strong {
+  :is(.theme-p3r-dark, .theme-p3r-light) .local-music .modal-mask .edit-popup,
+  :is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item,
+  :is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip strong {
     animation: none;
   }
   :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-list-enter-from,
@@ -348,8 +628,8 @@
   :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-doc-enter-from {
     clip-path: none;
   }
-  :is(.theme-p3r-dark, .theme-p3r-light) .rc-global-btn:active,
-  :is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn:active {
+  :is(.theme-p3r-dark, .theme-p3r-light) .local-music .rc-global-btn:active,
+  :is(.theme-p3r-dark, .theme-p3r-light) .local-music .tl-entry-btn:active {
     transform: none;
   }
 }

@@ -1,0 +1,393 @@
+/* ══════════════════════════════════════════════════════════════════
+   孤星主题 · 视觉语言 —— 航天科研档案终端
+
+   ⚠ 硬约束：本文件**不改动任何布局**
+     不设置 padding / margin / width / height / min-height / font-size /
+     gap / flex 方向 / display 类型 / position（绝对定位的装饰伪元素除外）。
+     只改：颜色、背景、边框色、字重、字距、不透明度、
+           inset box-shadow、绝对定位伪元素、clip-path（只裁角，不改盒模型）。
+
+   视觉结构靠三件事建立，不靠尺寸：
+     1. 纸面 — 铭牌 — 细线的**明度纵深**（surface / plate / rule 三级变量）
+     2. 每页一条**深色数据带**（统计条、图例、档头）作为视觉重心
+     3. 绝对定位的**装订脊**与**双线**，贴在边界上，不占布局
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark) {
+  --ls-hair: 1px;
+  --ls-rule: 2px;
+  --ls-heavy: 3px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   一、应用框架
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 标题栏：深空铭牌底 + 橙色收口线（高度仍由原 32px + 原 border 决定） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-title-bar {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  border-bottom-color: var(--accent);
+}
+/* 左端装订块：绝对定位，贴在原位置之上，不占布局 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-title-bar::before {
+  left: 0; top: 0; transform: none;
+  width: 6px; height: 100%;
+  background: var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-title-bar h2 {
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+/* 应用级工程编号：标题前缀（文本内容，不改盒模型） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-title-bar h2::before {
+  content: 'TR-01 ／ ';
+  color: var(--accent);
+  letter-spacing: 2px;
+  opacity: 0.95;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-window-controls {
+  border-left: 1px solid var(--plate-line);
+}
+
+/* 侧栏：铭牌底 + 右缘双线（inset shadow，不占宽度） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-sub-sidebar {
+  background: var(--bg-sidebar);
+  box-shadow: inset -1px 0 0 var(--plate-line),
+              inset -3px 0 0 rgba(0, 0, 0, 0.35);
+}
+/* 导航项：细线框 + 激活时橙色内标识条（尺寸仍是 40×40） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-sub-func-btn {
+  border: 1px solid var(--sb-line);
+  background: rgba(232, 226, 211, 0.03);
+  color: var(--sb-fg);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-sub-func-btn:hover {
+  background: rgba(232, 226, 211, 0.09);
+  border-color: var(--sb-line);
+  color: var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-sub-func-btn.active {
+  background: rgba(216, 121, 56, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+/* 侧栏分隔：刻度带（高度与颜色沿用原值，只换图案） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-sub-divider {
+  background: transparent;
+  background-image: repeating-linear-gradient(90deg,
+    var(--sb-fg) 0 1px, transparent 1px 7px);
+  opacity: 0.4;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   二、页面封面头（.local-header）—— 装帧结构
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 装订条：绝对定位，从标题区顶部延伸到底部，不占布局 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-header::before {
+  left: 0; top: 0;
+  width: 10px;
+  height: 100%;
+  background: linear-gradient(180deg,
+    var(--accent) 0 34px,
+    var(--rule-soft) 34px 100%);
+}
+/* 顶部橙色角标短横线 + 底部偏移细线：background 图层，不改变盒模型 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-header {
+  background-image:
+    linear-gradient(90deg, var(--accent) 0 38px, transparent 38px),
+    linear-gradient(90deg, var(--rule-soft) 0 100%);
+  background-size: 38px 3px, 100% 1px;
+  background-position: 0 0, 0 calc(100% - 6px);
+  background-repeat: no-repeat;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-header h2 {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+/* 技术说明：左侧细线由伪元素画（绝对定位，不占字宽） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-header .desc {
+  position: relative;
+  letter-spacing: 0.9px;
+  opacity: 0.62;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-header .desc::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--rule-strong);
+}
+
+/* 图例 → 仪表铭牌：深色牌子（尺寸仍由原 padding 决定） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .legend {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  border-color: var(--surface-plate);
+  box-shadow: inset 3px 0 0 var(--accent);
+  opacity: 1;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .legend .legend-label {
+  color: var(--plate-fg);
+  opacity: 0.5;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .legend .legend-item {
+  color: var(--plate-fg);
+  opacity: 0.9;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .legend .legend-dot {
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   三、控制台（.local-toolbar）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-toolbar {
+  background: var(--surface-sunken);
+  /* 底部刻度带：background 图层，不改变高度 */
+  background-image: repeating-linear-gradient(90deg,
+    var(--rule-strong) 0 1px, transparent 1px 8px);
+  background-size: 100% 5px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .rc-global-btn,
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .tl-entry-btn {
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  letter-spacing: 0.5px;
+}
+/* 主操作：工具栏里唯一的实心橙按钮（尺寸不变） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-toolbar > .rc-global-btn:first-child {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-toolbar > .rc-global-btn:first-child:hover {
+  background: var(--surface-plate);
+  border-color: var(--surface-plate);
+  color: var(--plate-fg);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .view-tabs .tl-entry-btn.active {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  border-color: var(--surface-plate);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .search-box {
+  border-color: var(--rule-strong);
+  background: var(--surface-raised);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .search-input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.4px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   四、数据铭牌带（.summary-strip）—— 视觉重心
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-strip {
+  --border-color: var(--plate-line);
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-strip::after {
+  background: var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-chip {
+  background: transparent;
+  border-color: var(--plate-line);
+  color: var(--plate-fg-dim);
+  letter-spacing: 0.8px;
+}
+/* 数字：等宽 + 冷白 —— 字号沿用原值，只加强字重与字色 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-chip strong {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: var(--plate-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   五、筛选标签与正文承载面
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .folder-chip {
+  border-color: var(--rule-strong);
+  background: var(--surface-raised);
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .folder-chip.active {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  border-color: var(--surface-plate);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .folder-chip.active .folder-count {
+  background: rgba(232, 226, 211, 0.16);
+  color: var(--plate-fg);
+}
+
+/* 列表：承载面更亮一档，行间细线（线宽与原来一致，只换色） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-list {
+  background: var(--surface-raised);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item {
+  border-bottom-color: var(--rule-soft);
+}
+/* 行首状态：内嵌色条（inset shadow 不占布局） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item.hosting {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item.selected {
+  box-shadow: inset 3px 0 0 var(--surface-plate),
+              inset 0 0 0 1px var(--rule-strong);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-index {
+  font-family: var(--font-mono);
+  opacity: 0.42;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-name {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .col-fixed {
+  opacity: 0.86;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-btn {
+  border-width: 1px;
+  border-color: var(--rule-soft);
+  background: transparent;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item:hover .song-btn {
+  border-color: rgba(232, 226, 211, 0.34);
+}
+
+/* hover / 选中：落在铭牌色系（沿用原有 ::before 铺底机制，只换颜色） */
+:is(.theme-lone-star-light) .local-music .song-item::before { background: var(--surface-plate); }
+:is(.theme-lone-star-light) .local-music .song-item:hover { color: var(--plate-fg); }
+:is(.theme-lone-star-dark) .local-music .song-item::before { background: #22303E; }
+:is(.theme-lone-star-dark) .local-music .song-item:hover { color: #F2ECDE; }
+:is(.theme-lone-star-light) .local-music .song-item.selected {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+}
+:is(.theme-lone-star-light) .local-music .song-item.selected .song-name,
+:is(.theme-lone-star-light) .local-music .song-item.selected .song-artist,
+:is(.theme-lone-star-light) .local-music .song-item.selected .col-fixed,
+:is(.theme-lone-star-light) .local-music .song-item.selected .song-index,
+:is(.theme-lone-star-light) .local-music .song-item.selected .song-duration {
+  color: var(--plate-fg);
+}
+:is(.theme-lone-star-light) .local-music .song-item.selected .song-btn {
+  border-color: rgba(232, 226, 211, 0.4);
+  color: var(--plate-fg);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   六、弹窗：侧边档案抽屉（装订条用绝对定位，不改内边距）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .modal-mask .edit-popup {
+  position: relative;
+  background: var(--surface-raised);
+  border-color: var(--border-color);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .modal-mask .edit-popup::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: linear-gradient(180deg,
+    var(--accent) 0 64px,
+    var(--rule-soft) 64px 100%);
+  pointer-events: none;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .modal-mask .edit-popup h4 {
+  font-weight: 700;
+  letter-spacing: 2px;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .detail-field {
+  border-bottom-color: var(--rule-soft);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .detail-field .dl {
+  letter-spacing: 0.8px;
+  opacity: 0.55;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .detail-section {
+  letter-spacing: 1.6px;
+  opacity: 0.62;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .save-btn {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .save-btn:hover {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  border-color: var(--surface-plate);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   七、次级页面：蓝图 / 记录 / 数据管理
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .bp-header {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  box-shadow: inset 3px 0 0 var(--accent);
+  border-color: var(--surface-plate);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .bp-header .desc,
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .bp-header h2 {
+  color: var(--plate-fg);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .bp-group-head {
+  background: var(--surface-sunken);
+  box-shadow: inset 0 2px 0 var(--rule-strong),
+              inset 0 -1px 0 var(--rule-soft);
+  letter-spacing: 1.4px;
+}
+/* 代肝记录：与其它页同一块数据铭牌（深底 + 冷白字）
+   注：这里必须跟 .summary-strip 用同一个底色。若改成浅色承载面，
+   铭牌字色（--plate-fg）就是浅字压浅底 —— 统计几乎看不见。 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .wd-summary {
+  background: var(--surface-plate);
+  box-shadow: inset 3px 0 0 var(--accent),
+              inset 0 0 0 1px var(--plate-line);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .income-title {
+  letter-spacing: 1.4px;
+  opacity: 0.6;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .income-chip {
+  background: var(--surface-sunken);
+  border-color: var(--rule-soft);
+  /* 浅色小底必须配本文色：父级铭牌带是 --plate-fg，直接用会浅字压浅底 */
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+/* 设置 / 数据管理：靠标题层级与线条区分，不加装饰、不改间距 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .setting-row {
+  border-bottom-color: var(--rule-soft);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .setting-label {
+  letter-spacing: 0.6px;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .setting-hint {
+  letter-spacing: 0.6px;
+  opacity: 0.5;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .section {
+  box-shadow: inset 0 2px 0 var(--rule-strong);
+}

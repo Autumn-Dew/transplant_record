@@ -50,7 +50,7 @@
     </div>
 
     <div class="rp-body">
-      <div class="rp-wrap" ref="wrapRef" :style="{ background: reportBg.bg }">
+      <div class="rp-wrap" ref="wrapRef" :class="`rp-style-${reportBg.style}`" :style="{ background: reportBg.bg }">
         <!-- Title -->
         <div class="rp-title-row">
           <div class="rp-title" contenteditable @input="dirty = true" ref="titleRef">秋の露的每日汇报</div>
@@ -871,18 +871,20 @@ defineExpose({ refreshHosting })
 }
 .rp-bg-row { display: flex; gap: 8px; }
 .rp-bg-card {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 4px; width: 76px;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 4px; width: 84px;
   border: 2px solid transparent; background: none; cursor: pointer;
   transition: border-color var(--motion-duration-fast, 120ms) ease;
 }
 .rp-bg-card:hover { border-color: var(--border-color); }
 .rp-bg-card.active { border-color: var(--accent); }
-/* 缩略图用与画布完全相同的 background 值，所见即所得 */
+/* 缩略图用与画布完全相同的 background 值，所见即所得；
+   尺寸要够大，斜切 / 圆环 / 刻度这些「构图差异」才看得出来 */
 .rp-bg-thumb {
-  display: block; width: 100%; height: 46px;
+  display: block; width: 100%; height: 58px;
   border: 1px solid var(--border-color);
 }
+.rp-bg-card.active .rp-bg-thumb { box-shadow: 0 0 0 1px var(--accent); }
 .rp-bg-name {
   font-size: 10px; font-family: monospace; text-align: center;
   color: var(--text-primary); opacity: 0.8; white-space: nowrap;
@@ -951,4 +953,199 @@ defineExpose({ refreshHosting })
 .rp-img { width: 100%; border: 1px solid rgba(0,0,0,0.1); display: block; }
 .rp-img-del { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border: none; background: rgba(0,0,0,0.5); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .rp-img-del:hover { background: rgba(200,0,0,0.8); }
+
+/* ══════════════════════════════════════════════════════════════════
+   汇报排版 · 跟随「背景风格类别」，与当前应用主题无关
+
+   背景只有两大风格类别（孤星 / P3R），排版随之切换：
+     · 默认纯白背景 → 沿用既有版式（不改变老用户的成品外观）
+     · 孤星风格背景 → 科研档案：装订脊 + 深蓝档头 + 双线装帧
+     · P3R 风格背景 → 几何海报：整宽斜切色块 + 明黄收口 + 粗体数字
+   三套排版共用同一份 DOM 与导出流程，只改视觉层次，不改数据与交互。
+   导出走 html2canvas：只用背景渐变 / 边框 / 字号，不用 clip-path。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 孤星风格：航天科研档案 ─────────────────────────────────────── */
+.rp-wrap.rp-style-lone-star {
+  color: #141B22;
+  position: relative;
+}
+/* 左侧装订脊：上段工业橙，其余灰蓝细线（绝对定位，不占布局、不改画布尺寸） */
+.rp-wrap.rp-style-lone-star::before {
+  content: '';
+  position: absolute;
+  left: 14px; top: 24px; bottom: 24px;
+  width: 5px;
+  background: linear-gradient(180deg,
+    #D87938 0 118px,
+    rgba(20, 27, 34, 0.18) 118px 100%);
+  pointer-events: none;
+}
+/* 档头：标题行下一条深墨线（inset shadow，不增加高度） */
+.rp-style-lone-star .rp-title-row {
+  position: relative;
+  box-shadow: inset 0 -2px 0 #101923;
+}
+.rp-style-lone-star .rp-title-row::before {
+  content: 'FILE TR-DAILY / OPERATION REPORT';
+  position: absolute;
+  left: 0;
+  top: -10px;
+  font-family: monospace;
+  font-size: 8px;
+  letter-spacing: 2.4px;
+  color: #71818A;
+  pointer-events: none;
+}
+.rp-style-lone-star .rp-title {
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #101923;
+}
+.rp-style-lone-star .rp-game-tabs button,
+.rp-style-lone-star .rp-author-btn {
+  border-color: rgba(20, 27, 34, 0.3);
+  color: #141B22;
+  letter-spacing: 0.5px;
+}
+.rp-style-lone-star .rp-game-tabs button.active,
+.rp-style-lone-star .rp-author-btn.active,
+.rp-style-lone-star .rp-author-btn:hover {
+  background: #101923;
+  color: #E8E2D3;
+  border-color: #101923;
+}
+/* 托管信息 → 深蓝档号铭牌（左色条用 inset shadow，不改尺寸） */
+.rp-style-lone-star .rp-meta {
+  background: #101923;
+  color: #E8E2D3;
+  border-color: #101923;
+  box-shadow: inset 4px 0 0 #D87938;
+  font-family: monospace;
+  letter-spacing: 0.6px;
+}
+.rp-style-lone-star .rp-meta .rp-inp {
+  background: #F6F1E7;
+  border-color: rgba(232, 226, 211, 0.4);
+  color: #141B22;
+  font-weight: 700;
+}
+/* 卡片：墨线装帧 + 深蓝档头 */
+.rp-style-lone-star .rp-card {
+  border-color: rgba(20, 27, 34, 0.4);
+  background: rgba(255, 255, 255, 0.66);
+}
+.rp-style-lone-star .rp-card-head {
+  background: #101923;
+  color: #E8E2D3;
+  border-bottom-color: #D87938;
+  letter-spacing: 2.2px;
+  font-weight: 700;
+}
+.rp-style-lone-star .rp-card-head .rp-reset-sm {
+  border-color: rgba(232, 226, 211, 0.4);
+  color: #E8E2D3;
+}
+.rp-style-lone-star .rp-task-row {
+  box-shadow: inset 0 -1px 0 rgba(20, 27, 34, 0.1);
+}
+.rp-style-lone-star .rp-task-label {
+  letter-spacing: 0.3px;
+  font-weight: 600;
+}
+.rp-style-lone-star .rp-radio:has(input:checked) { color: #101923; }
+.rp-style-lone-star .rp-quick-bar { border-bottom-color: rgba(20, 27, 34, 0.1); }
+.rp-style-lone-star .rp-img { border-color: rgba(20, 27, 34, 0.4); }
+
+/* ── P3R 风格：几何平面海报 ──────────────────────────────────────── */
+.rp-wrap.rp-style-p3r {
+  color: #0A1F42;
+}
+/* 标题带：整宽斜切色块（深蓝 → 主蓝 → 青蓝），底部明黄收口用 inset shadow */
+.rp-style-p3r .rp-title-row {
+  background: linear-gradient(102deg,
+    #071B3A 0 66%,
+    #1264C8 66% 88%,
+    #28B8F2 88% 100%);
+  color: #F4F6FA;
+  box-shadow: inset 0 -5px 0 #F5D83D;
+}
+.rp-style-p3r .rp-title {
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  color: #F4F6FA;
+}
+.rp-style-p3r .rp-author-label {
+  color: #F4F6FA;
+  opacity: 0.6;
+  letter-spacing: 1.4px;
+}
+.rp-style-p3r .rp-game-tabs button,
+.rp-style-p3r .rp-author-btn {
+  border-color: rgba(244, 246, 250, 0.45);
+  color: #F4F6FA;
+  font-weight: 700;
+}
+.rp-style-p3r .rp-game-tabs button.active,
+.rp-style-p3r .rp-author-btn.active {
+  background: #F5D83D;
+  color: #071B3A;
+  border-color: #F5D83D;
+  font-weight: 900;
+}
+.rp-style-p3r .rp-author-btn:hover {
+  background: #28B8F2;
+  color: #071B3A;
+  border-color: #28B8F2;
+}
+/* 托管信息：深蓝数据带（左色条用 inset shadow） */
+.rp-style-p3r .rp-meta {
+  background: #071B3A;
+  color: #F4F6FA;
+  border-color: #071B3A;
+  box-shadow: inset 6px 0 0 #F5D83D;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.rp-style-p3r .rp-meta .rp-inp {
+  background: #F4F6FA;
+  border-color: #28B8F2;
+  color: #071B3A;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+/* 卡片：白色承载面 + 蓝色标题块 + 明黄细分隔 */
+.rp-style-p3r .rp-card {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(10, 31, 66, 0.12);
+}
+.rp-style-p3r .rp-card-head {
+  background: #1264C8;
+  color: #FFFFFF;
+  border-bottom-color: #F5D83D;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  box-shadow: inset 0 -4px 0 #F5D83D;
+}
+.rp-style-p3r .rp-card-head .rp-reset-sm {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.rp-style-p3r .rp-task-row {
+  box-shadow: inset 0 -1px 0 rgba(10, 31, 66, 0.1);
+}
+.rp-style-p3r .rp-task-row:nth-child(even) { background: rgba(40, 184, 242, 0.07); }
+.rp-style-p3r .rp-task-label {
+  font-weight: 700;
+  color: #0A1F42;
+}
+/* 选中态：蓝色方点 + 蓝色文字（明黄只做标题收口，不铺开） */
+.rp-style-p3r .rp-radio-box { border-color: #1264C8; }
+.rp-style-p3r .rp-radio input:checked + .rp-radio-box::after { background: #1264C8; }
+.rp-style-p3r .rp-radio:has(input:checked) { color: #1264C8; }
+.rp-style-p3r .rp-quick-bar { border-bottom-color: rgba(10, 31, 66, 0.1); }
+.rp-style-p3r .rp-img { border-color: rgba(18, 100, 200, 0.4); }
+
 </style>
