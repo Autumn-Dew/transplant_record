@@ -34,6 +34,7 @@
     "appId": "com.autumndew.boosting-record",
     "productName": "代肝记录",
     "copyright": "Copyright © 2026 AutumnDew",
+    "artifactName": "Transplant Record 代肝工作终端 ${version}.${ext}",
     "directories": {
       "output": "dist_electron"
     },
