@@ -1,0 +1,355 @@
+/* ══════════════════════════════════════════════════════════════════
+   P3R 主题 — 深海军蓝 / 明蓝 / 明黄 · 斜切构图 · 月相与刻度
+
+   原创视觉转译：只取「斜切分割、锐角面板、日历与月相意象」这类几何语言，
+   不使用任何游戏素材、Logo、角色或界面截图。
+
+   本文件只负责 P3R 两套主题（.theme-p3r-dark / .theme-p3r-light）的
+   调色板、装饰与动效；语义变量在 global-theme.css 中统一定义。
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) {
+  /* ── P3R 调色板 ── */
+  --p3r-navy: #071B3A;        /* 深海军蓝 */
+  --p3r-blue: #1264C8;        /* 主蓝 */
+  --p3r-cyan: #28B8F2;        /* 明亮青蓝 */
+  --p3r-yellow: #F5D83D;      /* 强调黄 */
+  --p3r-white: #F4F6FA;       /* 冷白 */
+  --p3r-muted: #A8B8D0;       /* 次级文字 */
+  --p3r-alert: #F07858;       /* 警告橙红 */
+  /* 锐角 / 斜切角度，集中管理便于统一调性 */
+  --p3r-cut: 10px;
+}
+
+/* 深色：强调色用明黄，正文冷白 */
+.theme-p3r-dark {
+  --p3r-fg-muted: var(--p3r-muted);
+  --p3r-line: rgba(40, 184, 242, 0.42);
+  --p3r-rule: rgba(40, 184, 242, 0.16);
+  --p3r-panel: #0C2450;
+  --p3r-key: var(--p3r-yellow);
+}
+/* 浅色：强调色用主蓝，正文深蓝；黄色只作色块与短线 */
+.theme-p3r-light {
+  --p3r-fg-muted: #5B6E8C;
+  --p3r-line: rgba(18, 100, 200, 0.38);
+  --p3r-rule: rgba(7, 27, 58, 0.12);
+  --p3r-panel: #E5EBF5;
+  --p3r-key: var(--p3r-blue);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   字体与排版：紧凑、等宽数据、醒目的粗体标题
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-header h2 {
+  letter-spacing: 1px;
+  font-weight: 900;
+  position: relative;
+  padding-left: 14px;
+}
+/* 标题左侧：明黄斜条 —— P3R 的「编号/刻度」意象 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-header h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 6px;
+  height: 1.05em;
+  transform: translateY(-50%) skewX(-14deg);
+  background: var(--p3r-yellow);
+}
+.theme-p3r-light .local-header h2::before {
+  /* 浅色底上用主蓝，明黄留作点缀 */
+  background: var(--p3r-blue);
+}
+
+:is(.theme-p3r-dark, .theme-p3r-light) .local-header .desc {
+  letter-spacing: 0.4px;
+  opacity: 0.72;
+}
+
+/* 数字层级：数据用等宽 + 更重，突出「读数」感 */
+:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip strong,
+:is(.theme-p3r-dark, .theme-p3r-light) .mono {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   标题栏与侧栏
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar {
+  position: relative;
+  overflow: hidden;
+}
+/* 标题栏底部斜向分割线 + 右侧月相 */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--p3r-blue) 0%, var(--p3r-cyan) 42%, transparent 42.2%);
+  opacity: 0.85;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-title-bar::after {
+  content: '';
+  position: absolute;
+  right: 120px;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  /* 月相：一侧实心、一侧镂空半月 */
+  background: radial-gradient(circle at 68% 50%, transparent 0 42%, var(--p3r-cyan) 43% 100%);
+  opacity: 0.5;
+}
+.theme-p3r-light .rc-title-bar::after { opacity: 0.42; }
+
+/* 侧栏分隔线：改成刻度尺（时钟刻度意象） */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-divider {
+  height: 6px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--sb-line) 0,
+    var(--sb-line) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+  opacity: 0.55;
+}
+
+/* 导航激活项：斜切高亮块 */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn.active {
+  position: relative;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-sub-func-btn.active::before {
+  content: '';
+  position: absolute;
+  inset: 4px 6px;
+  background: var(--p3r-cyan);
+  opacity: 0.16;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--p3r-cut)) 100%, 0 100%);
+  pointer-events: none;
+}
+/* 导航滑块本身也做斜切，移动时带方向感 */
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-nav-indicator {
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--p3r-cut)) 100%, 0 100%);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   统计条：小方块 + 紧凑排布
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip {
+  position: relative;
+  padding-left: 12px;
+  letter-spacing: 0.4px;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 4px;
+  height: 10px;
+  transform: translateY(-50%) skewX(-14deg);
+  background: var(--p3r-cyan);
+  opacity: 0.8;
+}
+.theme-p3r-dark .summary-chip:nth-child(2n)::before { background: var(--p3r-yellow); }
+
+/* 收入统计的月度 chip：只做角标，不裁剪文字（clip-path 会切掉右侧内容） */
+:is(.theme-p3r-dark, .theme-p3r-light) .income-chip {
+  position: relative;
+  border-left: 3px solid var(--p3r-cyan);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   列表项
+
+   ⚠ 这里刻意**不设置任何布局属性**（border / position / padding 等）。
+   孤星主题的行首色块由 `.song-item::after` 绝对定位在列表容器上，
+   hover 底色由 `.song-item::before` 铺开；一旦改动 border-left 或
+   position，列表左边缘会多出间隔、色块也会错位，所以 P3R 只换颜色。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* hover：沿用孤星那套 `::before` 铺底 + 文字反色的机制，
+   只是这里把两端的颜色显式配对，避免出现「深蓝字落在深蓝底上」。
+   注意 --btn-hover-bg / --btn-hover-text 在 P3R 两套主题里都已成对定义。 */
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover {
+  color: var(--btn-hover-text);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-name,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-artist,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-duration,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-main,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-sub,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-dim,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .fee-col,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .bp-col,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .status-tag,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .col-fixed,
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item:hover .song-index {
+  color: inherit;
+  opacity: 1;
+}
+
+/* 列表项进入：快速归位（纯 opacity + 位移动画，不影响布局） */
+@keyframes p3r-row-in {
+  0%   { opacity: 0; transform: translateX(-6px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   按钮与输入
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-global-btn,
+:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn {
+  letter-spacing: 0.4px;
+}
+/* 分段选择器（预设 / 自定义 / 全部 这类）：激活项加一道斜切角标，
+   不用 clip-path —— 那会连带裁掉文字右半边。 */
+:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn.active {
+  position: relative;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn.active::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: var(--p3r-yellow);
+  clip-path: polygon(50% 0, 100% 0, 50% 100%, 0 100%);
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+:is(.theme-p3r-dark, .theme-p3r-light) input,
+:is(.theme-p3r-dark, .theme-p3r-light) select {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   弹窗与面板：顶部斜切色带
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup {
+  position: relative;
+  border-width: 2px;
+  border-color: var(--p3r-line);
+}
+/* 顶部斜带：从左上切到右侧 */
+:is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(
+    90deg,
+    var(--p3r-cyan) 0%,
+    var(--p3r-cyan) 58%,
+    var(--p3r-yellow) 58%,
+    var(--p3r-yellow) 100%
+  );
+  clip-path: polygon(0 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
+  pointer-events: none;
+}
+/* 弹窗标题：粗体 + 字距 */
+:is(.theme-p3r-dark, .theme-p3r-light) .edit-popup h4 {
+  letter-spacing: 1.2px;
+  font-weight: 900;
+}
+
+/* 分区标题：编号感的小色条（覆盖孤星竖线） */
+:is(.theme-p3r-dark, .theme-p3r-light) .detail-section {
+  position: relative;
+  padding-left: 12px;
+  letter-spacing: 1.4px;
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .detail-section::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 5px;
+  height: 11px;
+  transform: translateY(-50%) skewX(-14deg);
+  background: var(--p3r-cyan);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   动效：斜向切入 / 面板展开 / 数字归位
+   全部走现有 motion token，并尊重 prefers-reduced-motion
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 页面切换：从左下斜向切开，而不是淡入 */
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-page-list-enter-active,
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-page-form-enter-active,
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-page-doc-enter-active {
+  transition:
+    opacity var(--mv-stage) var(--mv-ease-mech),
+    clip-path var(--mv-stage) var(--mv-ease-frame);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-page-list-enter-from,
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-page-form-enter-from,
+:is(.theme-p3r-dark, .theme-p3r-light) .mv-page-doc-enter-from {
+  opacity: 0;
+  transform: none;
+  clip-path: polygon(0 0, 0 0, 0 100%, 0 100%);
+}
+
+/* 弹窗：短促的斜切展开 */
+@keyframes p3r-panel-in {
+  0%   { opacity: 0; transform: translateX(18px); clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%); }
+  100% { opacity: 1; transform: translateX(0); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup {
+  animation: p3r-panel-in var(--mv-module) var(--mv-ease-mech) both;
+}
+
+/* 重要数字：短暂的斜向扫过（一次，不循环） */
+@keyframes p3r-figure-settle {
+  0%   { opacity: 0.35; transform: translateX(-3px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .summary-chip strong {
+  animation: p3r-figure-settle var(--mv-settle) var(--mv-ease-settle) both;
+}
+
+/* 按钮按压：短促位移，带方向感 */
+:is(.theme-p3r-dark, .theme-p3r-light) .rc-global-btn:active,
+:is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn:active {
+  transform: translateX(1px) skewX(-2deg);
+}
+
+/* 列表项进入：快速归位（keyframes 定义在「列表项」一节，纯位移不改布局） */
+:is(.theme-p3r-dark, .theme-p3r-light) .song-item {
+  animation: p3r-row-in var(--mv-module) var(--mv-ease-mech) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.theme-p3r-dark, .theme-p3r-light) .modal-mask .edit-popup,
+  :is(.theme-p3r-dark, .theme-p3r-light) .song-item,
+  :is(.theme-p3r-dark, .theme-p3r-light) .summary-chip strong {
+    animation: none;
+  }
+  :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-list-enter-from,
+  :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-form-enter-from,
+  :is(.theme-p3r-dark, .theme-p3r-light) .mv-page-doc-enter-from {
+    clip-path: none;
+  }
+  :is(.theme-p3r-dark, .theme-p3r-light) .rc-global-btn:active,
+  :is(.theme-p3r-dark, .theme-p3r-light) .tl-entry-btn:active {
+    transform: none;
+  }
+}

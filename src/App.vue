@@ -194,6 +194,7 @@ function onGlobalClick(e) {
 @import '@/assets/css/motion-tokens.css';
 @import '@/assets/css/motion-system.css';
 @import '@/assets/css/global-theme.css';
+@import '@/assets/css/theme-p3r.css';
 @import '@/assets/css/page-common.css';
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

@@ -139,6 +139,41 @@ async function main() {
   await clickText('.tl-entry-btn', '全部'); await sleep(600); await shot('01-accounts-all')
   await clickText('.tl-entry-btn', '代办'); await sleep(600); await shot('02-accounts-todo')
 
+  // ── 四套主题：平级循环切换 + 即时生效 + 持久化 ──
+  const themeSeq = []
+  const bgSeq = []
+  for (let i = 0; i < 4; i++) {
+    await clickByTitle('切换主题')
+    await sleep(320)
+    const id = await js(`document.documentElement.dataset.theme`)
+    themeSeq.push(id)
+    bgSeq.push(await js(`getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim()`))
+    if (id) await shot(`02b-theme-${id}`)
+  }
+  console.log('    主题循环：', JSON.stringify(themeSeq))
+  console.log('    背景变量：', JSON.stringify(bgSeq))
+  check('四套主题循环切换', new Set(themeSeq).size === 4)
+  check('每套主题背景色都不同（四套独立色板）', new Set(bgSeq).size === 4)
+  check('P3R 主题已生效（含深海军蓝 #071B3A）', bgSeq.includes('#071B3A'))
+  const storedTheme = await js(`(() => { try { return JSON.parse(localStorage.getItem('tr-theme')) } catch { return localStorage.getItem('tr-theme') } })()`)
+  check('主题已写入 tr-theme 并可恢复', themeSeq.includes(storedTheme))
+
+  // 通过设置页把主题定为 P3R 深色，再逐页截图核对（走真实入口，不手改 DOM）
+  await clickByTitle('设置'); await sleep(600)
+  check('设置页有四个主题选项', await js(`document.querySelectorAll('.theme-picker .tl-entry-btn').length === 4`))
+  await js(`(() => { const b = [...document.querySelectorAll('.theme-picker .tl-entry-btn')].find(x => x.textContent.trim() === 'P3R · 深夜'); if (b) b.click(); return !!b })()`)
+  await sleep(400)
+  check('设置页可切到 P3R 深夜', await js(`document.documentElement.dataset.theme === 'p3r-dark'`))
+  await shot('02c-p3r-dark-settings')
+  for (const [key, shotName] of [['代肝代办', '02d-p3r-dark-accounts'], ['蓝图记录', '02e-p3r-dark-blueprints'], ['代肝记录', '02f-p3r-dark-diary'], ['新增记录', '02g-p3r-dark-add'], ['价格一览', '02h-p3r-dark-prices'], ['数据管理', '02i-p3r-dark-admin']]) {
+    await clickByTitle(key); await sleep(650); await shot(shotName)
+  }
+  // 切回孤星浅色，保持后续用例的既有视觉前提
+  await clickByTitle('设置'); await sleep(500)
+  await js(`(() => { const b = [...document.querySelectorAll('.theme-picker .tl-entry-btn')].find(x => x.textContent.trim() === '孤星 · 档案'); if (b) b.click(); return !!b })()`)
+  await sleep(400)
+  check('可切回孤星 · 档案', await js(`document.documentElement.dataset.theme === 'lone-star-light'`))
+
   // ── 项目详情（与「代肝记录」同一套弹窗版式；不再有托管链 / 分区 tab）──
   await clickByTitle('代肝代办')
   await clickText('.tl-entry-btn', '全部')   // 详情按钮在列表行视图里

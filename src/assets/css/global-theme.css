@@ -1,7 +1,19 @@
-/* 全局主题颜色变量 — 孤星（Lone Trail）视觉体系
-   浅色 = 航天档案纸（暖白底 + 墨色字 + 工业橙强调）
-   深色 = 深空蓝黑终端                                                */
-:root {
+/* ══════════════════════════════════════════════════════════════════
+   全局主题语义变量
+
+   四套主题平级、独立，均由根节点上的 `theme-<id>` 类名激活：
+     :root / .theme-lone-star-light   孤星 · 档案（暖白纸面 + 工业橙）
+     .theme-lone-star-dark            孤星 · 终端（深空蓝黑 + 工业橙）
+     .theme-p3r-light                 P3R · 白昼（冷白 + 明蓝 + 明黄）
+     .theme-p3r-dark                  P3R · 深夜（深海军蓝 + 明蓝 + 明黄）
+
+   `theme-<id>` 同时挂在 documentElement 与页面根容器上，
+   因此组件内 scoped 样式也能按主题分支。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 孤星 · 档案（浅色，也是默认） ─────────────────────────────── */
+:root,
+.theme-lone-star-light {
     --bg-primary: #EFE9DE;
     --bg-secondary: #E4DDD0;
     --bg-sidebar: #101923;
@@ -15,8 +27,15 @@
     /* 侧边栏（深空蓝黑）上的前景色 */
     --sb-fg: #E8E2D3;
     --sb-line: rgba(232, 226, 211, 0.35);
+    /* 语义强调色 */
+    --accent: #D87938;
+    --accent-ink: #101923;
+    --warn: #A84238;
+    --gauge: #71818A;
 }
 
+/* ── 孤星 · 终端（深色） ──────────────────────────────────────── */
+.theme-lone-star-dark,
 .theme-dark {
     --bg-primary: #101923;
     --bg-secondary: #17222E;
@@ -30,6 +49,53 @@
     --disabled-border: #33465A;
     --sb-fg: #E8E2D3;
     --sb-line: rgba(232, 226, 211, 0.3);
+    --accent: #D87938;
+    --accent-ink: #101923;
+    --warn: #C4553F;
+    --gauge: #8B9AA3;
+}
+
+/* ── P3R · 白昼（浅色） ──────────────────────────────────────────
+   冷白纸面 + 深蓝文字 + 明蓝交互 + 明黄强调。
+   注意浅色不是把深色反相：侧栏仍保持深海军蓝，强调黄以「色块/短线」形式出现。 */
+.theme-p3r-light {
+    --bg-primary: #F4F6FA;
+    --bg-secondary: #E5EBF5;
+    --bg-sidebar: #071B3A;
+    --text-primary: #0A1F42;
+    --border-color: #0A1F42;
+    --btn-hover-bg: #1264C8;
+    --btn-hover-text: #F4F6FA;
+    --disabled-bg: #D8E0EC;
+    --disabled-text: #8595AE;
+    --disabled-border: #B8C6DA;
+    --sb-fg: #F4F6FA;
+    --sb-line: rgba(244, 246, 250, 0.34);
+    --accent: #1264C8;
+    --accent-ink: #F4F6FA;
+    --warn: #C9411F;
+    --gauge: #56708F;
+}
+
+/* ── P3R · 深夜（深色） ──────────────────────────────────────────
+   深海军蓝背景 + 蓝色面板 + 冷白文字 + 明黄强调。 */
+.theme-p3r-dark {
+    --bg-primary: #071B3A;
+    --bg-secondary: #0C2450;
+    --bg-sidebar: #04122A;
+    --text-primary: #F4F6FA;
+    --border-color: #2A6FC4;
+    --btn-hover-bg: #F5D83D;
+    --btn-hover-text: #071B3A;
+    --disabled-bg: #10294F;
+    --disabled-text: #5C7AA6;
+    --disabled-border: #23477E;
+    --sb-fg: #F4F6FA;
+    --sb-line: rgba(40, 184, 242, 0.38);
+    --accent: #F5D83D;
+    --accent-ink: #071B3A;
+    --warn: #F07858;
+    --gauge: #7FA0CC;
 }
 
 /* 全局禁用按钮 */
@@ -44,3 +110,18 @@
 }
 
 :focus-visible { outline: none; }
+
+/* 主题切换时颜色平滑过渡，避免整屏硬切换的闪烁 */
+.rc-main-container,
+.rc-main-container * {
+    transition-property: background-color, border-color, color;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.2, 0.6, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rc-main-container,
+    .rc-main-container * {
+        transition-duration: 0.01ms;
+    }
+}

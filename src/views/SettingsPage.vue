@@ -32,6 +32,23 @@
 
       <div class="setting-row">
         <div class="setting-info">
+          <span class="setting-label">界面主题</span>
+          <span class="setting-hint">四套主题平级独立，选择后立即生效并记住你的选择</span>
+        </div>
+        <div class="theme-picker">
+          <button
+            v-for="t in themes"
+            :key="t.id"
+            class="tl-entry-btn"
+            :class="{ active: themeId === t.id }"
+            :title="t.hint"
+            @click="setTheme(t.id)"
+          >{{ t.label }}</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
           <span class="setting-label">数据存储</span>
           <span class="setting-hint">数据自动保存到本地，不会上传到任何服务器</span>
         </div>
@@ -77,6 +94,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
+import { useGlobalTheme } from '@/composables/useGlobalTheme.js'
+
+// 主题选择：四套主题平级，一个入口切换（与侧栏按钮同一份状态）
+const { themeId, themes, setTheme } = useGlobalTheme()
 
 const entered = ref(false)
 onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })

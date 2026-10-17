@@ -23,6 +23,8 @@ export const KEYS = {
   GAMES: 'tr-games',
   SCHEMA: 'tr-schema-version',
   SHOP_HIDDEN: 'tr-shop-hidden',
+  // 每日汇报背景（独立于应用主题，两者互不覆盖）
+  REPORT_BG: 'tr-report-bg',
 }
 
 export const SCHEMA_VERSION = 2

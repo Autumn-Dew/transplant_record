@@ -17,6 +17,30 @@
         <span>+ 图片</span>
         <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
       </label>
+      <!-- 汇报背景：按「默认 / 孤星风格 / P3R 风格」分组，独立于当前应用主题 -->
+      <span class="rp-bg-picker">
+        <button class="rc-global-btn" :class="{ active: bgPanelOpen }" title="每日汇报背景（与当前应用主题无关）" @click="bgPanelOpen = !bgPanelOpen">
+          背景 · {{ reportBg.label }}
+        </button>
+        <div class="rp-bg-panel" v-if="bgPanelOpen">
+          <div v-for="g in REPORT_BG_GROUPS" :key="g.id" class="rp-bg-group">
+            <div class="rp-bg-group-label">{{ g.label }}</div>
+            <div class="rp-bg-row">
+              <button
+                v-for="b in g.items"
+                :key="b.id"
+                class="rp-bg-card"
+                :class="{ active: reportBgId === b.id }"
+                :title="`${b.label} · ${b.hint}`"
+                @click="setReportBg(b.id); bgPanelOpen = false"
+              >
+                <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
+                <span class="rp-bg-name">{{ b.label }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </span>
       <div class="toolbar-spacer"></div>
       <!-- 当前选中托管项目的备注（显示在控件右侧，过长省略、悬停看全文） -->
       <span class="rp-note" v-if="selectedTask && selectedTask.note" :title="selectedTask.note">
@@ -26,7 +50,7 @@
     </div>
 
     <div class="rp-body">
-      <div class="rp-wrap" ref="wrapRef">
+      <div class="rp-wrap" ref="wrapRef" :style="{ background: reportBg.bg }">
         <!-- Title -->
         <div class="rp-title-row">
           <div class="rp-title" contenteditable @input="dirty = true" ref="titleRef">秋の露的每日汇报</div>
@@ -312,6 +336,7 @@ import { completeTaskById, localToday } from '@/utils/taskComplete'
 import { hostProgress, isHosting } from '@/domain/project.js'
 import { projectsRepo } from '@/data/repos.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
+import { REPORT_BG_GROUPS, readReportBg, writeReportBg, findReportBg } from '@/data/report-backgrounds.js'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 
 const emit = defineEmits(['update:label'])
@@ -330,6 +355,14 @@ const images = ref([])
 const reportGame = ref('ak')
 const activeAuthor = ref('秋の露')
 const dirty = ref(false)
+
+// ── 汇报背景：独立持久化，不随应用主题变化 ──
+const reportBgId = ref(readReportBg())
+const reportBg = computed(() => findReportBg(reportBgId.value))
+const bgPanelOpen = ref(false)
+function setReportBg(id) {
+  reportBgId.value = writeReportBg(id)
+}
 
 const today = new Date()
 function fmtDate(d) {
@@ -759,7 +792,8 @@ function prepareExport() {
 }
 
 async function renderImage() {
-  return html2canvas(wrapRef.value, { backgroundColor: '#ffffff', scale: 3 })
+  // 背景由画布自身 CSS 承担；backgroundColor 只作为边缘兜底，取当前背景的底色
+  return html2canvas(wrapRef.value, { backgroundColor: reportBg.value.base, scale: 3 })
 }
 
 async function exportImage(toClipboard) {
@@ -820,6 +854,40 @@ defineExpose({ refreshHosting })
 .rp-sheet .rp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
 .rp-hint { font-size: 11px; opacity: 0.4; font-family: monospace; }
+
+/* ── 汇报背景选择器：按钮 + 浮层面板（按风格分组，不挤压工作区）── */
+.rp-bg-picker { position: relative; display: inline-flex; flex-shrink: 0; }
+.rp-bg-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  width: 392px; padding: 10px 12px;
+  background: var(--bg-primary); color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+.rp-bg-group-label {
+  font-size: 10px; font-family: monospace; letter-spacing: 1.5px;
+  opacity: 0.55; margin-bottom: 6px;
+}
+.rp-bg-row { display: flex; gap: 8px; }
+.rp-bg-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 4px; width: 76px;
+  border: 2px solid transparent; background: none; cursor: pointer;
+  transition: border-color var(--motion-duration-fast, 120ms) ease;
+}
+.rp-bg-card:hover { border-color: var(--border-color); }
+.rp-bg-card.active { border-color: var(--accent); }
+/* 缩略图用与画布完全相同的 background 值，所见即所得 */
+.rp-bg-thumb {
+  display: block; width: 100%; height: 46px;
+  border: 1px solid var(--border-color);
+}
+.rp-bg-name {
+  font-size: 10px; font-family: monospace; text-align: center;
+  color: var(--text-primary); opacity: 0.8; white-space: nowrap;
+}
+.rp-bg-card.active .rp-bg-name { opacity: 1; font-weight: 700; }
 /* 控件右侧的项目备注 */
 .rp-note {
   max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
