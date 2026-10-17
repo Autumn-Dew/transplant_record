@@ -88,7 +88,8 @@ test('项目：旧字段全部保留（含未知字段），新字段有合理�
   // 原有字段逐一保留
   assert.equal(a.account, '13800138000')
   assert.equal(a.password, 'pw123')
-  assert.equal(a.game, '终末地')
+  // game 沿用老数据的写法：存**游戏名**（价格表匹配走 gameKey / gameKeyOf）
+  assert.equal(a.game, '终末地', 'game 保持游戏名（与 v1.0.42 一致）')
   assert.equal(a.service, '普托')
   assert.equal(a.status, 2)
   assert.equal(a.remainingDays, 22)
@@ -102,7 +103,8 @@ test('项目：旧字段全部保留（含未知字段），新字段有合理�
   assert.equal(a.kind, 'hosting')
   assert.equal(a.state, 'active')
   assert.equal(a.host.startDate, '2026-09-15')
-  assert.equal(a.host.endDate, '2026-10-15')
+  // 30 天含首尾 → 9/15 到 10/14（老数据按「+1 个月」存成 10/15，多一天）
+  assert.equal(a.host.endDate, '2026-10-14')
   assert.ok(a.host.plannedTimes >= a.host.completedTimes)
   assert.equal(a.hostingChainId, 'abc123')
   assert.equal(a.paidAt, '2026-09-15')

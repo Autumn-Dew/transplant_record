@@ -18,6 +18,10 @@
         <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
       </label>
       <div class="toolbar-spacer"></div>
+      <!-- 当前选中托管项目的备注（显示在控件右侧，过长省略、悬停看全文） -->
+      <span class="rp-note" v-if="selectedTask && selectedTask.note" :title="selectedTask.note">
+        备注：{{ selectedTask.note }}
+      </span>
       <span class="rp-hint">Ctrl+V 粘贴截图</span>
     </div>
 
@@ -816,6 +820,12 @@ defineExpose({ refreshHosting })
 .rp-sheet .rp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
 .rp-hint { font-size: 11px; opacity: 0.4; font-family: monospace; }
+/* 控件右侧的项目备注 */
+.rp-note {
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; font-family: monospace; opacity: 0.75;
+  padding: 2px 8px; border: 1px solid var(--border-color); flex-shrink: 1;
+}
 .rp-body { padding: 12px 0; }
 .rp-wrap { max-width: 920px; margin: 0 auto; padding: 24px; background: #fff; color: #0d0d0d; }
 .rp-title { font-size: 18px; font-weight: 800; letter-spacing: 2px; margin-bottom: 14px; outline: none; }

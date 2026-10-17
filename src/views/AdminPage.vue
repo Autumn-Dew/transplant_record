@@ -17,7 +17,9 @@
           <span class="tl-entry-btn" :class="{ active: mode === 'all' }" @click="mode = 'all'">全部</span>
         </span>
         <button class="rc-global-btn" @click="addCategory">+ 类别</button>
-        <div class="toolbar-spacer"></div>
+      </template>
+      <div class="toolbar-spacer"></div>
+      <template v-if="section === 'prices'">
         <button class="rc-global-btn" @click="downloadJSON">下载</button>
         <button class="rc-global-btn" @click="saveToLocal">保存</button>
       </template>
@@ -30,6 +32,12 @@
       <div class="ad-shop">
         <div class="ad-cat-head">
           <span class="ad-cat-name" style="padding-left:8px">店铺信息</span>
+          <button
+            class="ad-add-item"
+            style="margin-left:8px"
+            :title="shopHidden ? '价格表当前不显示店铺信息，点此恢复显示' : '隐藏后价格表将不显示店铺信息'"
+            @click="toggleShopHidden"
+          >{{ shopHidden ? '已隐藏（点此显示）' : '在价格表中隐藏' }}</button>
         </div>
         <div class="ad-cat-items">
           <div class="ad-item-header">
@@ -98,7 +106,7 @@ import SelectBox from '@/components/SelectBox.vue'
 import GameSection from '@/components/GameSection.vue'
 import { gamesRepo } from '@/data/repos.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
-import { readShopForGame, writeShopForGame } from '@/data/shop-info.js'
+import { readShopForGame, writeShopForGame, readShopHidden, writeShopHidden } from '@/data/shop-info.js'
 
 const { prices, save: persist } = usePrices()
 // 数据管理分为两个分类：价格数据 / 游戏与服务（原「游戏管理」页面已并入）
@@ -127,6 +135,12 @@ function defaultShopInfo() {
   ]
 }
 const shopInfo = ref(defaultShopInfo())
+// 是否在价格表中隐藏店铺信息（独立开关，不影响店铺数据本身）
+const shopHidden = ref(readShopHidden())
+function toggleShopHidden() {
+  shopHidden.value = !shopHidden.value
+  writeShopHidden(shopHidden.value)
+}
 function normalizeShop(list) {
   return list.map((s, i) => ({
     id: s.id || ('s' + i + Date.now().toString(36)),

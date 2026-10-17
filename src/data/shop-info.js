@@ -72,5 +72,14 @@ export function writeShopForGame(game, list, gameKeys) {
   const { map } = migrateShopMap(readJSON(KEYS.SHOP_INFO, null), gameKeys)
   map[game] = normalizeShopList(list)
   writeJSON(KEYS.SHOP_INFO, map)
-  return map
+}
+
+// ── 价格表是否显示店铺信息（数据管理里的「隐藏」开关）──
+// 存在独立键里，避免破坏 tr-shop-info 既有的「游戏 → 列表」结构（老数据零改动）。
+export function readShopHidden() {
+  return readJSON(KEYS.SHOP_HIDDEN, false) === true
+}
+export function writeShopHidden(hidden) {
+  writeJSON(KEYS.SHOP_HIDDEN, hidden === true)
+  try { window.dispatchEvent(new CustomEvent('tr-shop-hidden-changed')) } catch { /* ignore */ }
 }

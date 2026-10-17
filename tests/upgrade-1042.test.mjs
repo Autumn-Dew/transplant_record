@@ -208,7 +208,7 @@ const before = clone(Object.fromEntries(LS))
 
 const { runStartupMigration, rollback } = await import('../src/services/migration.js')
 const report = runStartupMigration()
-const { projectsRepo, completionsRepo, blueprintsRepo, blueprintGroupsRepo } = await import('../src/data/repos.js')
+const { projectsRepo, completionsRepo, blueprintsRepo, blueprintGroupsRepo, gamesRepo } = await import('../src/data/repos.js')
 const { isHosting, STATE, paymentsOf } = await import('../src/domain/project.js')
 
 // ══════════ 迁移本身 ══════════
@@ -232,10 +232,13 @@ test('迁移前后：项目 / 记录 / 蓝图的数量一条不少', () => {
 })
 
 test('项目：1.0.42 的字段逐个保留（含未知字段），只做新增', () => {
+  // 唯一的例外是 game：老数据存的是游戏名，迁移统一成游戏 id（展示名保留在 gameName）
+  const NORMALIZED = new Set(['game'])
   for (const old of legacyAccountsRaw) {
     const now = projectsRepo.find(old.id)
     assert.ok(now, `项目 ${old.id} 必须存在`)
     for (const [k, v] of Object.entries(old)) {
+      if (NORMALIZED.has(k)) continue
       assert.deepEqual(now[k], v, `字段 ${k} 被改写：${JSON.stringify(now[k])} ≠ ${JSON.stringify(v)}`)
     }
     // 只做新增，不删除任何旧字段
@@ -243,6 +246,18 @@ test('项目：1.0.42 的字段逐个保留（含未知字段），只做新增'
     assert.equal('state' in now, true, '新增 state')
     if (isHosting(now)) assert.equal('paidAt' in now, true, '托管项目新增 paidAt（收入归月依据）')
   }
+
+  // game 统一为**游戏名**（与 v1.0.42 老数据一致）；价格表仍按 gameKey / gameKeyOf 匹配
+  const gameNames = new Set(gamesRepo.state.value.map(g => g.name))
+  for (const old of legacyAccountsRaw) {
+    const now = projectsRepo.find(old.id)
+    if (gameNames.has(old.game)) assert.equal(now.game, old.game, '本来就是游戏名的保持不变')
+    else assert.ok(gameNames.has(now.game), `game=${now.game} 应规范化为游戏名`)
+  }
+  const hostingNow = projectsRepo.find(ID.hosting)
+  assert.equal(hostingNow.game, '终末地', 'id（endfield）→ 游戏名「终末地」')
+  assert.equal(hostingNow.gameName, '终末地', '展示名一致')
+
   assert.equal(projectsRepo.find(ID.hosting).myOwnField, '自定义字段必须保留')
   assert.equal(projectsRepo.find(ID.oneOff).customField, '单次自定义字段')
 })
@@ -251,8 +266,8 @@ test('托管周期：由 1.0.42 的 remainingDays + createdAt 正确推导（不
   const p = projectsRepo.find(ID.hosting)
   assert.equal(isHosting(p), true, 'status=2 → 托管')
   assert.equal(p.host.startDate, '2026-09-10', '开始日 = 创建日')
-  assert.equal(p.host.endDate, '2026-10-10', '结束日 = 创建日 + 1 个月（1.0.42 口径）')
-  assert.equal(p.host.cycleDays, 30)
+  assert.equal(p.host.endDate, '2026-10-09', '结束日 = 开始日 + 30 − 1（老数据 +1 个月多一天，已校正）')
+  assert.equal(p.host.cycleDays, 30, '周期天数 = 1.0.42 的 monthSpanDays')
   assert.equal(p.host.plannedTimes, 30, '计划次数 = 周期天数')
   assert.equal(p.host.completedTimes, 10, '已完成 = 计划 − 剩余（20）')
   assert.equal(p.remainingDays, 20, '旧字段原样保留')

@@ -8,7 +8,7 @@ import { normalizeProject, hostProgress, plannedTimesFor, isHosting, isCompleted
 import { buildCompletion, RESULT, normalizeCompletion } from '../src/domain/completion.js'
 import { normalizeGames, ensureGamesForRecords, gameKeyOf, gameNameOf, usableGames, defaultGames } from '../src/domain/games.js'
 import { maskAccount, getDisplayName } from '../src/domain/mask.js'
-import { todayLocal, addMonth, fmtDate } from '../src/utils/date.js'
+import { todayLocal, addMonth, fmtDate, endDateFromDays } from '../src/utils/date.js'
 
 // ── v1 数据样本 ──
 const V1_HOSTING = {
@@ -50,7 +50,8 @@ test('迁移：托管记录补出显式托管周期与次数，且保留全部�
   assert.equal(p.state, STATE.ACTIVE)
   assert.equal(p.schemaVersion, 3)
   assert.equal(p.host.startDate, fmtDate(V1_HOSTING.createdAt))
-  assert.equal(p.host.endDate, addMonth(fmtDate(V1_HOSTING.createdAt)))
+  // 老数据只有 remainingDays（= monthSpanDays = 30 天），结束日按「30 天含首尾」校正
+  assert.equal(p.host.endDate, endDateFromDays(fmtDate(V1_HOSTING.createdAt), 30))
   assert.ok(p.host.cycleDays >= 28)
   // 剩余 22 天 → 计划次数取 max(周期, 22)
   assert.equal(p.host.plannedTimes, Math.max(p.host.cycleDays, 22))
@@ -94,7 +95,8 @@ test('迁移：执行记录补齐 plannedDate / completedDate / result，且是�
 test('托管进度：计划次数 / 已完成次数 / 剩余互不混淆', () => {
   const p = normalizeProject({
     ...V1_HOSTING,
-    host: { startDate: '2026-09-15', endDate: '2026-10-15', cycleDays: 30, plannedTimes: 30, completedTimes: 8 },
+    // 9/16 → 10/15 含首尾正好 30 天（cycleDays 以起止日期为准）
+    host: { startDate: '2026-09-16', endDate: '2026-10-15', cycleDays: 30, plannedTimes: 30, completedTimes: 8 },
   })
   const prog = hostProgress(p)
   assert.equal(prog.planned, 30)

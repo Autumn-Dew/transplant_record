@@ -34,13 +34,13 @@
           <div class="bp-col code">蓝图码</div>
           <div class="bp-col land">占地</div>
           <div class="bp-col products">产物</div>
-          <div class="bp-col source">蓝图来源</div>
+          <div class="bp-col source">备注</div>
           <div class="bp-move-space" v-if="sortMode === 'group'"></div>
           <div class="bp-actions-space"></div>
         </div>
 
         <template v-for="(row, idx) in displayRows" :key="row.type === 'group' ? 'g-' + row.name : row.item.id">
-          <div v-if="row.type === 'group'" class="bp-group-head">
+          <div v-if="row.type === 'group'" class="bp-group-head" @click="toggleGroup(row.name)">
             <template v-if="renamingGroup === row.name">
               <input
                 class="bp-rename-inp"
@@ -54,8 +54,10 @@
               <button class="bp-sort-btn" @click.stop="cancelRename">取消</button>
             </template>
             <template v-else>
+              <span class="bp-caret" :title="isCollapsed(row.name) ? '展开该分组' : '收起该分组'">{{ isCollapsed(row.name) ? '▸' : '▾' }}</span>
               <span class="bp-group-name">{{ row.name }}</span>
               <span class="bp-group-count">{{ row.count }}</span>
+              <span class="bp-collapsed-hint" v-if="isCollapsed(row.name)">已收起</span>
               <span class="bp-group-move" v-if="!row.ungrouped">
                 <button class="bp-sort-btn" @click.stop="moveGroup(row.name, -1)" :disabled="groupIndex(row.name) === 0">↑</button>
                 <button class="bp-sort-btn" @click.stop="moveGroup(row.name, 1)" :disabled="groupIndex(row.name) === groups.length - 1">↓</button>
@@ -77,7 +79,7 @@
             <div class="bp-col code">{{ row.item.code || '—' }}</div>
             <div class="bp-col land">{{ row.item.land || '—' }}</div>
             <div class="bp-col products">{{ row.item.products || '—' }}</div>
-            <div class="bp-col source">{{ row.item.source || '—' }}</div>
+            <div class="bp-col source">{{ row.item.note || '—' }}</div>
             <span class="bp-move" v-if="sortMode === 'group'">
               <button class="bp-sort-btn" @click.stop="moveInGroup(row.groupName, row.item, -1)" :disabled="row.idxInGroup === 0">↑</button>
               <button class="bp-sort-btn" @click.stop="moveInGroup(row.groupName, row.item, 1)" :disabled="row.idxInGroup === row.groupTotal - 1">↓</button>
@@ -157,6 +159,10 @@
                 <span v-if="detailRecord.color" class="color-preview" :style="{ background: detailRecord.color }"></span>{{ detailRecord.color || '—' }}
               </span>
             </div>
+            <div class="detail-field"><span class="dl">备注</span>
+              <input v-if="detailEditMode" v-model="detailRecord.note" class="pd-inp" placeholder="备注（如：材料消耗 / 注意事项）" />
+              <span v-else class="dv">{{ detailRecord.note || '—' }}</span>
+            </div>
           </div>
           <datalist id="bp-groups">
             <option v-for="g in groups" :key="g" :value="g" />
@@ -174,7 +180,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, watch } from 'vue'
 import { useEditState } from '@/composables/useEditState'
 import { useRowSelect } from '@/composables/useRowSelect'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
@@ -287,6 +293,8 @@ const displayRows = computed(() => {
   const rows = []
   groupedRecords.value.forEach(grp => {
     rows.push({ type: 'group', name: grp.name, count: grp.items.length, ungrouped: !!grp.ungrouped })
+    // 分组折叠：收起时只留组头，条目全部隐藏（纯展示，不影响数据与排序）
+    if (collapsed.value[grp.name]) return
     grp.items.forEach((item, i) => rows.push({
       type: 'item', item, idxInGroup: i, groupTotal: grp.items.length,
       groupName: grp.name, ungrouped: !!grp.ungrouped,
@@ -294,6 +302,29 @@ const displayRows = computed(() => {
   })
   return rows
 })
+
+// ── 分组收纳（隐藏 / 显示组内条目）──
+// 默认只展开第一个分组，其余收起。
+// ⚠ 必须监听 groupedRecords（真正渲染出来的分组，来自蓝图自带的 group 字段），
+//   而不是 groups（那是手动排序用的列表，没排过序时是空数组 —— 之前监听它就永远不生效）。
+// 每次发现「新出现的组」补上默认值，已存在的不动，保留用户手动展开/收起。
+const collapsed = ref({})
+watch(groupedRecords, list => {
+  const next = { ...collapsed.value }
+  let changed = false
+  ;(Array.isArray(list) ? list : []).forEach((grp, i) => {
+    const name = grp && grp.name
+    if (!name || name in next) return
+    next[name] = i > 0          // 第一个组展开，其余收起
+    changed = true
+  })
+  if (changed) collapsed.value = next
+}, { immediate: true })
+function isCollapsed(name) { return !!collapsed.value[name] }
+function toggleGroup(name) {
+  if (renamingGroup.value === name) return
+  collapsed.value = { ...collapsed.value, [name]: !collapsed.value[name] }
+}
 
 function groupIndex(name) { return groups.value.indexOf(name) }
 function moveGroup(name, dir) {
@@ -445,12 +476,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .bp-group-head {
   display: flex; align-items: center; gap: 8px;
   height: 30px; padding: 0 12px;
+  cursor: pointer;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   font-size: 12px; font-weight: 700; font-family: monospace;
   position: relative; z-index: 1;
 }
 .bp-group-name { letter-spacing: 1px; }
+.bp-caret { width: 12px; flex-shrink: 0; font-size: 11px; opacity: 0.6; }
+.bp-collapsed-hint { font-size: 10px; font-family: monospace; opacity: 0.45; }
 .bp-group-count {
   font-size: 10px; opacity: 0.6; padding: 0 6px;
   border: 1px solid var(--border-color);

@@ -65,6 +65,7 @@
         <div class="form-row"><label>占地</label><input v-model="blueprintForm.land" /></div>
         <div class="form-row"><label>产物</label><input v-model="blueprintForm.products" /></div>
         <div class="form-row"><label>蓝图来源</label><input v-model="blueprintForm.source" /></div>
+        <div class="form-row"><label>备注</label><input v-model="blueprintForm.note" placeholder="备注（如：材料消耗 / 注意事项）" /></div>
         <div class="form-row"><label>颜色</label>
           <div class="color-swatches">
             <span v-for="c in presetColors" :key="c" class="color-swatch" :style="{ background: c }" :class="{ active: blueprintForm.color === c }" @click="blueprintForm.color = c"></span>
@@ -90,28 +91,53 @@
 
   <Teleport to="body">
     <div v-if="renewal" class="modal-mask" @click.self="cancelRenewal">
-      <div class="edit-popup" style="max-width:460px">
+      <div class="edit-popup pd-popup">
         <h4>续费确认</h4>
-        <p class="detail-section">检测到同账号的托管项目：本次新增会**在原项目上加天数**并记一笔收费，而不是新建项目。</p>
+
+        <!-- 与「详细信息」窗口同一套版式：名称行 + detail-grid 分组 -->
+        <div class="pd-head">
+          <div class="pd-head-main renew-head-line">
+            <span class="pd-name">{{ renewal.candidate.gameName || renewal.candidate.game || '未命名' }}</span>
+            <span class="renew-sep">|</span>
+            <span class="pd-sub">{{ renewal.candidate.service || '—' }} · 托管续期</span>
+            <span class="renew-sep">|</span>
+            <span class="pd-state pd-state-active">续费</span>
+          </div>
+        </div>
+
         <div class="detail-grid">
-          <div class="detail-field"><span class="dl">原项目</span>
-            <span class="dv">{{ renewal.candidate.gameName || renewal.candidate.game }} · {{ renewal.candidate.service || '—' }}</span>
+          <p class="detail-section">原项目</p>
+          <div class="detail-field"><span class="dl">账号</span>
+            <span class="dv">{{ renewal.candidate.account || '—' }}</span>
+          </div>
+          <div class="detail-field"><span class="dl">游戏</span>
+            <span class="dv">{{ renewal.candidate.gameName || renewal.candidate.game || '—' }}</span>
           </div>
           <div class="detail-field"><span class="dl">原周期</span>
             <span class="dv">{{ renewal.prevStart }} → {{ renewal.prevEnd }}</span>
           </div>
+          <div class="detail-field"><span class="dl">原收费</span>
+            <span class="dv mono">¥{{ renewal.candidate.totalFee || 0 }}</span>
+          </div>
+
+          <p class="detail-section">本次续费</p>
           <div class="detail-field"><span class="dl">加天数</span>
-            <input type="number" min="1" v-model.number="renewalDays" class="form-select" />
+            <input type="number" min="1" v-model.number="renewalDays" class="pd-inp" />
           </div>
           <div class="detail-field"><span class="dl">收费金额</span>
-            <input type="number" min="0" v-model.number="renewalAmount" class="form-select" />
+            <input type="number" min="0" v-model.number="renewalAmount" class="pd-inp" />
           </div>
           <div class="detail-field"><span class="dl">收费日期</span>
-            <input type="date" v-model="renewalPaidAt" class="form-select" />
+            <input type="date" v-model="renewalPaidAt" class="pd-inp" />
           </div>
-          <div class="detail-field"><span class="dl">新结束日</span><span class="dv">{{ renewalEnd }}</span></div>
+          <div class="detail-field"><span class="dl">新结束日</span><span class="dv mono">{{ renewalEnd }}</span></div>
+
+          <p class="detail-section">说明</p>
+          <div class="detail-field"><span class="dl">处理方式</span>
+            <span class="dv">在原项目上加天数并记一笔收费，不新建项目</span>
+          </div>
         </div>
-        <p class="detail-section">不新建项目：原项目的资料、执行记录与已有订单都不变，只追加一条收费记录。</p>
+
         <div class="edit-actions" style="margin-top:16px">
           <button class="save-btn" :style="cfm.styleOf('confirm-renewal')" :title="cfm.titleOf('confirm-renewal', '确认加天数')" @click="confirmRenewal">确认加天数</button>
           <button class="cancel-btn" @click="cancelRenewal">取消</button>
@@ -135,14 +161,14 @@ export default { name: 'AddPage' }
 import { computed, ref, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { useEditState } from '@/composables/useEditState'
 import { maskAccount, getDisplayName, PLATFORM_OPTIONS } from '@/domain/mask.js'
-import { gameOptions as buildGameOptions, serviceNames, findGame, LEGACY_DEFAULT_SERVICES } from '@/domain/games.js'
+import { gameOptions as buildGameOptions, serviceNames, findGame, gameKeyOf, LEGACY_DEFAULT_SERVICES } from '@/domain/games.js'
 import { isClosed } from '@/domain/project.js'
 import { createProject, updateProject, findRenewalCandidate, addHostingPeriod } from '@/services/projectService.js'
 import { projectsRepo, completionsRepo, gamesRepo, blueprintsRepo, blueprintGroupsRepo } from '@/data/repos.js'
 import { blueprintCopy, isValidHex, normalizeHex } from '@/domain/blueprints.js'
 import { readJSON, writeJSON, KEYS } from '@/data/storage.js'
 import { newId } from '@/domain/completion.js'
-import { addMonth, addDays, fmtDate, isYmd, todayLocal } from '@/utils/date'
+import { addMonth, addDays, fmtDate, isYmd, diffDays, todayLocal } from '@/utils/date'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import SelectBox from '@/components/SelectBox.vue'
 
@@ -170,7 +196,7 @@ const defaultTask = () => ({
   totalFee: '', actualFee: '', delayedFee: '',
 })
 const defaultBlueprint = () => ({
-  code: '', name: '', land: '', products: '', source: '', color: '', group: ''
+  code: '', name: '', land: '', products: '', source: '', note: '', color: '', group: ''
 })
 const presetColors = ['#FF1744', '#FF6D00', '#FFEA00', '#00E676', '#00B0FF', '#2979FF', '#9C27B0', '#F50057']
 
@@ -263,17 +289,32 @@ function applyTemplate() {
   }
 }
 
+// 编辑态填充：把记录里的托管周期映射成表单的扁平字段（「托管天数」），
+// 否则编辑时「托管天数」是空的 —— 用户就改不了天数。
+// 游戏字段统一成游戏 id（老数据可能存的是游戏名），下拉才能正确选中。
+function fillTaskForm(rec) {
+  const host = rec.host || {}
+  const days = Number(host.cycleDays) || 0
+  taskForm.value = {
+    ...rec,
+    game: gameKeyOf(gamesRepo.state.value, rec.game),
+    hostDays: days > 0 ? days : '',
+  }
+}
+
 onMounted(() => {
   projectsRepo.hydrate()
   if (editRecord.value && editType.value === 'accounts') {
-    taskForm.value = { ...editRecord.value }
+    fillTaskForm(editRecord.value)
   }
   if (!taskForm.value.game) taskForm.value.game = gameOptions.value[0]?.value || ''
 })
 
-// 编辑目标变化时同步蓝图表单：避免编辑另一条记录时表单残留上一条的数据
+// 编辑目标变化时同步表单：避免编辑另一条记录时表单残留上一条的数据
 watch([editRecord, editType], ([rec, type]) => {
-  if (rec && type === 'blueprints') blueprintForm.value = { ...defaultBlueprint(), ...rec }
+  if (!rec) return
+  if (type === 'blueprints') blueprintForm.value = { ...defaultBlueprint(), ...rec }
+  if (type === 'accounts') fillTaskForm(rec)
 }, { immediate: true })
 
 // ══════ 蓝图记录（统一经由 Repository） ══════
@@ -315,7 +356,9 @@ function openRenewalPrompt(candidate, form) {
   renewal.value = { candidate, form, prevStart, prevEnd }
   // 天数：优先用本次表单填的「托管天数」，留空则沿用原周期天数
   const formDays = Number(form && form.hostDays)
-  renewalDays.value = Number.isFinite(formDays) && formDays > 0 ? Math.round(formDays) : (Number(host.cycleDays) || 30)
+  renewalDays.value = Number.isFinite(formDays) && formDays > 0
+    ? Math.round(formDays)
+    : Math.max(1, (isYmd(host.startDate) && isYmd(host.endDate)) ? diffDays(host.startDate, host.endDate) : 30)
   const fee = form && form.actualFee !== '' && form.actualFee != null ? form.actualFee : (form && form.totalFee)
   renewalAmount.value = Number(fee) || 0
   renewalPaidAt.value = todayLocal()

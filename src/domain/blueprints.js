@@ -17,7 +17,8 @@ export const DEFAULT_FONT_SIZE = 12
 export const FONT_SIZE_PRESETS = [11, 12, 13, 14, 16, 18, 20]
 
 // 蓝图记录的可复制字段（内容 + 配置）
-export const BLUEPRINT_FIELDS = ['group', 'code', 'name', 'land', 'products', 'source', 'color', 'fontSize']
+// 蓝图记录的字段清单（复制 / 展示以这里为准；未知字段同样会被保留）
+export const BLUEPRINT_FIELDS = ['group', 'code', 'name', 'land', 'products', 'source', 'note', 'color', 'fontSize']
 
 /**
  * 把任意输入规范成合法字号。

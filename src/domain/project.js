@@ -12,7 +12,7 @@
 //   * 无法确定的含义不猜测、不丢弃。
 // ═══════════════════════════════════════════════════════════════════
 
-import { fmtDate, addMonth, monthSpanDays, todayLocal, diffDays, isYmd, daysBetween } from '../utils/date.js'
+import { fmtDate, addMonth, monthSpanDays, todayLocal, diffDays, isYmd, daysBetween, endDateFromDays } from '../utils/date.js'
 
 export const PROJECT_SCHEMA_VERSION = 3
 
@@ -256,8 +256,14 @@ function normalizeHost(p, now) {
   const prev = p.host && typeof p.host === 'object' ? p.host : {}
   const createdAt = p.createdAt
   const startDate = isYmd(prev.startDate) ? prev.startDate : fmtDate(createdAt)
-  const endDate = isYmd(prev.endDate) ? prev.endDate : addMonth(startDate)
-  const cycleDays = num(prev.cycleDays, 0) || Math.max(1, diffDays(startDate, endDate)) || monthSpanDays(createdAt) || 30
+  // 周期天数以「用户填的天数」为准；结束日是派生值（开始日 + 天数 − 1，含首尾）。
+  // v1.0.42 的结束日按「+1 个月」算（9/10 → 10/10），比天数多一天，
+  // 一改天数就会「退回」正确值，看起来像少了一天 —— 这里统一按天数校正结束日。
+  const prevDays = Math.max(0, num(prev.cycleDays, 0) || 0)
+  const rawEnd = isYmd(prev.endDate) ? prev.endDate : addMonth(startDate)
+  const spanDays = Math.max(1, daysBetween(startDate, rawEnd))
+  const cycleDays = prevDays || monthSpanDays(createdAt) || spanDays || 30
+  const endDate = cycleDays !== spanDays ? endDateFromDays(startDate, cycleDays) : rawEnd
   const plan = {
     mode: prev.plan?.mode || PLAN_MODE.DAILY,
     weekdays: Array.isArray(prev.plan?.weekdays) ? prev.plan.weekdays.map(Number) : [],

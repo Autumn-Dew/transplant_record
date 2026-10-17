@@ -112,6 +112,21 @@ test('所有写操作界面都接入同一套机制，且不再各自维护一�
   }
 })
 
+test('保存类按钮同样走多次点击（与其它写操作一致）', () => {
+  const add = read('src/views/AddPage.vue')
+  assert.match(add, /cfm\.trigger\('save-task'\)/, '保存记录走确认')
+  assert.match(add, /cfm\.trigger\('save-blueprint'\)/, '保存蓝图走确认')
+  assert.match(add, /cfm\.trigger\('confirm-renewal'\)/, '确认加天数走确认')
+
+  const bp = read('src/views/BlueprintPage.vue')
+  assert.match(bp, /cfm\.trigger\('save-detail'\)/, '蓝图详情保存走确认')
+  assert.match(bp, /cfm\.trigger\('duplicate'\)/, '以此为基础新建走确认')
+
+  const pd = read('src/components/ProjectDetail.vue')
+  assert.match(pd, /cfm\.trigger\('save'\)/, '详情保存走确认')
+  assert.match(pd, /cfm\.trigger\('add-period'\)/, '确认续费走确认')
+})
+
 test('同一动作的点击次数与复位时间在所有页面都一样', () => {
   const css = read('src/composables/useConfirmClick.js')
   assert.match(css, /CONFIRM_TIMES = 4/, '统一 4 次')

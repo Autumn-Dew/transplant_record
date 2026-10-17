@@ -823,7 +823,8 @@
   padding: 0;
 }
 .modal-mask .edit-popup {
-  width: 560px;
+  /* 所有侧边弹窗统一占页面一半宽度 */
+  width: 50vw;
   max-width: 94vw;
   height: 100vh;
   max-height: 100vh;
@@ -836,3 +837,30 @@
   from { transform: translateX(28px); opacity: 0.35; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   项目详情 / 续费窗口共用样式
+   这些类原本只写在 ProjectDetail.vue 的 scoped style 里，
+   续费窗口在 AddPage.vue 中，拿不到 scoped 样式 → 字段会挤成换行。
+   ══════════════════════════════════════════════════════════════════ */
+.pd-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.pd-head-main { flex: 1; min-width: 0; }
+.pd-name { font-size: 15px; font-weight: 800; }
+.pd-sub { font-size: 11px; font-family: monospace; opacity: 0.6; margin-top: 2px; }
+.pd-state {
+  font-size: 10px; font-family: monospace; padding: 2px 8px;
+  border: 1px solid currentColor; opacity: 0.85; white-space: nowrap;
+}
+.pd-state-active, .pd-state.st-active { color: var(--accent); }
+.pd-inp {
+  flex: 1; min-width: 0; height: 24px; padding: 0 6px;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: inherit; font-size: 12px;
+}
+.pd-inp:focus { outline: none; border-color: var(--btn-hover-bg); }
+
+/* 续费窗口标题行：游戏 | 服务 · 托管续期 | 续费 —— 一行并排，用 | 隔开 */
+.renew-head-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: nowrap; overflow: hidden; }
+.renew-head-line .pd-name,
+.renew-head-line .pd-sub { margin-top: 0; white-space: nowrap; }
+.renew-sep { opacity: 0.3; font-size: 11px; flex-shrink: 0; }

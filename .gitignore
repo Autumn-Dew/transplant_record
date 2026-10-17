@@ -16,6 +16,9 @@ dist_electron
 # Reasonix 会话数据（含上传附件，不入库）
 .reasonix
 
+# 真实用户数据副本（含隐私信息，仅本地测试用，不入库）
+testdata/
+
 # IntelliJ / 临时文件
 *.iml
 temp_xlsx_dump.txt

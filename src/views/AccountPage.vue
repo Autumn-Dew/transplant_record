@@ -422,8 +422,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .view-switch { margin-right: 4px; }
 
 .col-time { opacity: 0.6; font-size: 11px; }
-.col-note { opacity: 0.5; }
-.song-info { flex: 1.4; }
+.col-note { opacity: 0.5; flex: 1.8; }        /* 备注占更宽 */
+.song-info { flex: 0.9; }                      /* 名称 / 账号收窄，把空间让给备注 */
 .song-actions { margin-left: 4px; flex-shrink: 0; }
 .fee-main { font-size: 13px; font-weight: 700; }
 .fee-sub { opacity: 0.7; font-size: 11px; }

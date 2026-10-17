@@ -38,6 +38,23 @@
         <span class="setting-static">本地存储</span>
       </div>
 
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">备份数据</span>
+          <span class="setting-hint">把全部本地数据导出成一个 JSON 文件（代办 / 记录 / 蓝图 / 价格 / 游戏目录）</span>
+        </div>
+        <button class="tl-entry-btn" @click="backupAll">备份全部数据</button>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">加载备份</span>
+          <span class="setting-hint">从备份 JSON 还原全部数据（会覆盖当前数据，需连点 4 次确认）</span>
+        </div>
+        <button class="tl-entry-btn" :style="restoreStyle" :title="restoreLabel" @click="pickRestore">{{ restoreLabel }}</button>
+        <input ref="restoreInput" type="file" accept="application/json,.json" hidden @change="onRestoreFile" />
+      </div>
+
       <div class="setting-divider"></div>
 
       <button class="quit-btn" @click="handleClearData" :style="clearStyle">
@@ -78,6 +95,72 @@ async function toggleAutoLaunch() {
     await window.electron?.setAutoLaunch?.(autoLaunch.value)
   } catch {
     autoLaunch.value = !autoLaunch.value
+  }
+}
+
+// 备份全部数据：把本地所有 tr- 键（不含迁移备份）导出成一个 JSON 文件。
+// 还原方式见文件内的 note：按 keys 里的键名逐条写回 localStorage 即可（键名未变，可直接用）。
+function backupAll() {
+  const keys = {}
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('tr-') && !k.startsWith('tr-backup-'))
+    .forEach(k => { keys[k] = localStorage.getItem(k) })
+  const payload = {
+    app: '代肝记录',
+    version: '1.0.44',
+    exportedAt: new Date().toISOString(),
+    note: '还原：把 keys 里每一项按原键名写回 localStorage 即可（键名与结构均未改动）',
+    keys,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `代肝记录备份_${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+// 从备份恢复：选一个备份 JSON，把 keys 逐条写回 localStorage（键名与结构都没变，可直接用）。
+// 属于危险操作 —— 走 4 次点击确认，并且会覆盖当前数据。
+const restoreCfm = useConfirmClick()
+const restoreInput = ref(null)
+const restoreStyle = computed(() => restoreCfm.styleOf('restore'))
+const restoreLabel = computed(() => {
+  const n = restoreCfm.countOf('restore') || 0
+  return n === 0 ? '从备份恢复' : `再点 ${4 - n} 次确认`
+})
+function pickRestore() {
+  if (!restoreCfm.trigger('restore')) return
+  restoreInput.value?.click()
+}
+async function onRestoreFile(e) {
+  const file = e.target.files && e.target.files[0]
+  e.target.value = ''
+  if (!file) return
+  try {
+    const payload = JSON.parse(await file.text())
+    const keys = payload && payload.keys
+    if (!keys || typeof keys !== 'object') {
+      alert('这不是有效的备份文件（缺少 keys）')
+      return
+    }
+    const writable = Object.entries(keys).filter(([k]) => String(k).startsWith('tr-'))
+    writable.forEach(([k, v]) => {
+      if (v == null) localStorage.removeItem(k)
+      else localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v))
+    })
+    // 同步 Electron 侧的文件（否则下次启动会被旧文件覆盖）
+    const parse = k => { try { return JSON.parse(localStorage.getItem(k) || '[]') } catch { return [] } }
+    if (keys['tr-accounts']) window.electron?.saveRecords?.(parse('tr-accounts'))
+    if (keys['tr-blueprints']) window.electron?.saveBlueprints?.(parse('tr-blueprints'))
+    if (keys['tr-workdiary']) window.electron?.saveWorkDiary?.(parse('tr-workdiary'))
+    if (keys['tr-completions']) window.electron?.saveCompletions?.(parse('tr-completions'))
+    if (keys['tr-games']) window.electron?.saveGames?.(parse('tr-games'))
+    alert(`已恢复 ${writable.length} 项数据，即将刷新`)
+    location.reload()
+  } catch (err) {
+    alert(`恢复失败：${err && err.message ? err.message : err}`)
   }
 }
 

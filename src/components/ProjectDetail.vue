@@ -170,7 +170,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import SelectBox from '@/components/SelectBox.vue'
 import { maskAccount } from '@/composables/useMask'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
-import { todayLocal, isYmd, daysBetween, endDateFromDays } from '@/utils/date.js'
+import { todayLocal, isYmd, daysBetween, diffDays, endDateFromDays } from '@/utils/date.js'
 
 const props = defineProps({
   detail: { type: Object, required: true },
@@ -195,6 +195,8 @@ const editCreatedAt = computed({
 function startEdit() {
   draft.value = JSON.parse(JSON.stringify(props.detail.project))
   if (!draft.value.host) draft.value.host = {}
+  // 下拉的 value 是游戏 id，而记录里 game 存的是游戏名 → 转成 id 才能正确选中
+  draft.value.game = gameOptionId(draft.value.game)
   const h = props.detail.host
   if (h) {
     hostStart.value = h.startDate
@@ -256,7 +258,11 @@ const addAmount = ref(0)
 const addPaidAt = ref('')
 function toggleAdd() {
   if (addOpen.value) { addOpen.value = false; return }
-  addDays.value = Number(props.detail.host && props.detail.host.totalDays) || 30
+  // 默认加天数 = 原周期的日历跨度（结束日 − 开始日），不能用 totalDays（含首尾，会多 1 天）
+  const h = props.detail.host
+  addDays.value = (h && isYmd(h.startDate) && isYmd(h.endDate))
+    ? Math.max(1, diffDays(h.startDate, h.endDate))
+    : 30
   addAmount.value = Number(props.detail.finance.periodFee) || 0
   addPaidAt.value = todayLocal()
   addOpen.value = true
@@ -270,6 +276,11 @@ function doAdd() {
 }
 
 // ── 展示辅助 ──
+// 游戏名 / 游戏 id 互相兼容：下拉选项的 value 是 id，记录里存的是名字
+function gameOptionId(v) {
+  const hit = (props.gameOptions || []).find(o => o.value === v || o.label === v)
+  return hit ? hit.value : v
+}
 const typeOptions = [{ value: 1, label: '单次' }, { value: 2, label: '托管' }]
 const platformOptions = [
   { value: 'wechat', label: '微信' },

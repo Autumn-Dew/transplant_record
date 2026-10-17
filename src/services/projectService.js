@@ -67,6 +67,8 @@ export function createProject(form = {}) {
     id: form.id || newId('p'),
     createdAt,
     kind: isHost ? KIND.HOSTING : KIND.ONE_OFF,
+    // game 统一存**游戏名**（与 v1.0.42 的老数据一致）；gameKey 存 id，供价格表匹配
+    game: gameNameOf(games(), form.game),
     gameKey: gameKeyOf(games(), form.game),
     gameName: gameNameOf(games(), form.game),
     status: isHost ? 2 : (form.status == null ? 1 : Number(form.status)),
@@ -99,6 +101,8 @@ export function updateProject(id, patch = {}) {
   if (!cur) return null
   const next = { ...patch }
   if (patch.game != null) {
+    // game 统一存游戏名（与老数据一致），gameKey 存 id
+    next.game = gameNameOf(games(), patch.game)
     next.gameKey = gameKeyOf(games(), patch.game)
     next.gameName = gameNameOf(games(), patch.game)
   }
@@ -117,16 +121,30 @@ export function updateProject(id, patch = {}) {
     next.host = { ...cur.host, ...patch.host }
     next.remainingDays = Math.max(0, Number(next.host.plannedTimes) - Number(next.host.completedTimes))
   }
-  // 表单里的「托管天数」是扁平字段（不是 host.hostDays）：改了天数就必须按新天数重算
-  // 结束日与周期天数（含首尾：开始日 + 天数 − 1）。放在类型切换之后，因此
-  // 「编辑已有托管项目改天数」与「单次 → 托管」两种情况都生效。
+  // 托管周期：只要**起止日期变了**就重算「周期天数」与「计划次数」。
+  //   · 表单路径：改的是扁平字段 hostDays（开始日 + 天数 − 1 推结束日）
+  //   · 详情窗口路径：直接改 host.startDate / host.endDate（patch.host 已合并进 next.host）
+  // 以前只在「有 hostDays」时才重算，详情窗口改完日期后 plannedTimes 仍是旧值，
+  // 界面上「执行进度 / 剩余次数」都不动，看起来就像天数没改成功。
+  // 计划次数按新周期重算，但**不少于已完成次数**，避免出现「已完成 > 计划」的负数剩余。
   const patchDays = Number(patch && patch.hostDays)
   const baseHost = next.host || cur.host
-  if (baseHost && Number.isFinite(patchDays) && patchDays > 0) {
-    const n = Math.max(1, Math.round(patchDays))
+  if (baseHost) {
+    const prevStart = isYmd(cur.host?.startDate) ? cur.host.startDate : ''
+    const prevEnd = isYmd(cur.host?.endDate) ? cur.host.endDate : ''
     const start = isYmd(baseHost.startDate) ? baseHost.startDate : fmtDate(cur.createdAt)
-    next.host = { ...baseHost, startDate: start, endDate: endDateFromDays(start, n), cycleDays: n }
-    next.remainingDays = Math.max(0, Number(next.host.plannedTimes) - Number(next.host.completedTimes))
+    const wantDays = Number.isFinite(patchDays) && patchDays > 0
+    const end = wantDays
+      ? endDateFromDays(start, Math.max(1, Math.round(patchDays)))
+      : (isYmd(baseHost.endDate) ? baseHost.endDate : prevEnd)
+    const datesChanged = !!end && (start !== prevStart || end !== prevEnd)
+    if (end && (wantDays || datesChanged)) {
+      const cycleDays = Math.max(1, daysBetween(start, end))
+      const completed = Number(baseHost.completedTimes) || 0
+      const planned = Math.max(completed, plannedTimesFor(baseHost.plan, cycleDays))
+      next.host = { ...baseHost, startDate: start, endDate: end, cycleDays, plannedTimes: planned }
+      next.remainingDays = Math.max(0, planned - completed)
+    }
   }
   // 项目上的收费字段与「最近一笔收费记录」保持一致：
   // 编辑收费 = 编辑当前这笔订单，否则详情显示与收入统计会对不上。
@@ -351,13 +369,17 @@ export function addHostingPeriod(projectId, { days, amount, paidAt, note } = {})
   if (!cur || !isHosting(cur)) return { ok: false, reason: 'not-hosting' }
 
   const host = { ...(cur.host || {}) }
-  const n = Math.max(1, Math.round(Number(days) || Number(host.cycleDays) || 30))
   const start = isYmd(host.startDate) ? host.startDate : fmtDate(cur.createdAt)
   const base = isYmd(host.endDate) ? host.endDate : addMonth(start)
+  // 默认「加多少天」必须用原周期的**日历跨度**（结束日 − 开始日），而不是 cycleDays。
+  // cycleDays 是「含首尾」的天数（10/12→11/11 = 31），直接拿它去 addDays 会多加 1 天
+  // （11/11 + 31 = 12/12，比一个自然月多一天）。
+  const spanDays = Math.max(1, diffDays(start, base))
+  const n = Math.max(1, Math.round(Number(days) || spanDays || 30))
   host.startDate = start
   host.endDate = addDays(base, n)
   host.cycleDays = Math.max(1, daysBetween(start, host.endDate))
-  host.plannedTimes = Math.max(1, plannedTimesFor(host.plan, host.cycleDays))
+  host.plannedTimes = Math.max(Number(host.completedTimes) || 0, plannedTimesFor(host.plan, host.cycleDays), 1)
 
   const payment = normalizePayment({
     amount: amount == null || amount === '' ? (cur.totalFee ?? '') : amount,
@@ -489,9 +511,12 @@ export function planRenewal(prevId, today = todayLocal()) {
 }
 
 // 同账号下最近的可续费托管项目
+// 注意：必须用 isArchived / isCancelled 判断 —— 归档只打 `archived` 标记（`state` 可能仍是 active），
+// 只比较 state 会把「已归档 / 已删除」的托管当成可续费项目，导致删掉之后仍然弹出续费窗口。
 export function findRenewalCandidate({ account, game } = {}) {
   const list = projectsRepo.state.value.filter(p => {
     if (!isHosting(p)) return false
+    if (isArchived(p) || isCancelled(p)) return false
     if (p.state === STATE.CANCELLED || p.state === STATE.ARCHIVED) return false
     if (account && p.account !== account) return false
     if (game && gameKeyOf(games(), p.game) !== gameKeyOf(games(), game)) return false

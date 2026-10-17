@@ -10,7 +10,7 @@
 
 import { KEYS, SCHEMA_VERSION, backupKey, readJSON, writeJSON } from '../data/storage.js'
 import { migrateProjects, migrateCompletions, makeBackup, rollbackFrom } from '../domain/migrate.js'
-import { normalizeGames, defaultGames, ensureGamesForRecords } from '../domain/games.js'
+import { normalizeGames, defaultGames, ensureGamesForRecords, gameKeyOf, gameNameOf } from '../domain/games.js'
 
 function backupOnce(name, records) {
   const key = backupKey(name)
@@ -21,7 +21,7 @@ function backupOnce(name, records) {
 }
 
 export function runStartupMigration() {
-  const report = { version: SCHEMA_VERSION, projects: 0, completions: 0, games: 0, backups: [], errors: [] }
+  const report = { version: SCHEMA_VERSION, projects: 0, completions: 0, games: 0, gamesNormalized: 0, backups: [], errors: [] }
   if (typeof localStorage === 'undefined') { report.skipped = true; return report }
 
   try {
@@ -54,7 +54,25 @@ export function runStartupMigration() {
       report.games = withRecords.length
     }
 
-    // ── 4. 记录数据版本 ──
+    // ── 4. 项目的 game 字段统一为「游戏名」（与 v1.0.42 的老数据一致）──
+    // v1.0.42 里 game 存的就是游戏名（「终末地」/「明日方舟」），而重构后的新建项目写的是游戏 id。
+    // 混用会让同一个游戏在筛选/统计里被拆成两条，因此统一回**游戏名**；价格表仍按 gameKey(id) 匹配。
+    // 找不到对应游戏的（游戏已被删）原样保留。
+    const normalizedProjects = []
+    let gameFixed = 0
+    for (const p of (Array.isArray(mp.records) ? mp.records : [])) {
+      if (!p || typeof p !== 'object') { normalizedProjects.push(p); continue }
+      const name = gameNameOf(withRecords, p.game)
+      if (!name || name === p.game) { normalizedProjects.push(p); continue }
+      gameFixed++
+      normalizedProjects.push({ ...p, game: name, gameName: name })
+    }
+    if (gameFixed > 0) {
+      writeJSON(KEYS.ACCOUNTS, normalizedProjects)
+      report.gamesNormalized = gameFixed
+    }
+
+    // ── 5. 记录数据版本 ──
     writeJSON(KEYS.SCHEMA, SCHEMA_VERSION)
   } catch (e) {
     report.errors.push(String(e && e.message ? e.message : e))

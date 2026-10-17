@@ -39,9 +39,13 @@ src/
   composables/     组合式函数：useConfirmClick（多次点击确认）、useRowSelect、useGlobalTheme…
   assets/css/      设计令牌 / 通用页面样式 / 动效系统
 tests/             node --test 用例（纯逻辑 + 数据路径，不依赖浏览器）
-tools/ui-smoke.cjs Electron 冒烟脚本
+tools/ui-smoke.cjs Electron 冒烟脚本（真实 UI 交互 + DOM 断言 + 截图）
 docs/refactor/     架构、数据模型、业务流程、视觉方案、各轮修正记录（见其中 README）
 ```
+
+> ⚠ **仓库里不得出现任何真实用户数据**（账号 / 备注 / 记录）。
+> 真实数据只存在于 Electron 的用户数据目录，需要备份请用「设置 → 备份全部数据」导出到仓库之外。
+> `.gitignore` 已屏蔽 `testdata/`，请勿把备份 JSON 放进仓库。
 
 ## 关键约定（改代码前请先看这里）
 

@@ -167,6 +167,101 @@ test('托管周期可通过 host（开始日 / 结束日）直接修改', () => 
   assert.equal(d.host.totalDays, 10)
 })
 
+test('托管天数可以增加，也可以减少（计划次数随之重算）', () => {
+  reset()
+  const p = makeHosting()            // 30 天
+  svc.updateProject(p.id, { hostDays: 45 })
+  let host = projectsRepo.find(p.id).host
+  assert.equal(host.cycleDays, 45, '可以增加')
+  assert.equal(daysBetween(host.startDate, host.endDate), 45)
+
+  svc.updateProject(p.id, { hostDays: 10 })
+  host = projectsRepo.find(p.id).host
+  assert.equal(host.cycleDays, 10, '可以减少')
+  assert.equal(daysBetween(host.startDate, host.endDate), 10, '结束日跟着提前')
+  assert.equal(host.plannedTimes, 10, '计划次数按新周期重算')
+})
+
+test('天数减到少于已完成次数时，计划次数不会少于已完成（剩余不为负）', () => {
+  reset()
+  const p = makeHosting()
+  for (let i = 0; i < 5; i++) svc.confirmExecution(p.id, { force: true })
+  assert.equal(projectsRepo.find(p.id).host.completedTimes, 5)
+  svc.updateProject(p.id, { hostDays: 3 })
+  const host = projectsRepo.find(p.id).host
+  assert.equal(host.cycleDays, 3, '周期天数确实改成 3')
+  assert.ok(host.plannedTimes >= host.completedTimes, '计划次数不少于已完成')
+  assert.ok(projectsRepo.find(p.id).remainingDays >= 0, '剩余次数不为负')
+})
+
+test('已归档的托管不再出现在续费候选中（删除后转归档，不该再弹续费窗口）', () => {
+  reset()
+  const p = makeHosting()
+  svc.confirmExecution(p.id)          // 有执行记录 → 删除会转为归档
+  assert.ok(svc.findRenewalCandidate({ account: p.account, game: p.game }), '归档前是候选')
+
+  svc.archiveProject(p.id)
+  assert.equal(projectsRepo.find(p.id).archived, true)
+  assert.equal(svc.findRenewalCandidate({ account: p.account, game: p.game }), null, '归档后不再是候选')
+})
+
+test('取消归档后又可以续费', () => {
+  reset()
+  const p = makeHosting()
+  svc.archiveProject(p.id)
+  assert.equal(svc.findRenewalCandidate({ account: p.account, game: p.game }), null)
+  svc.restoreProject(p.id)
+  assert.ok(svc.findRenewalCandidate({ account: p.account, game: p.game }), '恢复后重新成为候选')
+})
+
+test('已取消的托管同样不是续费候选', () => {
+  reset()
+  const p = makeHosting()
+  svc.cancelProject(p.id)
+  assert.equal(svc.findRenewalCandidate({ account: p.account, game: p.game }), null)
+})
+
+test('续费默认天数 = 原周期日历跨度（不会多加一天）', () => {
+  reset()
+  // 10/12 ~ 11/11：含首尾 31 天，但日历跨度是 30 天
+  const p = makeHosting({ hostDays: 31, createdAt: '2026-10-12T02:00:00.000Z' })
+  const before = projectsRepo.find(p.id).host
+  assert.equal(before.endDate, '2026-11-11')
+  assert.equal(daysBetween(before.startDate, before.endDate), 31, '含首尾 31 天')
+
+  svc.addHostingPeriod(p.id, { amount: 100 })   // 不传天数 → 按跨度
+  const after = projectsRepo.find(p.id).host
+  assert.equal(after.endDate, '2026-12-11', '11/11 + 30 天 = 12/11（不是 12/12）')
+  assert.equal(diffDays(before.endDate, after.endDate), 30, '实际新增 30 天')
+  assert.equal(daysBetween(after.startDate, after.endDate), 61, '新周期含首尾 61 天')
+})
+
+test('明确加 N 天时，结束日就是往后推 N 天', () => {
+  reset()
+  const p = makeHosting({ hostDays: 30, createdAt: '2026-11-01T02:00:00.000Z' })
+  const before = projectsRepo.find(p.id).host
+  assert.equal(before.endDate, '2026-11-30')
+  svc.addHostingPeriod(p.id, { days: 30, amount: 100 })
+  const after = projectsRepo.find(p.id).host
+  assert.equal(after.endDate, '2026-12-30')
+  assert.equal(daysBetween(after.startDate, after.endDate), 60)
+})
+
+test('详情窗口改完起止日期后，计划次数也会跟着重算', () => {
+  reset()
+  const p = makeHosting()            // 30 天 → planned 30
+  const host = projectsRepo.find(p.id).host
+  assert.equal(host.plannedTimes, 30)
+  // 模拟详情窗口 submitEdit：直接给 host 起止（不带 hostDays）
+  svc.updateProject(p.id, {
+    host: { ...host, startDate: host.startDate, endDate: addDays(host.startDate, 11), cycleDays: 12 },
+  })
+  const after = projectsRepo.find(p.id).host
+  assert.equal(after.cycleDays, 12)
+  assert.equal(after.plannedTimes, 12, '计划次数按新周期重算（以前不会变，看着像没改成功）')
+  assert.equal(projectsRepo.find(p.id).remainingDays, 12)
+})
+
 // ══════════ 数据组装 ══════════
 
 test('详情数据：概览 / 托管周期 / 财务 / 收费记录 都能组装出来', () => {
@@ -314,14 +409,13 @@ test('操作只剩 编辑 / 续费 / 归档 / 取消归档 / 删除 / 关闭', (
   assert.equal(/emit\('(pause|resume|extend|cancel)'/.test(sfc), false, '不得再派发这些操作')
 })
 
-test('写操作全部走统一的多次点击确认（连点 4 次生效）', () => {
+test('全部写操作都走统一的多次点击确认（连点 4 次生效）', () => {
   const sfc = read('src/components/ProjectDetail.vue')
   assert.match(sfc, /useConfirmClick/, '使用统一的多次点击确认机制')
   assert.match(sfc, /cfm\.trigger\('save'\)/, '保存走确认')
   assert.match(sfc, /cfm\.trigger\('archive'\)/, '归档走确认')
   assert.match(sfc, /cfm\.trigger\('remove'\)/, '删除走确认')
   assert.match(sfc, /cfm\.trigger\('add-period'\)/, '确认续费走确认')
-  assert.match(sfc, /@click="onSave"/, '保存按钮改为 onSave（内部走确认）')
 })
 
 test('原版详情窗口的字段都不得丢失', () => {
@@ -362,10 +456,12 @@ test('服务层：详情组装只读，写操作全部落在 projectService', ()
   assert.equal(page.includes('hostingChains'), false, '列表不再有连续托管聚合')
 })
 
-test('收入统计落在「代肝记录」页', () => {
+test('收入统计落在「代肝记录」页，且与统计条同一行（在右侧）', () => {
   const diary = read('src/views/WorkDiary.vue')
   assert.match(diary, /revenueStats/, '收入统计使用按每笔收费归月的统计')
-  assert.match(diary, /income-strip/, '有收入统计区块')
+  assert.match(diary, /class="summary-strip wd-summary"/, '统计条沿用代肝代办的 summary 样式')
+  assert.match(diary, /income-inline/, '收入统计在统计条内（右侧），不再单独占一行')
+  assert.match(diary, /\.wd-summary \{[^}]*flex-wrap:\s*nowrap/, '统计条不换行')
   const account = read('src/views/AccountPage.vue')
   assert.equal(/monthIncomeSum/.test(account), false, '代肝代办页不再做收入统计')
 })

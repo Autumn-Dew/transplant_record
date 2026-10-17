@@ -120,8 +120,8 @@ async function main() {
     await sleep(900)
   }
   const clickText = async (selector, text) => js(`(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find(x => x.textContent.trim() === ${JSON.stringify(text)}); if (b) b.click(); return !!b })()`)
-  // 写操作是「连点 4 次生效」的统一机制：需要真正执行时连点 4 次
-  const clickConfirm = async (selector, text) => js(`(() => {
+  // 保存类按钮也是「连点 4 次生效」（全站写操作统一机制）
+  const clickSave = async (selector, text) => js(`(() => {
     const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find(x => x.textContent.trim() === ${JSON.stringify(text)})
     if (!b) return false
     for (let i = 0; i < 4; i++) b.click()
@@ -194,12 +194,120 @@ async function main() {
   await sleep(600)
   check('详情可关闭', await js(`!document.querySelector('.modal-mask')`))
 
+  // ── 侧边弹窗占页面一半宽度 ──
+  check('详情入口可打开（量宽度）', await js(openDetail))
+  await sleep(500)
+  const popupSize = await js(`(() => {
+    const p = document.querySelector('.modal-mask .edit-popup')
+    if (!p) return null
+    return { w: Math.round(p.getBoundingClientRect().width), win: window.innerWidth }
+  })()`)
+  console.log('    弹窗宽度：', JSON.stringify(popupSize))
+  check('侧边弹窗宽度 = 页面一半', !!popupSize && Math.abs(popupSize.w - popupSize.win / 2) <= 2)
+  await js(`(() => { const b = [...document.querySelectorAll('.pd-btn')].find(x => x.textContent.trim() === '关闭'); if (b) b.click(); return !!b })()`)
+  await sleep(500)
+
+  // ── 修改托管天数：结果必须正好等于填写值（含首尾：结束日 = 开始日 + 天数 − 1）──
+  await clickText('.tl-entry-btn', '全部'); await sleep(400)
+  // 列宽：备注要比「名称 + 账号」更宽
+  const colW = await js(`(() => {
+    const info = document.querySelector('.song-item .song-info')
+    const note = document.querySelector('.song-item .col-note')
+    if (!info || !note) return null
+    return { info: Math.round(info.getBoundingClientRect().width), note: Math.round(note.getBoundingClientRect().width) }
+  })()`)
+  console.log('    列宽 名称/账号 vs 备注：', JSON.stringify(colW))
+  check('代肝代办：备注列比名称/账号列更宽', !!colW && colW.note > colW.info)
+  check('详情入口可打开（改天数前）', await js(openDetail))
+  await sleep(500)
+  await clickBtn('编辑')
+  await sleep(300)
+  const setDays = n => js(`(() => {
+    const fields = [...document.querySelectorAll('.modal-mask .edit-popup .detail-field')]
+    const f = fields.find(x => { const dl = x.querySelector('.dl'); return dl && dl.textContent.trim() === '托管天数' })
+    const inp = f && f.querySelector('input[type="number"]')
+    if (!inp) return false
+    inp.value = String(${n})
+    inp.dispatchEvent(new Event('input', { bubbles: true }))
+    inp.dispatchEvent(new Event('change', { bubbles: true }))
+    return true
+  })()`)
+  check('编辑态可以改托管天数', await setDays(20))
+  await sleep(200)
+  await clickSave('.pd-btn', '保存')
+  await sleep(700)
+  // 保存后详情会 refreshDetail，直接读窗口里显示的值（编辑态是输入框，只读态是文本）
+  const shownDays = await js(`(() => {
+    const fields = [...document.querySelectorAll('.modal-mask .edit-popup .detail-field')]
+    const get = label => {
+      const f = fields.find(x => { const dl = x.querySelector('.dl'); return dl && dl.textContent.trim() === label })
+      if (!f) return null
+      const inp = f.querySelector('input')
+      if (inp) return inp.value
+      const dv = f.querySelector('.dv')
+      return dv ? dv.textContent.trim() : null
+    }
+    return { start: get('开始日'), end: get('结束日'), days: get('托管天数'), progress: get('执行进度') }
+  })()`)
+  console.log('    详情显示：', JSON.stringify(shownDays))
+  check('改 20 天后：详情里的托管天数 = 20（不少一天）', !!shownDays && /^20\s*天$/.test(String(shownDays.days)))
+  const endOk = (() => {
+    if (!shownDays || !shownDays.start || !shownDays.end) return false
+    const s = new Date(shownDays.start + 'T00:00:00')
+    const e = new Date(shownDays.end + 'T00:00:00')
+    return Math.round((e - s) / 86400000) === 19
+  })()
+  check('改 20 天后：结束日 = 开始日 + 19 天（含首尾 20 天）', endOk)
+  check('改 20 天后：计划次数同步为 20', !!shownDays && /\/\s*20\s*次/.test(String(shownDays.progress)))
+
+  // ── 增加天数（20 → 45）──
+  await clickBtn('编辑')
+  await sleep(300)
+  check('编辑态可以增加托管天数', await setDays(45))
+  await sleep(200)
+  await clickSave('.pd-btn', '保存')
+  await sleep(700)
+  const grown = await js(`(() => {
+    const fields = [...document.querySelectorAll('.modal-mask .edit-popup .detail-field')]
+    const get = label => {
+      const f = fields.find(x => { const dl = x.querySelector('.dl'); return dl && dl.textContent.trim() === label })
+      if (!f) return null
+      const inp = f.querySelector('input')
+      if (inp) return inp.value
+      const dv = f.querySelector('.dv')
+      return dv ? dv.textContent.trim() : null
+    }
+    return { start: get('开始日'), end: get('结束日'), days: get('托管天数'), progress: get('执行进度') }
+  })()`)
+  console.log('    增加后天数：', JSON.stringify(grown))
+  check('改成 45 天后：详情里的托管天数 = 45', !!grown && /^45\s*天$/.test(String(grown.days)))
+  const growEndOk = (() => {
+    if (!grown || !grown.start || !grown.end) return false
+    const s = new Date(grown.start + 'T00:00:00')
+    const e = new Date(grown.end + 'T00:00:00')
+    return Math.round((e - s) / 86400000) === 44
+  })()
+  check('改成 45 天后：结束日 = 开始日 + 44 天', growEndOk)
+  await js(`(() => { const b = [...document.querySelectorAll('.pd-btn')].find(x => x.textContent.trim() === '关闭'); if (b) b.click(); return !!b })()`)
+  await sleep(500)
+
   // ── 蓝图记录编辑：HEX 直填 / 不再有字号修改项 / 以已有蓝图为基准确认 ──
   await clickByTitle('蓝图记录')
   await sleep(700)
   const bpShown = await js(`document.querySelectorAll('.song-item').length`)
   const bpBefore = await js(`JSON.parse(localStorage.getItem('tr-blueprints') || '[]').length`)
   check('蓝图列表已渲染记录', bpShown > 0)
+  // ── 蓝图分组：默认只展开第一个 ──
+  const bpFold = await js(`(() => {
+    const heads = [...document.querySelectorAll('.bp-group-head')]
+    if (heads.length < 2) return { total: heads.length, collapsed: 0 }
+    return {
+      total: heads.length,
+      collapsed: heads.filter(h => h.querySelector('.bp-collapsed-hint')).length,
+    }
+  })()`)
+  console.log('    分组折叠：', JSON.stringify(bpFold))
+  check('蓝图分组默认只展开第一个（其余收起）', bpFold.total < 2 || bpFold.collapsed === bpFold.total - 1)
   check('详情入口可打开', await js(`(() => { const b = document.querySelector('.song-btn[title="详细信息/编辑"]'); if (b) b.click(); return !!b })()`))
   await sleep(500)
   check('蓝图详情已打开', await js(`!!document.querySelector('.modal-mask .edit-popup')`))
@@ -212,13 +320,13 @@ async function main() {
   // HEX 直填颜色（可省略 #）
   await js(`(() => { const i = document.querySelector('.bp-hex'); if (!i) return false; i.value = '00B0FF'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
   await sleep(300)
-  await clickConfirm('.save-btn', '保存')
+  await clickSave('.save-btn', '保存')
   await sleep(600)
   check('HEX 被补全 # 后写入记录', await js(`(localStorage.getItem('tr-blueprints') || '').includes('#00B0FF')`))
   await shot('05c-blueprint-color')
 
   // 以此为基础新建：生成完全独立副本
-  check('存在「以此为基础新建」入口', await clickConfirm('.cancel-btn', '以此为基础新建'))
+  check('存在「以此为基础新建」入口', await clickSave('.cancel-btn', '以此为基础新建'))
   await sleep(600)
   check('副本已创建（记录数 +1）', await js(`JSON.parse(localStorage.getItem('tr-blueprints') || '[]').length === ${bpBefore + 1}`))
   check('副本与原记录内容一致但 id 不同', await js(`(() => {
@@ -237,7 +345,7 @@ async function main() {
   // 修改副本不得影响原蓝图
   await js(`(() => { const ins = [...document.querySelectorAll('.detail-grid .form-select')]; const name = ins[2]; if (!name) return false; name.value = '副本改名测试'; name.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
   await sleep(300)
-  await clickConfirm('.save-btn', '保存')
+  await clickSave('.save-btn', '保存')
   await sleep(600)
   check('改副本不影响原蓝图（原记录数量与名称保持）', await js(`(() => {
     const list = JSON.parse(localStorage.getItem('tr-blueprints') || '[]')

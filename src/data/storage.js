@@ -22,6 +22,7 @@ export const KEYS = {
   // ── 重构新增键 ──
   GAMES: 'tr-games',
   SCHEMA: 'tr-schema-version',
+  SHOP_HIDDEN: 'tr-shop-hidden',
 }
 
 export const SCHEMA_VERSION = 2

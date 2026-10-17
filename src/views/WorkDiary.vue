@@ -39,19 +39,17 @@
         </div>
       </div>
 
-      <!-- 统计 -->
-      <div class="summary-strip">
-        <span class="summary-chip">总记录 <strong>{{ records.length }}</strong></span>
+      <!-- 统计：与「代肝代办」同一套样式（一行、不换行）；收入统计跟在右侧 -->
+      <div class="summary-strip wd-summary">
+        <span class="summary-chip">总记录 <strong>{{ doneRecords.length }}</strong></span>
         <span class="summary-chip">已完成 <strong>{{ completedCount }}</strong></span>
-        <span class="summary-chip">记录总收费 <strong>¥{{ totalFee }}</strong></span>
+        <span class="summary-chip">累计入账 <strong>¥{{ allIncome }}</strong></span>
         <span class="summary-chip">本月入账 <strong>¥{{ monthIncome }}</strong></span>
-      </div>
-
-      <!-- 收入统计：按每笔收费（订单）的归属日期归月 -->
-      <div class="income-strip" v-if="monthlyIncome.length">
-        <span class="income-title">收入统计</span>
-        <span v-for="m in monthlyIncome" :key="m.month" class="income-chip">
-          {{ m.month }} <strong>¥{{ m.total }}</strong><em>{{ m.count }} 笔</em>
+        <span class="income-inline" v-if="monthlyIncome.length">
+          <span class="income-title">收入统计</span>
+          <span v-for="m in monthlyIncome" :key="m.month" class="income-chip">
+            {{ m.month }} <strong>¥{{ m.total }}</strong><em>{{ m.count }} 笔</em>
+          </span>
         </span>
       </div>
 
@@ -157,6 +155,7 @@ import { useRowSelect } from '@/composables/useRowSelect'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import { maskAccount, getDisplayName } from '@/domain/mask.js'
 import { RESULT_LABEL } from '@/domain/completion.js'
+import { isCompleted, isClosed, isExpired } from '@/domain/project.js'
 import { completionsRepo, projectsRepo } from '@/data/repos.js'
 import { revenueStats } from '@/services/projectService.js'
 import { todayLocal } from '@/utils/date.js'
@@ -212,8 +211,20 @@ function rowStyle(item, idx) {
   }
 }
 
+// 只统计「整个托管周期已经结束」的项目：进行中的托管项目不计入代肝记录。
+// 托管 → 完成后（已完成 / 已归档 / 已到期 / 已取消）才算；单次 → 完成即算。
+const finishedProjectIds = computed(() => {
+  const set = new Set()
+  for (const p of projectsRepo.state.value) {
+    const done = isCompleted(p) || isClosed(p) || isExpired(p)
+    if (done) set.add(String(p.id))
+  }
+  return set
+})
+
 const filteredRecords = computed(() => {
-  let list = records.value
+  const finished = finishedProjectIds.value
+  let list = records.value.filter(r => finished.has(String(r.projectId)))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(r => (
@@ -226,26 +237,38 @@ const filteredRecords = computed(() => {
       (r.note || '').toLowerCase().includes(q)
     ))
   }
-  // 排序：托管(wasHosting)永远排最后
+  // 排序：时间（默认）/ 金额 / 游戏。
+  // 以前无论选哪种排序，都会先把「托管记录」整体推到最前（wasHosting 分组），
+  // 导致时间顺序被打乱 —— 现在按所选维度纯粹排序，不再按类型分组。
   return [...list].sort((a, b) => {
-    const ha = a.wasHosting ? 1 : 0
-    const hb = b.wasHosting ? 1 : 0
-    if (ha !== hb) return ha - hb
-    if (sortMode.value === 'fee') return (Number(b.fee) || 0) - (Number(a.fee) || 0)
-    if (sortMode.value === 'game') return (a.game || '').localeCompare(b.game || '')
-    const da = doneDate(a) + (a.time || '')
-    const db = doneDate(b) + (b.time || '')
-    return db.localeCompare(da)
+    if (sortMode.value === 'fee') {
+      const diff = (Number(b.fee) || 0) - (Number(a.fee) || 0)
+      if (diff !== 0) return diff
+    } else if (sortMode.value === 'game') {
+      const diff = String(a.game || '').localeCompare(String(b.game || ''))
+      if (diff !== 0) return diff
+    }
+    // 时间：完成日期 + 时间倒序；完全相同时用 id 兜底保证顺序稳定
+    const da = `${doneDate(a)} ${a.time || ''}`
+    const db = `${doneDate(b)} ${b.time || ''}`
+    const diff = db.localeCompare(da)
+    return diff !== 0 ? diff : String(b.id).localeCompare(String(a.id))
   })
 })
 
 // ══════ 统计 ══════
-const totalFee = computed(() => records.value.reduce((s, r) => s + (Number(r.fee) || 0), 0))
-const completedCount = computed(() => records.value.filter(r => r.status === 0).length)
+// 只统计「整个托管周期已完成」的项目（与列表口径一致）
+const doneRecords = computed(() => {
+  const finished = finishedProjectIds.value
+  return records.value.filter(r => finished.has(String(r.projectId)))
+})
+const completedCount = computed(() => doneRecords.value.filter(r => r.status === 0).length)
 
 // ══════ 收入统计（收入在这里统计）══════
-// 口径：每一笔收费（订单）独立，按「收费归属日期」归月；
-//       与执行记录里的金额快照（记录总收费）互不干扰。
+// 口径：每一笔收费（订单 payments）独立，按「收费归属日期」归月。
+// ⚠ 绝不能用「执行记录的 fee 累加」：每条执行记录都带着所属项目的收费快照，
+//   同一笔钱会被重复计算 N 次（真实数据：118 条记录累加 = 9158，而实际订单总额只有 1085）。
+const allIncome = computed(() => revenueStats().total)
 const monthIncome = computed(() => revenueStats({ month: todayLocal().slice(0, 7) }).total)
 const monthlyIncome = computed(() => revenueStats().byMonth)
 
@@ -272,12 +295,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <style scoped>
 .fee-dim { opacity: 0.35; }
-/* ── 收入统计 ── */
-.income-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
-.income-title { font-family: monospace; font-size: 11px; opacity: 0.5; letter-spacing: 1px; }
+/* ── 统计条：与「代肝代办」一致，一行不换行；收入统计贴在右侧 ── */
+.wd-summary { flex-wrap: nowrap; overflow-x: auto; align-items: center; }
+.income-inline {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto; padding-left: 10px; flex-wrap: nowrap;
+}
+.income-title { font-family: monospace; font-size: 11px; opacity: 0.5; letter-spacing: 1px; white-space: nowrap; }
 .income-chip {
   font-family: monospace; font-size: 11px; padding: 2px 8px;
-  border: 1px solid var(--border-color); opacity: 0.85;
+  border: 1px solid var(--border-color); opacity: 0.85; white-space: nowrap;
 }
 .income-chip strong { font-weight: 800; }
 .income-chip em { font-style: normal; opacity: 0.55; margin-left: 4px; font-size: 10px; }

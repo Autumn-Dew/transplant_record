@@ -28,7 +28,7 @@
       <div class="pr-wrap" ref="wrapRef" :style="bgUrl ? { backgroundImage: `url(${bgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
         <div class="pr-overlay" v-if="bgUrl"></div>
         <div class="pr-content">
-          <div class="pr-shop-info" v-if="shopHead.length">
+          <div class="pr-shop-info" v-if="shopHead.length && !shopHidden">
             <div class="pr-shop-item" v-for="info in shopHead" :key="info.id">
               <span class="pr-shop-label">{{ info.label }}</span>
               <span class="pr-shop-val">{{ info.value || '—' }}</span>
@@ -60,7 +60,7 @@
               </tbody>
             </table>
           </div>
-          <div class="pr-shop-info pr-shop-tail" v-if="shopTail.length">
+          <div class="pr-shop-info pr-shop-tail" v-if="shopTail.length && !shopHidden">
             <div class="pr-shop-item" v-for="info in shopTail" :key="info.id">
               <span class="pr-shop-label">{{ info.label }}</span>
               <span class="pr-shop-val">{{ info.value || '—' }}</span>
@@ -79,7 +79,7 @@ import { usePrices } from '@/composables/usePrices.js'
 import { gamesRepo } from '@/data/repos.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
 import SelectBox from '@/components/SelectBox.vue'
-import { readShopForGame } from '@/data/shop-info.js'
+import { readShopForGame, readShopHidden } from '@/data/shop-info.js'
 
 const { getGame } = usePrices()
 const game = ref('endfield')
@@ -87,6 +87,11 @@ const mode = ref('preset')
 const wrapRef = ref(null)
 const bgUrl = ref(null)
 const shopList = ref([])
+// 店铺信息是否在价格表里隐藏（「数据管理」里的开关）
+const shopHidden = ref(readShopHidden())
+function onShopHiddenChanged() { shopHidden.value = readShopHidden() }
+onMounted(() => window.addEventListener('tr-shop-hidden-changed', onShopHiddenChanged))
+onUnmounted(() => window.removeEventListener('tr-shop-hidden-changed', onShopHiddenChanged))
 const shopHead = computed(() => shopList.value.filter(s => s.position !== 'tail'))
 const shopTail = computed(() => shopList.value.filter(s => s.position === 'tail'))
 // 游戏列表与「数据管理」共用同一份数据（游戏与服务），不再写死
