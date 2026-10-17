@@ -85,6 +85,9 @@ const SEED = `(() => {
   // 返图排版：清掉上一轮冒烟留下的布局 / 模板，保证起点确定（原版预设）
   localStorage.removeItem('tr-report-layout-active')
   localStorage.removeItem('tr-report-layouts')
+  // 汇报外观：主题与背景都回到默认，保证断言起点确定
+  localStorage.removeItem('tr-report-theme')
+  localStorage.removeItem('tr-report-bg')
   return 'seeded'
 })()`
 
@@ -418,6 +421,71 @@ async function main() {
 
   // 每日返图：预设 + 画布外工作区（本轮新能力）
   await clickByTitle('代肝日报')
+
+  // ── 汇报外观：主题（内容皮肤）与背景（画布底层）彻底解耦 ──
+  await js(`(() => { const b = document.querySelector('.rp-look-btn .rc-global-btn'); if (b) b.click(); return !!b })()`)
+  await sleep(600)
+  const picker = await js(`(() => ({
+    popup: !!document.querySelector('.modal-mask .edit-popup.rp-look'),
+    drawer: Math.round((document.querySelector('.modal-mask .edit-popup.rp-look') || { getBoundingClientRect: () => ({ width: 0, right: 0 }) }).getBoundingClientRect().width),
+    themes: document.querySelectorAll('.modal-mask .rp-theme-card').length,
+    bgs: document.querySelectorAll('.modal-mask .rp-bg-card').length,
+    secs: [...document.querySelectorAll('.modal-mask .detail-section')].map(x => x.textContent.trim()),
+  }))()`)
+  console.log('    外观弹窗：', JSON.stringify(picker))
+  check('外观选择改为侧边弹窗（沿用详情窗口版式）', picker.popup)
+  check('弹窗为右侧半宽抽屉', picker.drawer > 0)
+  check('汇报主题 7 套，且主题 / 背景分区呈现', picker.themes === 7 && picker.secs.some(x => x.startsWith('内容主题')) && picker.secs.some(x => x.startsWith('画布背景')))
+  check('背景选项保留原有 7 套', picker.bgs === 7)
+
+  const lookBefore = await js(`(() => {
+    const w = document.querySelector('.rp-wrap')
+    const head = document.querySelector('.rp-card-head')
+    return { cls: w.className, bg: w.style.background, headBg: getComputedStyle(head).backgroundColor }
+  })()`)
+  await js(`(() => { const c = [...document.querySelectorAll('.modal-mask .rp-theme-card')].find(x => x.querySelector('.rp-opt-name').textContent.trim() === '科研档案'); if (c) c.click(); return !!c })()`)
+  await sleep(400)
+  const lookTheme = await js(`(() => {
+    const w = document.querySelector('.rp-wrap')
+    const head = document.querySelector('.rp-card-head')
+    return { cls: w.className, bg: w.style.background, headBg: getComputedStyle(head).backgroundColor, key: localStorage.getItem('tr-report-theme'), popupOpen: !!document.querySelector('.modal-mask .edit-popup.rp-look') }
+  })()`)
+  console.log('    切主题：', JSON.stringify({ cls: lookTheme.cls, headBg: lookTheme.headBg, key: lookTheme.key }))
+  check('切主题只换内容皮肤：类名变、背景不变', lookTheme.cls.includes('rp-theme-ls-archive') && lookTheme.bg === lookBefore.bg && lookTheme.headBg !== lookBefore.headBg)
+  check('主题写入独立存储键 tr-report-theme', JSON.parse(lookTheme.key) === 'ls-archive')
+  check('选完主题弹窗保持打开（可继续选背景）', lookTheme.popupOpen)
+
+  await js(`(() => { const c = [...document.querySelectorAll('.modal-mask .rp-bg-card')].find(x => x.querySelector('.rp-opt-name').textContent.trim() === '航天工程'); if (c) c.click(); return !!c })()`)
+  await sleep(400)
+  const lookBg = await js(`(() => {
+    const w = document.querySelector('.rp-wrap')
+    return { cls: w.className, bg: w.style.background, key: localStorage.getItem('tr-report-bg') }
+  })()`)
+  check('切背景只换画布底层：背景变、主题不变', lookBg.bg !== lookBefore.bg && lookBg.cls.includes('rp-theme-ls-archive'))
+  check('背景写入独立存储键 tr-report-bg', JSON.parse(lookBg.key) === 'lt-orbital')
+  await shot('19b-report-look-popup')
+
+  // 任意组合都成立：孤星主题 + P3R 背景
+  await js(`(() => { const c = [...document.querySelectorAll('.modal-mask .rp-bg-card')].find(x => x.querySelector('.rp-opt-name').textContent.trim() === '斜切海报'); if (c) c.click(); return !!c })()`)
+  await sleep(350)
+  check('跨系列组合可用（孤星主题 + P3R 背景）', await js(`(() => {
+    const w = document.querySelector('.rp-wrap')
+    return w.className.includes('rp-theme-ls-archive') && w.style.background.length > 20
+  })()`))
+
+  // 回到默认外观，避免影响后续排版预设与截图
+  await js(`(() => { const c = [...document.querySelectorAll('.modal-mask .rp-theme-card')].find(x => x.querySelector('.rp-opt-name').textContent.trim() === '经典简报'); if (c) c.click(); return !!c })()`)
+  await sleep(250)
+  await js(`(() => { const c = [...document.querySelectorAll('.modal-mask .rp-bg-card')].find(x => x.querySelector('.rp-opt-name').textContent.trim() === '纯白'); if (c) c.click(); return !!c })()`)
+  await sleep(250)
+  await js(`(() => { const m = document.querySelector('.modal-mask'); if (m) m.click(); return !!m })()`)
+  await sleep(400)
+  check('点遮罩可关闭外观弹窗（无关闭按钮）', await js(`!document.querySelector('.modal-mask .edit-popup.rp-look')`))
+  check('可回到经典简报 + 纯白（与历史外观一致）', await js(`(() => {
+    const w = document.querySelector('.rp-wrap')
+    return w.className.includes('rp-theme-classic') && !w.style.background.includes('gradient')
+  })()`))
+
   await js(`(() => { const b = [...document.querySelectorAll('.rc-global-btn')].find(x => x.textContent.includes('排版')); if (b) b.click(); return !!b })()`)
   await sleep(400)
   // 起点确定：显式回到原版预设（seed 已清掉保存的布局，这里再兜一层）

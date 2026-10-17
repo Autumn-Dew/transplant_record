@@ -59,6 +59,17 @@ test('未知 / 空值回落到默认背景', () => {
   assert.equal(findReportBg('不存在').id, DEFAULT_REPORT_BG)
 })
 
+test('每套背景都有明确的构图重心，且不压住正文', () => {
+  for (const b of REPORT_BACKGROUNDS) {
+    if (b.id === 'plain') continue
+    const alphas = [...b.bg.matchAll(/rgba\(\s*\d+,\s*\d+,\s*\d+,\s*([0-9.]+)\s*\)/g)].map(m => Number(m[1]))
+    assert.ok(alphas.length >= 3, `${b.id} 应由多层渐变构成（构图靠分层，不是单一色差）`)
+    assert.ok(Math.max(...alphas) >= 0.15, `${b.id} 需要至少一个明显的构图元素（alpha ≥ 0.15），否则只剩一层几乎看不见的色差`)
+    assert.ok(Math.max(...alphas) <= 0.95, `${b.id} 不得用大面积不透明色块压住正文`)
+    assert.match(b.bg, /gradient\(/, `${b.id} 需要渐变构图`)
+  }
+})
+
 test('背景按「默认 / 孤星风格 / P3R 风格」分组，分组即风格系列', () => {
   assert.deepEqual(REPORT_BG_GROUPS.map(g => g.id), ['default', 'lone-star', 'p3r'], '三个分组顺序固定')
   const grouped = REPORT_BG_GROUPS.flatMap(g => g.items.map(b => b.id))
@@ -98,7 +109,7 @@ test('画布与导出都使用当前背景', () => {
   assert.equal(/backgroundColor:\s*'#ffffff'/.test(sheet), false, '不能写死纯白背景')
 })
 
-test('编辑器内有紧凑的分组背景选择入口', () => {
+test('编辑器内有紧凑的背景选择入口（与主题分区并列）', () => {
   const sheet = read('src/components/ReportSheet.vue')
   // 分组浮层：外层遍历「默认 / 孤星风格 / P3R 风格」，内层遍历各背景
   assert.match(sheet, /v-for="g in REPORT_BG_GROUPS"/, '按风格分组遍历')
@@ -108,17 +119,25 @@ test('编辑器内有紧凑的分组背景选择入口', () => {
   assert.match(sheet, /class="rp-bg-thumb"\s+:style="\{ background: b\.bg \}"/, '缩略图用与画布相同的背景值')
   assert.match(sheet, /:class="\{ active: reportBgId === b\.id \}"/, '标识当前选中背景')
   assert.match(sheet, /@click="setReportBg\(b\.id\)/, '点击即切换')
-  assert.match(sheet, /背景 · \{\{ reportBg\.label \}\}/, '按钮上显示当前背景名')
-  // 紧凑：面板为绝对定位浮层，展开时不挤压工作区
-  assert.match(sheet, /\.rp-bg-panel\s*\{[^}]*position:\s*absolute/, '选择面板为浮层')
-  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*height:\s*58px/, '缩略图为固定高度（够大才看得出构图差异）')
+  // 选择入口是侧边弹窗（与项目详情窗口同一套版式），展开时不挤压工作区
+  assert.match(sheet, /class="edit-popup pd-popup rp-look"/, '外观选择在侧边弹窗内')
+  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*height:\s*52px/, '缩略图为固定高度（够大才看得出构图差异）')
   assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*width:\s*100%/, '缩略图铺满色卡宽度')
+})
+
+test('背景不再决定内容皮肤：画布皮肤只跟着汇报主题走', () => {
+  const sheet = read('src/components/ReportSheet.vue')
+  assert.match(sheet, /class="rp-wrap"[^>]*:class="`rp-theme-\$\{reportTheme\.id\}`"/, '画布挂汇报主题类')
+  assert.equal(/rp-style-\$\{reportBg\.style\}/.test(sheet), false, '画布类名不得再取自背景')
+  assert.equal(/reportBg\.style/.test(sheet), false, '组件不再读背景的 style 字段决定样式')
 })
 
 test('切换背景不会写入主题键，切换主题不会动背景键', () => {
   const bgSrc = read('src/data/report-backgrounds.js')
   assert.equal(/readJSON\(KEYS\.THEME/.test(bgSrc), false, '背景模块不得读主题键')
   assert.equal(/writeJSON\(KEYS\.THEME/.test(bgSrc), false, '背景模块不得写主题键')
+  assert.equal(/REPORT_THEME|tr-report-theme/.test(bgSrc), false, '背景模块不得碰汇报主题键')
   const themeSrc = read('src/composables/useGlobalTheme.js')
   assert.equal(/REPORT_BG|tr-report-bg/.test(themeSrc), false, '主题模块不得读写背景键')
+  assert.equal(/REPORT_THEME|tr-report-theme/.test(themeSrc), false, '应用主题模块不得读写汇报主题键')
 })

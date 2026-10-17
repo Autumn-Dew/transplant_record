@@ -17,29 +17,14 @@
         <span>+ 图片</span>
         <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
       </label>
-      <!-- 汇报背景：按「默认 / 孤星风格 / P3R 风格」分组，独立于当前应用主题 -->
-      <span class="rp-bg-picker">
-        <button class="rc-global-btn" :class="{ active: bgPanelOpen }" title="每日汇报背景（与当前应用主题无关）" @click="bgPanelOpen = !bgPanelOpen">
-          背景 · {{ reportBg.label }}
-        </button>
-        <div class="rp-bg-panel" v-if="bgPanelOpen">
-          <div v-for="g in REPORT_BG_GROUPS" :key="g.id" class="rp-bg-group">
-            <div class="rp-bg-group-label">{{ g.label }}</div>
-            <div class="rp-bg-row">
-              <button
-                v-for="b in g.items"
-                :key="b.id"
-                class="rp-bg-card"
-                :class="{ active: reportBgId === b.id }"
-                :title="`${b.label} · ${b.hint}`"
-                @click="setReportBg(b.id); bgPanelOpen = false"
-              >
-                <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
-                <span class="rp-bg-name">{{ b.label }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- 汇报外观：点击后从右侧滑出侧边弹窗（版式与「项目详情」窗口一致），
+           主题与背景两个选择互相独立，也都与应用主题无关 -->
+      <span class="rp-look-btn">
+        <button
+          class="rc-global-btn"
+          title="每日汇报的主题与背景（与当前应用主题无关，可自由组合）"
+          @click="stylePanelOpen = true"
+        >外观 · {{ reportTheme.label }} / {{ reportBg.label }}</button>
       </span>
       <div class="toolbar-spacer"></div>
       <!-- 当前选中托管项目的备注（显示在控件右侧，过长省略、悬停看全文） -->
@@ -50,7 +35,7 @@
     </div>
 
     <div class="rp-body">
-      <div class="rp-wrap" ref="wrapRef" :class="`rp-style-${reportBg.style}`" :style="{ background: reportBg.bg }">
+      <div class="rp-wrap" ref="wrapRef" :class="`rp-theme-${reportTheme.id}`" :style="{ background: reportBg.bg }">
         <!-- Title -->
         <div class="rp-title-row">
           <div class="rp-title" contenteditable @input="dirty = true" ref="titleRef">秋の露的每日汇报</div>
@@ -323,6 +308,75 @@
         </div>
       </div>
     </div>
+
+    <!-- 汇报外观 · 侧边弹窗
+         版式与「项目详情」窗口一致：右侧抽屉 + pd-head + detail-grid。
+         不设底部按钮区，内容一屏放下（无滚动条），点遮罩即可关闭。
+         主题与背景分两段，各自独立选择；弹窗只改外观，不碰画布布局与内容。 -->
+    <div class="modal-mask" v-if="stylePanelOpen" @click.self="stylePanelOpen = false">
+      <div class="edit-popup pd-popup rp-look">
+        <h4>汇报外观</h4>
+
+        <div class="pd-head">
+          <div class="pd-head-main">
+            <div class="pd-name">{{ reportTheme.label }}</div>
+            <div class="pd-sub">{{ reportTheme.hint }}</div>
+          </div>
+          <span class="pd-state">背景 · {{ reportBg.label }}</span>
+        </div>
+
+        <div class="detail-grid">
+          <p class="detail-section">内容主题 · 决定标题行 / 卡片 / 信息栏的样式</p>
+          <div class="rp-look-wrap">
+            <div v-for="g in REPORT_THEME_GROUPS" :key="g.id" class="rp-look-group">
+              <div class="rp-look-group-label">{{ g.label }}</div>
+              <div class="rp-look-row">
+                <button
+                  v-for="t in g.items"
+                  :key="t.id"
+                  class="rp-theme-card"
+                  :class="{ active: reportThemeId === t.id }"
+                  :title="`${t.label} · ${t.hint}`"
+                  @click="setReportTheme(t.id)"
+                >
+                  <!-- 缩略图用与画布同一套主题变量渲染，能看出标题 / 信息栏 / 卡片头的实际外观 -->
+                  <span class="rp-theme-thumb" :class="`rp-theme-${t.id}`">
+                    <span class="rtt-title"></span>
+                    <span class="rtt-meta"></span>
+                    <span class="rtt-card">
+                      <span class="rtt-head"></span>
+                      <span class="rtt-body"></span>
+                    </span>
+                  </span>
+                  <span class="rp-opt-name">{{ t.label }}</span>
+                  <span class="rp-opt-hint">{{ t.hint }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <p class="detail-section">画布背景 · 只决定底层，不改内容样式</p>
+          <div class="rp-look-wrap">
+            <div v-for="g in REPORT_BG_GROUPS" :key="g.id" class="rp-look-group">
+              <div class="rp-look-group-label">{{ g.label }}</div>
+              <div class="rp-look-row">
+                <button
+                  v-for="b in g.items"
+                  :key="b.id"
+                  class="rp-bg-card"
+                  :class="{ active: reportBgId === b.id }"
+                  :title="`${b.label} · ${b.hint}`"
+                  @click="setReportBg(b.id)"
+                >
+                  <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
+                  <span class="rp-opt-name">{{ b.label }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -337,6 +391,7 @@ import { hostProgress, isHosting } from '@/domain/project.js'
 import { projectsRepo } from '@/data/repos.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
 import { REPORT_BG_GROUPS, readReportBg, writeReportBg, findReportBg } from '@/data/report-backgrounds.js'
+import { REPORT_THEME_GROUPS, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 
 const emit = defineEmits(['update:label'])
@@ -356,12 +411,17 @@ const reportGame = ref('ak')
 const activeAuthor = ref('秋の露')
 const dirty = ref(false)
 
-// ── 汇报背景：独立持久化，不随应用主题变化 ──
+// ── 汇报外观：主题（内容皮肤）与背景（画布底层）各自独立持久化，互不改写 ──
 const reportBgId = ref(readReportBg())
 const reportBg = computed(() => findReportBg(reportBgId.value))
-const bgPanelOpen = ref(false)
+const reportThemeId = ref(readReportTheme())
+const reportTheme = computed(() => findReportTheme(reportThemeId.value))
+const stylePanelOpen = ref(false)
 function setReportBg(id) {
   reportBgId.value = writeReportBg(id)
+}
+function setReportTheme(id) {
+  reportThemeId.value = writeReportTheme(id)
 }
 
 const today = new Date()
@@ -855,41 +915,78 @@ defineExpose({ refreshHosting })
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
 .rp-hint { font-size: 11px; opacity: 0.4; font-family: monospace; }
 
-/* ── 汇报背景选择器：按钮 + 浮层面板（按风格分组，不挤压工作区）── */
-.rp-bg-picker { position: relative; display: inline-flex; flex-shrink: 0; }
-.rp-bg-panel {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
-  width: 392px; padding: 10px 12px;
-  background: var(--bg-primary); color: var(--text-primary);
-  border: 2px solid var(--border-color);
-  display: flex; flex-direction: column; gap: 10px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+/* ── 汇报外观：工具栏按钮 + 侧边弹窗（版式与项目详情窗口一致） ── */
+.rp-look-btn { display: inline-flex; flex-shrink: 0; }
+/* 弹窗：高度随内容、不出现滚动条，也不放关闭按钮 —— 点遮罩即可关闭 */
+.modal-mask .edit-popup.rp-look {
+  height: auto;
+  max-height: 100vh;
+  overflow: hidden;
+  padding-bottom: 16px;
 }
-.rp-bg-group-label {
-  font-size: 10px; font-family: monospace; letter-spacing: 1.5px;
-  opacity: 0.55; margin-bottom: 6px;
+/* detail-grid 是两列展布，外观区要整行铺开 */
+.rp-look-wrap { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; }
+/* 分组横排：组名在左、卡片在右，省纵向空间（一屏放得下四组主题 + 四组背景） */
+.rp-look-group { display: flex; align-items: flex-start; gap: 10px; }
+.rp-look-group-label {
+  width: 52px; flex-shrink: 0; padding-top: 8px;
+  font-size: 10px; font-family: monospace; letter-spacing: 1.2px; opacity: 0.55;
 }
-.rp-bg-row { display: flex; gap: 8px; }
+.rp-look-row { flex: 1; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+/* 一行三张，单张只占 1/3 宽（「经典」组只有一张时不会拉满整行） */
+.rp-look-row > .rp-theme-card,
+.rp-look-row > .rp-bg-card { flex: 0 0 calc((100% - 16px) / 3); min-width: 0; }
+/* 弹窗里的分区标题收紧一点，保证整屏可见 */
+.rp-look .detail-section { padding: 10px 0 3px; }
+/* ── 主题卡：缩略图由主题变量渲染，能看出标题带 / 信息栏 / 卡片头的实际外观 ── */
+.rp-theme-card {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 4px;
+  border: 2px solid transparent; background: none; cursor: pointer;
+  transition: border-color var(--motion-duration-fast, 120ms) ease;
+  text-align: left;
+}
+.rp-theme-card:hover { border-color: var(--border-color); }
+.rp-theme-card.active { border-color: var(--accent); }
+.rp-theme-thumb {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; height: 58px; padding: 3px;
+  border: 1px solid var(--border-color);
+  background: #ffffff;                 /* 所有汇报主题都是浅色画布 */
+  overflow: hidden;
+}
+.rp-theme-card.active .rp-theme-thumb { box-shadow: 0 0 0 1px var(--accent); }
+.rtt-title { height: 10px; background: var(--rt-title-bg); box-shadow: inset 0 -1px 0 var(--rt-head-rule); }
+.rtt-meta  { height: 7px; background: var(--rt-meta-bg); border: 1px solid var(--rt-meta-edge); box-shadow: inset 2px 0 0 var(--rt-meta-bar); }
+.rtt-card  { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--rt-card-edge); background: var(--rt-card-bg); }
+.rtt-head  { height: 8px; background: var(--rt-head-bg); box-shadow: inset 0 -1px 0 var(--rt-head-rule); }
+.rtt-body  { flex: 1; background: var(--rt-inp-bg); }
+/* ── 背景卡：缩略图直接用与画布相同的 background 值 ── */
 .rp-bg-card {
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 4px; width: 84px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 4px;
   border: 2px solid transparent; background: none; cursor: pointer;
   transition: border-color var(--motion-duration-fast, 120ms) ease;
 }
 .rp-bg-card:hover { border-color: var(--border-color); }
 .rp-bg-card.active { border-color: var(--accent); }
-/* 缩略图用与画布完全相同的 background 值，所见即所得；
-   尺寸要够大，斜切 / 圆环 / 刻度这些「构图差异」才看得出来 */
 .rp-bg-thumb {
-  display: block; width: 100%; height: 58px;
+  display: block; width: 100%; height: 52px;
   border: 1px solid var(--border-color);
 }
 .rp-bg-card.active .rp-bg-thumb { box-shadow: 0 0 0 1px var(--accent); }
-.rp-bg-name {
-  font-size: 10px; font-family: monospace; text-align: center;
-  color: var(--text-primary); opacity: 0.8; white-space: nowrap;
+.rp-opt-name {
+  font-size: 10px; font-family: monospace; text-align: left;
+  color: var(--text-primary); opacity: 0.85; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
 }
-.rp-bg-card.active .rp-bg-name { opacity: 1; font-weight: 700; }
+.rp-opt-hint {
+  font-size: 9px; font-family: monospace; text-align: left;
+  color: var(--text-primary); opacity: 0.45; line-height: 1.3;
+}
+.rp-theme-card.active .rp-opt-name { opacity: 1; font-weight: 700; }
+.rp-bg-card .rp-opt-name { text-align: center; }
+.rp-bg-card.active .rp-opt-name { opacity: 1; font-weight: 700; }
 /* 控件右侧的项目备注 */
 .rp-note {
   max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -897,255 +994,467 @@ defineExpose({ refreshHosting })
   padding: 2px 8px; border: 1px solid var(--border-color); flex-shrink: 1;
 }
 .rp-body { padding: 12px 0; }
-.rp-wrap { max-width: 920px; margin: 0 auto; padding: 24px; background: #fff; color: #0d0d0d; }
-.rp-title { font-size: 18px; font-weight: 800; letter-spacing: 2px; margin-bottom: 14px; outline: none; }
-.rp-title-row { display: flex; align-items: center; margin-bottom: 14px; }
+/* ── 主题变量：默认值 = 经典简报 ──
+   同时挂在画布（.rp-wrap）和主题缩略图（.rp-theme-thumb）上，
+   这样缩略图能直接用同一套变量渲染，做到「所见即所得」。
+   各 .rp-theme-<id> 只覆盖这些变量，再按需要加不占布局的装饰。 */
+.rp-wrap,
+.rp-theme-thumb {
+  --rt-ink: #0d0d0d;
+  --rt-ink-dim: rgba(13, 13, 13, 0.42);
+  --rt-title-fg: #0d0d0d;
+  --rt-title-bg: transparent;
+  --rt-tab-edge: rgba(0, 0, 0, 0.15);
+  --rt-tab-fg: #0d0d0d;
+  --rt-tab-on-bg: #0d0d0d;
+  --rt-tab-on-fg: #ffffff;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(0, 0, 0, 0.1);
+  --rt-head-bg: #f5f5f5;
+  --rt-head-fg: #0d0d0d;
+  --rt-head-rule: rgba(0, 0, 0, 0.06);
+  --rt-meta-bg: #fafafa;
+  --rt-meta-fg: #0d0d0d;
+  --rt-meta-edge: rgba(0, 0, 0, 0.1);
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #0d0d0d;
+  --rt-inp-edge: rgba(0, 0, 0, 0.12);
+  --rt-radio: #0d0d0d;
+  --rt-radio-checked: #0d0d0d;
+  --rt-accent: #0d0d0d;
+  --rt-row-rule: transparent;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(0, 0, 0, 0.1);
+  --rt-btn-edge: rgba(0, 0, 0, 0.15);
+  --rt-btn-on-bg: #0d0d0d;
+  --rt-btn-on-fg: #ffffff;
+}
+/* 画布：布局完全固定（宽度 / 内边距 / 结构都不随主题变化） */
+.rp-wrap {
+  max-width: 920px; margin: 0 auto; padding: 24px; background: #fff;
+  color: var(--rt-ink);
+}
+.rp-title { font-size: 18px; font-weight: 800; letter-spacing: 2px; margin-bottom: 14px; outline: none; color: var(--rt-title-fg); }
+.rp-title-row { display: flex; align-items: center; margin-bottom: 14px; position: relative; background: var(--rt-title-bg); }
 .rp-title-row .rp-title { margin-bottom: 0; flex: 1; }
 .rp-game-tabs { display: flex; gap: 0; margin-left: 48px; }
-.rp-game-tabs button { font-size: 12px; padding: 4px 14px; border: 1px solid rgba(0,0,0,0.15); background: none; cursor: pointer; font-family: inherit; margin-left: -1px; color: #0d0d0d; }
+.rp-game-tabs button { font-size: 12px; padding: 4px 14px; border: 1px solid var(--rt-tab-edge); background: none; cursor: pointer; font-family: inherit; margin-left: -1px; color: var(--rt-tab-fg); }
 .rp-game-tabs button:first-child { margin-left: 0; }
-.rp-game-tabs button.active { background: #0d0d0d; color: #fff; border-color: #0d0d0d; }
+.rp-game-tabs button.active { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); border-color: var(--rt-tab-on-bg); }
 .rp-author-box { display: flex; align-items: center; gap: 0; margin-left: 16px; }
-.rp-author-label { font-size: 10px; opacity: 0.35; font-family: monospace; margin-right: 6px; }
-.rp-author-btn { font-size: 12px; padding: 4px 14px; border: 1px solid rgba(0,0,0,0.15); background: none; cursor: pointer; font-family: inherit; margin-left: -1px; color: #0d0d0d; }
+.rp-author-label { font-size: 10px; color: var(--rt-ink-dim); font-family: monospace; margin-right: 6px; }
+.rp-author-btn { font-size: 12px; padding: 4px 14px; border: 1px solid var(--rt-tab-edge); background: none; cursor: pointer; font-family: inherit; margin-left: -1px; color: var(--rt-tab-fg); }
 .rp-author-btn:first-child { margin-left: 0; }
-.rp-author-btn:hover { background: #0d0d0d; color: #fff; }
-.rp-author-btn.active { background: #0d0d0d; color: #fff; border-color: #0d0d0d; }
-.rp-card { border: 1px solid rgba(0,0,0,0.1); margin-bottom: 10px; }
+.rp-author-btn:hover { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); }
+.rp-author-btn.active { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); border-color: var(--rt-tab-on-bg); }
+.rp-card { border: 1px solid var(--rt-card-edge); background: var(--rt-card-bg); margin-bottom: 10px; }
 .rp-cards-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .rp-cards-row .rp-card { margin-bottom: 0; }
 .rp-half { flex: 1; min-width: 0; }
-.rp-card-head { padding: 8px 14px; background: #f5f5f5; border-bottom: 1px solid rgba(0,0,0,0.06); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.rp-reset-sm { font-size: 10px; padding: 1px 8px; border: 1px solid rgba(0,0,0,0.15); background: none; cursor: pointer; font-family: monospace; font-weight: 400; margin-left: auto; color: #0d0d0d; }
-.rp-reset-sm:hover { background: #0d0d0d; color: #fff; }
+.rp-card-head { padding: 8px 14px; background: var(--rt-head-bg); color: var(--rt-head-fg); border-bottom: 1px solid var(--rt-head-rule); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.rp-reset-sm { font-size: 10px; padding: 1px 8px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; font-family: monospace; font-weight: 400; margin-left: auto; color: var(--rt-head-fg); }
+.rp-reset-sm:hover { background: var(--rt-btn-on-bg); color: var(--rt-btn-on-fg); }
 .rp-card-body { padding: 0; }
-.rp-meta { font-size: 13px; padding: 10px 14px; border: 1px solid rgba(0,0,0,0.1); margin-bottom: 12px; background: #fafafa; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.rp-inp { border: 1px solid rgba(0,0,0,0.12); padding: 3px 6px; font-size: 12px; font-family: inherit; background: #fff; line-height: 1.2; vertical-align: baseline; color: #0d0d0d; }
-.rp-inp:focus { border-color: #0d0d0d; outline: none; }
+.rp-meta { font-size: 13px; padding: 10px 14px; border: 1px solid var(--rt-meta-edge); margin-bottom: 12px; background: var(--rt-meta-bg); color: var(--rt-meta-fg); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; box-shadow: inset 5px 0 0 var(--rt-meta-bar); }
+.rp-inp { border: 1px solid var(--rt-inp-edge); padding: 3px 6px; font-size: 12px; font-family: inherit; background: var(--rt-inp-bg); line-height: 1.2; vertical-align: baseline; color: var(--rt-inp-fg); }
+.rp-inp:focus { border-color: var(--rt-accent); outline: none; }
 .rp-date-sm { width: 115px; }
 .rp-num { width: 52px; text-align: center; }
 .rp-extra { flex: 1; min-width: 0; }
 .rp-res-inp { width: 100px; }
 .rp-label-inp { width: 90px; }
 .rp-arrow { opacity: 0.25; padding: 0 2px; }
-.rp-task-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 7px 14px; }
+.rp-task-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 7px 14px; background: var(--rt-row-alt); box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
 .rp-task-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; align-items: center; }
 .rp-task-grid .rp-inp { width: auto; }
 .rp-task-label { flex: 1; min-width: 0; line-height: 1.5; }
 .rp-radio { font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; opacity: 0.5; vertical-align: middle; flex: 1; }
 .rp-radio input { display: none; }
-.rp-radio-box { width: 12px; height: 12px; border: 2px solid #0d0d0d; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; align-self: center; }
-.rp-radio input:checked + .rp-radio-box { background: #fff; border-color: #0d0d0d; }
-.rp-radio input:checked + .rp-radio-box::after { content: ''; width: 6px; height: 6px; background: #0d0d0d; }
-.rp-radio:has(input:checked) { opacity: 1; font-weight: 600; }
-.rp-quick-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 8px 14px; border-bottom: 1px solid rgba(0,0,0,0.06); }
-.rp-quick-label { font-size: 10px; opacity: 0.4; font-family: monospace; margin-right: 2px; }
+.rp-radio-box { width: 12px; height: 12px; border: 2px solid var(--rt-radio); flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; align-self: center; }
+.rp-radio input:checked + .rp-radio-box { background: var(--rt-inp-bg); border-color: var(--rt-radio); }
+.rp-radio input:checked + .rp-radio-box::after { content: ''; width: 6px; height: 6px; background: var(--rt-radio); }
+.rp-radio:has(input:checked) { opacity: 1; font-weight: 600; color: var(--rt-radio-checked); }
+.rp-quick-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--rt-row-rule); }
+.rp-quick-label { font-size: 10px; color: var(--rt-ink-dim); font-family: monospace; margin-right: 2px; }
 .rp-quick-group-label { display: block; width: 100%; margin-top: 4px; }
-.rp-quick-btn { font-size: 11px; padding: 2px 8px; border: 1px solid rgba(0,0,0,0.15); cursor: pointer; font-family: monospace; margin: 1px 2px; color: #0d0d0d; background: none; }
-.rp-quick-btn:hover { background: #0d0d0d; color: #fff; }
+.rp-quick-btn { font-size: 11px; padding: 2px 8px; border: 1px solid var(--rt-btn-edge); cursor: pointer; font-family: monospace; margin: 1px 2px; color: var(--rt-ink); background: none; }
+.rp-quick-btn:hover { background: var(--rt-btn-on-bg); color: var(--rt-btn-on-fg); }
 .rp-lines { outline: none; font-size: 13px; line-height: 1.8; min-height: 24px; padding: 10px 14px; }
-.rp-add-row { font-size: 11px; padding: 3px 8px; margin: 6px 14px; border: 1px dashed rgba(0,0,0,0.2); background: none; cursor: pointer; font-family: monospace; width: calc(100% - 28px); color: #0d0d0d; }
-.rp-add-row:hover { border-color: #0d0d0d; background: #fafafa; }
-.rp-row-del { font-size: 14px; padding: 0 6px; border: 1px solid rgba(0,0,0,0.15); background: none; cursor: pointer; opacity: 0.4; font-family: monospace; line-height: 1; color: #0d0d0d; }
+.rp-add-row { font-size: 11px; padding: 3px 8px; margin: 6px 14px; border: 1px dashed var(--rt-btn-edge); background: none; cursor: pointer; font-family: monospace; width: calc(100% - 28px); color: var(--rt-ink); }
+.rp-add-row:hover { border-color: var(--rt-accent); background: var(--rt-row-alt); }
+.rp-row-del { font-size: 14px; padding: 0 6px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; opacity: 0.4; font-family: monospace; line-height: 1; color: var(--rt-ink); }
 .rp-row-del:hover { opacity: 1; background: #d00; color: #fff; border-color: #d00; }
 .rp-images { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .rp-img-wrap { position: relative; width: 100%; }
-.rp-img { width: 100%; border: 1px solid rgba(0,0,0,0.1); display: block; }
+.rp-img { width: 100%; border: 1px solid var(--rt-img-edge); display: block; }
 .rp-img-del { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border: none; background: rgba(0,0,0,0.5); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .rp-img-del:hover { background: rgba(200,0,0,0.8); }
 
 /* ══════════════════════════════════════════════════════════════════
-   汇报排版 · 跟随「背景风格类别」，与当前应用主题无关
+   汇报主题（内容皮肤）· 与背景彻底解耦
 
-   背景只有两大风格类别（孤星 / P3R），排版随之切换：
-     · 默认纯白背景 → 沿用既有版式（不改变老用户的成品外观）
-     · 孤星风格背景 → 科研档案：装订脊 + 深蓝档头 + 双线装帧
-     · P3R 风格背景 → 几何海报：整宽斜切色块 + 明黄收口 + 粗体数字
-   三套排版共用同一份 DOM 与导出流程，只改视觉层次，不改数据与交互。
-   导出走 html2canvas：只用背景渐变 / 边框 / 字号，不用 clip-path。
+   画布类名 rp-theme-<id> 只决定「已有元素」的视觉表现：
+     标题行 / 托管信息栏 / 卡片标题 / 任务行 / 单选 / 输入框 / 图片边框。
+   画布底层（底色与图案）由背景配置单独负责、单独持久化 ——
+   所以任意主题 × 任意背景都成立，换一个不会改动另一个。
+
+   硬约束：不改布局。
+     本段只用 color / background / border-color / box-shadow / 字重 /
+     小字距 / 绝对定位伪元素，没有 padding / margin / 宽高 / font-size /
+     display / flex / grid；不会换行、不会溢出、导出尺寸不变。
+   导出走 html2canvas：只用渐变与边框，不用 clip-path / filter。
    ══════════════════════════════════════════════════════════════════ */
 
-/* ── 孤星风格：航天科研档案 ─────────────────────────────────────── */
-.rp-wrap.rp-style-lone-star {
-  color: #141B22;
+/* ── A. 经典简报：.rp-wrap 上的变量默认值就是这套外观，这里只做显式声明 ── */
+.rp-theme-classic { color: var(--rt-ink); }
+
+/* ── B1. 孤星 · 科研档案 ─────────────────────────────────────────────
+   暖白纸面 + 深蓝档头铭牌 + 工业橙装订 —— 一份可查阅的正式任务档案。 */
+.rp-theme-ls-archive {
   position: relative;
+  color: #141b22;
+  --rt-ink: #141b22;
+  --rt-ink-dim: rgba(20, 27, 34, 0.5);
+  --rt-title-fg: #101923;
+  --rt-tab-edge: rgba(20, 27, 34, 0.32);
+  --rt-tab-fg: #141b22;
+  --rt-tab-on-bg: #101923;
+  --rt-tab-on-fg: #e8e2d3;
+  --rt-card-bg: rgba(255, 255, 255, 0.7);
+  --rt-card-edge: rgba(20, 27, 34, 0.4);
+  --rt-head-bg: #101923;
+  --rt-head-fg: #e8e2d3;
+  --rt-head-rule: #d87938;
+  --rt-meta-bg: #101923;
+  --rt-meta-fg: #e8e2d3;
+  --rt-meta-edge: #101923;
+  --rt-meta-bar: #d87938;
+  --rt-inp-bg: #f6f1e7;
+  --rt-inp-fg: #141b22;
+  --rt-inp-edge: rgba(20, 27, 34, 0.22);
+  --rt-radio: #101923;
+  --rt-radio-checked: #101923;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(20, 27, 34, 0.1);
+  --rt-img-edge: rgba(20, 27, 34, 0.4);
+  --rt-btn-edge: rgba(20, 27, 34, 0.3);
+  --rt-btn-on-bg: #101923;
+  --rt-btn-on-fg: #e8e2d3;
 }
-/* 左侧装订脊：上段工业橙，其余灰蓝细线（绝对定位，不占布局、不改画布尺寸） */
-.rp-wrap.rp-style-lone-star::before {
+/* 装订脊：绝对定位在画布内边距里（24px），不占布局、不压文字。
+   限定 .rp-wrap，避免主题缩略图也长出这条脊。 */
+.rp-wrap.rp-theme-ls-archive::before {
   content: '';
   position: absolute;
-  left: 14px; top: 24px; bottom: 24px;
+  left: 13px; top: 20px; bottom: 20px;
   width: 5px;
   background: linear-gradient(180deg,
-    #D87938 0 118px,
+    #d87938 0 118px,
     rgba(20, 27, 34, 0.18) 118px 100%);
   pointer-events: none;
 }
 /* 档头：标题行下一条深墨线（inset shadow，不增加高度） */
-.rp-style-lone-star .rp-title-row {
-  position: relative;
-  box-shadow: inset 0 -2px 0 #101923;
-}
-.rp-style-lone-star .rp-title-row::before {
+.rp-theme-ls-archive .rp-title-row { box-shadow: inset 0 -2px 0 #101923; }
+/* 档案编号：绝对定位在标题行上方，不占布局 */
+.rp-theme-ls-archive .rp-title-row::before {
   content: 'FILE TR-DAILY / OPERATION REPORT';
   position: absolute;
-  left: 0;
-  top: -10px;
+  left: 0; top: -10px;
   font-family: monospace;
   font-size: 8px;
+  line-height: 1;
   letter-spacing: 2.4px;
-  color: #71818A;
+  color: #71818a;
   pointer-events: none;
 }
-.rp-style-lone-star .rp-title {
-  font-weight: 800;
-  letter-spacing: 1.2px;
-  color: #101923;
-}
-.rp-style-lone-star .rp-game-tabs button,
-.rp-style-lone-star .rp-author-btn {
-  border-color: rgba(20, 27, 34, 0.3);
-  color: #141B22;
-  letter-spacing: 0.5px;
-}
-.rp-style-lone-star .rp-game-tabs button.active,
-.rp-style-lone-star .rp-author-btn.active,
-.rp-style-lone-star .rp-author-btn:hover {
-  background: #101923;
-  color: #E8E2D3;
-  border-color: #101923;
-}
-/* 托管信息 → 深蓝档号铭牌（左色条用 inset shadow，不改尺寸） */
-.rp-style-lone-star .rp-meta {
-  background: #101923;
-  color: #E8E2D3;
-  border-color: #101923;
-  box-shadow: inset 4px 0 0 #D87938;
-  font-family: monospace;
-  letter-spacing: 0.6px;
-}
-.rp-style-lone-star .rp-meta .rp-inp {
-  background: #F6F1E7;
-  border-color: rgba(232, 226, 211, 0.4);
-  color: #141B22;
-  font-weight: 700;
-}
-/* 卡片：墨线装帧 + 深蓝档头 */
-.rp-style-lone-star .rp-card {
-  border-color: rgba(20, 27, 34, 0.4);
-  background: rgba(255, 255, 255, 0.66);
-}
-.rp-style-lone-star .rp-card-head {
-  background: #101923;
-  color: #E8E2D3;
-  border-bottom-color: #D87938;
-  letter-spacing: 2.2px;
-  font-weight: 700;
-}
-.rp-style-lone-star .rp-card-head .rp-reset-sm {
-  border-color: rgba(232, 226, 211, 0.4);
-  color: #E8E2D3;
-}
-.rp-style-lone-star .rp-task-row {
-  box-shadow: inset 0 -1px 0 rgba(20, 27, 34, 0.1);
-}
-.rp-style-lone-star .rp-task-label {
-  letter-spacing: 0.3px;
-  font-weight: 600;
-}
-.rp-style-lone-star .rp-radio:has(input:checked) { color: #101923; }
-.rp-style-lone-star .rp-quick-bar { border-bottom-color: rgba(20, 27, 34, 0.1); }
-.rp-style-lone-star .rp-img { border-color: rgba(20, 27, 34, 0.4); }
+.rp-theme-ls-archive .rp-title { letter-spacing: 1.2px; }
+.rp-theme-ls-archive .rp-meta { font-family: monospace; letter-spacing: 0.6px; }
+.rp-theme-ls-archive .rp-meta .rp-inp { font-weight: 700; }
+.rp-theme-ls-archive .rp-card-head { letter-spacing: 2.2px; }
+.rp-theme-ls-archive .rp-card-head .rp-reset-sm { border-color: rgba(232, 226, 211, 0.45); }
+.rp-theme-ls-archive .rp-task-label { font-weight: 600; letter-spacing: 0.3px; }
 
-/* ── P3R 风格：几何平面海报 ──────────────────────────────────────── */
-.rp-wrap.rp-style-p3r {
-  color: #0A1F42;
+/* ── B2. 孤星 · 航天制图 ─────────────────────────────────────────────
+   冷白图纸 + 工程线 + 坐标标记 —— 比科研档案更轻、更冷、更像制图稿。
+   刻意不使用厚重实色大标题块。 */
+.rp-theme-ls-drafting {
+  position: relative;
+  color: #16222c;
+  --rt-ink: #16222c;
+  --rt-ink-dim: rgba(22, 34, 44, 0.45);
+  --rt-title-fg: #16222c;
+  --rt-tab-edge: rgba(22, 34, 44, 0.28);
+  --rt-tab-fg: #16222c;
+  --rt-tab-on-bg: #2b6cb0;
+  --rt-tab-on-fg: #ffffff;
+  --rt-card-bg: rgba(255, 255, 255, 0.86);
+  --rt-card-edge: rgba(22, 34, 44, 0.26);
+  --rt-head-bg: #eef3f8;
+  --rt-head-fg: #16222c;
+  --rt-head-rule: rgba(22, 34, 44, 0.22);
+  --rt-meta-bg: #f5f9fc;
+  --rt-meta-fg: #16222c;
+  --rt-meta-edge: rgba(22, 34, 44, 0.26);
+  --rt-meta-bar: #2b6cb0;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #16222c;
+  --rt-inp-edge: rgba(22, 34, 44, 0.2);
+  --rt-radio: #2b6cb0;
+  --rt-radio-checked: #1b4f86;
+  --rt-accent: #2b6cb0;
+  --rt-row-rule: rgba(22, 34, 44, 0.08);
+  --rt-img-edge: rgba(22, 34, 44, 0.28);
+  --rt-btn-edge: rgba(22, 34, 44, 0.26);
+  --rt-btn-on-bg: #2b6cb0;
+  --rt-btn-on-fg: #ffffff;
 }
-/* 标题带：整宽斜切色块（深蓝 → 主蓝 → 青蓝），底部明黄收口用 inset shadow */
-.rp-style-p3r .rp-title-row {
-  background: linear-gradient(102deg,
-    #071B3A 0 66%,
-    #1264C8 66% 88%,
-    #28B8F2 88% 100%);
-  color: #F4F6FA;
-  box-shadow: inset 0 -5px 0 #F5D83D;
+/* 标题行：一条主线 + 一条偏移的淡蓝基准线（inset，不改高度） */
+.rp-theme-ls-drafting .rp-title-row {
+  box-shadow: inset 0 -1px 0 rgba(22, 34, 44, 0.42),
+              inset 0 -4px 0 rgba(43, 108, 176, 0.14);
 }
-.rp-style-p3r .rp-title {
+/* 制图编号：绝对定位在标题行上方 */
+.rp-theme-ls-drafting .rp-title-row::before {
+  content: 'DWG · TR-DAILY / REV.A';
+  position: absolute;
+  left: 0; top: -10px;
+  font-family: monospace;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.2px;
+  color: #71818a;
+  pointer-events: none;
+}
+.rp-theme-ls-drafting .rp-title { letter-spacing: 1.6px; }
+/* 卡片：右上角坐标标记（绝对定位在卡片边框内侧，不占布局） */
+.rp-theme-ls-drafting .rp-card { position: relative; }
+.rp-theme-ls-drafting .rp-card::after {
+  content: '';
+  position: absolute;
+  right: 5px; top: 5px;
+  width: 9px; height: 9px;
+  border-top: 1px solid rgba(43, 108, 176, 0.5);
+  border-right: 1px solid rgba(43, 108, 176, 0.5);
+  pointer-events: none;
+}
+.rp-theme-ls-drafting .rp-card-head { letter-spacing: 1.6px; }
+.rp-theme-ls-drafting .rp-meta { letter-spacing: 0.5px; }
+.rp-theme-ls-drafting .rp-task-label { letter-spacing: 0.2px; }
+
+/* ── B3. 孤星 · 工业仪器 ─────────────────────────────────────────────
+   浅灰白 + 实体面板 + 粗细分明的边缘 —— 更像一台设备的面板与状态区。 */
+.rp-theme-ls-gauge {
+  color: #101820;
+  --rt-ink: #101820;
+  --rt-ink-dim: rgba(16, 24, 32, 0.5);
+  --rt-title-fg: #0c141a;
+  --rt-tab-edge: rgba(16, 24, 32, 0.3);
+  --rt-tab-fg: #101820;
+  --rt-tab-on-bg: #18222c;
+  --rt-tab-on-fg: #f2f4f2;
+  --rt-card-bg: #fdfdfc;
+  --rt-card-edge: rgba(16, 24, 32, 0.5);
+  --rt-head-bg: #18222c;
+  --rt-head-fg: #f2f4f2;
+  --rt-head-rule: #d87938;
+  --rt-meta-bg: #18222c;
+  --rt-meta-fg: #f2f4f2;
+  --rt-meta-edge: #18222c;
+  --rt-meta-bar: #d87938;
+  --rt-inp-bg: #f7f8f7;
+  --rt-inp-fg: #101820;
+  --rt-inp-edge: rgba(16, 24, 32, 0.3);
+  --rt-radio: #101820;
+  --rt-radio-checked: #101820;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(16, 24, 32, 0.16);
+  --rt-row-alt: rgba(16, 24, 32, 0.035);
+  --rt-img-edge: rgba(16, 24, 32, 0.45);
+  --rt-btn-edge: rgba(16, 24, 32, 0.3);
+  --rt-btn-on-bg: #18222c;
+  --rt-btn-on-fg: #f2f4f2;
+}
+/* 标题行：底部一条粗橙线，像面板的状态条 */
+.rp-theme-ls-gauge .rp-title-row { box-shadow: inset 0 -3px 0 #d87938; }
+.rp-theme-ls-gauge .rp-title { letter-spacing: 1px; }
+/* 卡片标题：左侧状态块（在 14px 内边距里，不压字）+ 底部橙线 */
+.rp-theme-ls-gauge .rp-card-head {
+  box-shadow: inset 4px 0 0 #d87938,
+              inset 0 -3px 0 #d87938;
+}
+.rp-theme-ls-gauge .rp-card-head .rp-reset-sm { border-color: rgba(242, 244, 242, 0.45); }
+/* 信息栏：右端状态块 */
+.rp-theme-ls-gauge .rp-meta { box-shadow: inset 5px 0 0 var(--rt-meta-bar), inset -5px 0 0 rgba(216, 121, 56, 0.55); }
+.rp-theme-ls-gauge .rp-meta .rp-inp { font-weight: 800; font-variant-numeric: tabular-nums; }
+.rp-theme-ls-gauge .rp-task-label { font-weight: 600; }
+
+/* ── C1. P3R · 斜切海报 ─────────────────────────────────────────────
+   整宽斜切色带 + 明黄收口 + 高对比 —— 最直接的平面海报冲击。
+   明黄只做收口与选中，不铺成大面积底色。 */
+.rp-theme-p3r-poster {
+  color: #0a1f42;
+  --rt-ink: #0a1f42;
+  --rt-ink-dim: rgba(10, 31, 66, 0.5);
+  --rt-title-bg: linear-gradient(102deg,
+    #071b3a 0 66%,
+    #1264c8 66% 88%,
+    #28b8f2 88% 100%);
+  --rt-title-fg: #f4f6fa;
+  --rt-tab-edge: rgba(244, 246, 250, 0.45);
+  --rt-tab-fg: #f4f6fa;
+  --rt-tab-on-bg: #f5d83d;
+  --rt-tab-on-fg: #071b3a;
+  --rt-card-bg: rgba(255, 255, 255, 0.92);
+  --rt-card-edge: transparent;
+  --rt-head-bg: #1264c8;
+  --rt-head-fg: #ffffff;
+  --rt-head-rule: #f5d83d;
+  --rt-meta-bg: #071b3a;
+  --rt-meta-fg: #f4f6fa;
+  --rt-meta-edge: #071b3a;
+  --rt-meta-bar: #f5d83d;
+  --rt-inp-bg: #f4f6fa;
+  --rt-inp-fg: #071b3a;
+  --rt-inp-edge: #28b8f2;
+  --rt-radio: #1264c8;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #f5d83d;
+  --rt-row-rule: rgba(10, 31, 66, 0.1);
+  --rt-row-alt: rgba(40, 184, 242, 0.07);
+  --rt-img-edge: rgba(18, 100, 200, 0.4);
+  --rt-btn-edge: rgba(10, 31, 66, 0.22);
+  --rt-btn-on-bg: #071b3a;
+  --rt-btn-on-fg: #f4f6fa;
+}
+/* 明黄收口线（inset，不增加高度） */
+.rp-theme-p3r-poster .rp-title-row { box-shadow: inset 0 -5px 0 #f5d83d; }
+.rp-theme-p3r-poster .rp-title { font-weight: 900; letter-spacing: -0.4px; }
+/* 深色标题带上的「汇报人」标签要用浅色，否则读不出来 */
+.rp-theme-p3r-poster .rp-title-row .rp-author-label { color: rgba(244, 246, 250, 0.66); }
+.rp-theme-p3r-poster .rp-meta { letter-spacing: 0.4px; }
+.rp-theme-p3r-poster .rp-meta .rp-inp { font-weight: 900; font-variant-numeric: tabular-nums; }
+/* 卡片：白承载面 + 1px 轮廓代替边框 + 蓝色标题块与明黄底边 */
+.rp-theme-p3r-poster .rp-card { box-shadow: 0 0 0 1px rgba(10, 31, 66, 0.12); }
+.rp-theme-p3r-poster .rp-card-head {
   font-weight: 900;
-  letter-spacing: -0.4px;
-  color: #F4F6FA;
-}
-.rp-style-p3r .rp-author-label {
-  color: #F4F6FA;
-  opacity: 0.6;
   letter-spacing: 1.4px;
+  box-shadow: inset 0 -4px 0 #f5d83d;
 }
-.rp-style-p3r .rp-game-tabs button,
-.rp-style-p3r .rp-author-btn {
-  border-color: rgba(244, 246, 250, 0.45);
-  color: #F4F6FA;
-  font-weight: 700;
+.rp-theme-p3r-poster .rp-card-head .rp-reset-sm { border-color: rgba(255, 255, 255, 0.5); }
+.rp-theme-p3r-poster .rp-task-label { font-weight: 700; }
+
+/* ── C2. P3R · 月相编辑 ─────────────────────────────────────────────
+   冷白留白 + 月相轨迹 + 细线 —— 克制、精致的编辑设计，
+   与斜切海报的区别是「没有大面积实色块」，而不是「少一点黄色」。 */
+.rp-theme-p3r-lunar {
+  position: relative;
+  color: #10233f;
+  --rt-ink: #10233f;
+  --rt-ink-dim: rgba(16, 35, 63, 0.45);
+  --rt-title-fg: #0a1f42;
+  --rt-tab-edge: rgba(16, 35, 63, 0.22);
+  --rt-tab-fg: #10233f;
+  --rt-tab-on-bg: #0a1f42;
+  --rt-tab-on-fg: #ffffff;
+  --rt-card-bg: rgba(255, 255, 255, 0.94);
+  --rt-card-edge: rgba(16, 35, 63, 0.16);
+  --rt-head-bg: #f1f7fd;
+  --rt-head-fg: #10233f;
+  --rt-head-rule: rgba(40, 184, 242, 0.55);
+  --rt-meta-bg: #eff6fd;
+  --rt-meta-fg: #10233f;
+  --rt-meta-edge: rgba(16, 35, 63, 0.16);
+  --rt-meta-bar: #28b8f2;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #10233f;
+  --rt-inp-edge: rgba(16, 35, 63, 0.18);
+  --rt-radio: #1264c8;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #28b8f2;
+  --rt-row-rule: rgba(16, 35, 63, 0.07);
+  --rt-img-edge: rgba(16, 35, 63, 0.2);
+  --rt-btn-edge: rgba(16, 35, 63, 0.2);
+  --rt-btn-on-bg: #0a1f42;
+  --rt-btn-on-fg: #ffffff;
 }
-.rp-style-p3r .rp-game-tabs button.active,
-.rp-style-p3r .rp-author-btn.active {
-  background: #F5D83D;
-  color: #071B3A;
-  border-color: #F5D83D;
-  font-weight: 900;
+/* 标题行：一条青色细线；月相藏在标题行上方，做减法而不是铺色块 */
+.rp-theme-p3r-lunar .rp-title-row { box-shadow: inset 0 -1px 0 rgba(40, 184, 242, 0.7); }
+.rp-theme-p3r-lunar .rp-title { letter-spacing: 1.4px; }
+.rp-theme-p3r-lunar .rp-title-row::after {
+  content: '';
+  position: absolute;
+  right: 0; top: -12px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 70% 50%,
+    transparent 0 42%,
+    rgba(40, 184, 242, 0.75) 43% 100%);
+  pointer-events: none;
 }
-.rp-style-p3r .rp-author-btn:hover {
-  background: #28B8F2;
-  color: #071B3A;
-  border-color: #28B8F2;
+/* 卡片：左侧青色细条（在 14px 内边距里，不压字）+ 极轻轮廓 */
+.rp-theme-p3r-lunar .rp-card { box-shadow: 0 0 0 1px rgba(16, 35, 63, 0.06); }
+.rp-theme-p3r-lunar .rp-card-head { box-shadow: inset 3px 0 0 #28b8f2; letter-spacing: 1.2px; }
+.rp-theme-p3r-lunar .rp-meta { letter-spacing: 0.4px; }
+.rp-theme-p3r-lunar .rp-task-label { font-weight: 500; }
+
+/* ── C3. P3R · 都市拼贴 ─────────────────────────────────────────────
+   错位矩形 + 模块拼贴 + 局部反色 —— 用直线分区做都市平面设计，
+   刻意不用圆形轨迹，也避免和斜切海报一样整条蓝色标题块。 */
+.rp-theme-p3r-tiles {
+  color: #0a1f42;
+  --rt-ink: #0a1f42;
+  --rt-ink-dim: rgba(10, 31, 66, 0.5);
+  --rt-title-bg: linear-gradient(90deg,
+    #071b3a 0 62%,
+    #1264c8 62% 100%);
+  --rt-title-fg: #f4f6fa;
+  --rt-tab-edge: rgba(244, 246, 250, 0.45);
+  --rt-tab-fg: #f4f6fa;
+  --rt-tab-on-bg: #f5d83d;
+  --rt-tab-on-fg: #071b3a;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: rgba(10, 31, 66, 0.16);
+  --rt-head-bg: #0a1f42;
+  --rt-head-fg: #f4f6fa;
+  --rt-head-rule: #28b8f2;
+  --rt-meta-bg: #1264c8;
+  --rt-meta-fg: #f4f6fa;
+  --rt-meta-edge: transparent;
+  --rt-meta-bar: #f5d83d;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #0a1f42;
+  --rt-inp-edge: #28b8f2;
+  --rt-radio: #1264c8;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #1264c8;
+  --rt-row-rule: rgba(10, 31, 66, 0.12);
+  --rt-row-alt: rgba(40, 184, 242, 0.06);
+  --rt-img-edge: rgba(10, 31, 66, 0.3);
+  --rt-btn-edge: rgba(10, 31, 66, 0.22);
+  --rt-btn-on-bg: #0a1f42;
+  --rt-btn-on-fg: #f4f6fa;
 }
-/* 托管信息：深蓝数据带（左色条用 inset shadow） */
-.rp-style-p3r .rp-meta {
-  background: #071B3A;
-  color: #F4F6FA;
-  border-color: #071B3A;
-  box-shadow: inset 6px 0 0 #F5D83D;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+/* 标题行：底部青线收口；深色带上的「汇报人」转浅色 */
+.rp-theme-p3r-tiles .rp-title-row { box-shadow: inset 0 -3px 0 #28b8f2; }
+.rp-theme-p3r-tiles .rp-title { font-weight: 900; letter-spacing: 0.6px; }
+.rp-theme-p3r-tiles .rp-title-row .rp-author-label { color: rgba(244, 246, 250, 0.66); }
+.rp-theme-p3r-tiles .rp-meta .rp-inp { font-weight: 800; }
+/* 卡片：右上角明黄角块 + 左侧青条，像拼贴上去的一块标记 */
+.rp-theme-p3r-tiles .rp-card { position: relative; }
+.rp-theme-p3r-tiles .rp-card::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0;
+  width: 14px; height: 14px;
+  background: #f5d83d;
+  pointer-events: none;
 }
-.rp-style-p3r .rp-meta .rp-inp {
-  background: #F4F6FA;
-  border-color: #28B8F2;
-  color: #071B3A;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
+.rp-theme-p3r-tiles .rp-card-head {
+  box-shadow: inset 3px 0 0 #28b8f2;
+  letter-spacing: 1.6px;
 }
-/* 卡片：白色承载面 + 蓝色标题块 + 明黄细分隔 */
-.rp-style-p3r .rp-card {
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 1px rgba(10, 31, 66, 0.12);
-}
-.rp-style-p3r .rp-card-head {
-  background: #1264C8;
-  color: #FFFFFF;
-  border-bottom-color: #F5D83D;
-  font-weight: 900;
-  letter-spacing: 1.4px;
-  box-shadow: inset 0 -4px 0 #F5D83D;
-}
-.rp-style-p3r .rp-card-head .rp-reset-sm {
-  border-color: rgba(255, 255, 255, 0.5);
-  color: #FFFFFF;
-  font-weight: 700;
-}
-.rp-style-p3r .rp-task-row {
-  box-shadow: inset 0 -1px 0 rgba(10, 31, 66, 0.1);
-}
-.rp-style-p3r .rp-task-row:nth-child(even) { background: rgba(40, 184, 242, 0.07); }
-.rp-style-p3r .rp-task-label {
-  font-weight: 700;
-  color: #0A1F42;
-}
-/* 选中态：蓝色方点 + 蓝色文字（明黄只做标题收口，不铺开） */
-.rp-style-p3r .rp-radio-box { border-color: #1264C8; }
-.rp-style-p3r .rp-radio input:checked + .rp-radio-box::after { background: #1264C8; }
-.rp-style-p3r .rp-radio:has(input:checked) { color: #1264C8; }
-.rp-style-p3r .rp-quick-bar { border-bottom-color: rgba(10, 31, 66, 0.1); }
-.rp-style-p3r .rp-img { border-color: rgba(18, 100, 200, 0.4); }
+.rp-theme-p3r-tiles .rp-card-head .rp-reset-sm { border-color: rgba(244, 246, 250, 0.45); }
+.rp-theme-p3r-tiles .rp-task-label { font-weight: 600; }
 
 </style>

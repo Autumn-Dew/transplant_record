@@ -25,6 +25,8 @@ export const KEYS = {
   SHOP_HIDDEN: 'tr-shop-hidden',
   // 每日汇报背景（独立于应用主题，两者互不覆盖）
   REPORT_BG: 'tr-report-bg',
+  // 每日汇报主题皮肤（与背景、应用主题三方各自独立）
+  REPORT_THEME: 'tr-report-theme',
 }
 
 export const SCHEMA_VERSION = 2
