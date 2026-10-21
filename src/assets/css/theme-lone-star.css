@@ -36,7 +36,7 @@
   background: var(--accent);
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .rc-title-bar h2 {
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 3px;
 }
 /* 应用级工程编号：标题前缀（文本内容，不改盒模型） */
@@ -104,7 +104,7 @@
   background-repeat: no-repeat;
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-header h2 {
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.5px;
 }
 /* 技术说明：左侧细线由伪元素画（绝对定位，不占字宽） */
@@ -167,7 +167,7 @@
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
-  font-weight: 700;
+  font-weight: 900;
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .local-toolbar > .rc-global-btn:first-child:hover {
   background: var(--surface-plate);
@@ -200,6 +200,17 @@
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-strip::after {
   background: var(--accent);
 }
+/* 数据带左端的装订块：绝对定位，不占 flex 位、不改布局 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-strip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: linear-gradient(180deg,
+    var(--accent) 0 20px,
+    var(--rule-soft) 20px 100%);
+  pointer-events: none;
+}
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-chip {
   background: transparent;
   border-color: var(--plate-line);
@@ -209,7 +220,7 @@
 /* 数字：等宽 + 冷白 —— 字号沿用原值，只加强字重与字色 */
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .summary-chip strong {
   font-family: var(--font-mono);
-  font-weight: 800;
+  font-weight: 900;
   color: var(--plate-fg);
   font-variant-numeric: tabular-nums;
 }
@@ -222,6 +233,7 @@
   border-color: var(--rule-strong);
   background: var(--surface-raised);
   font-family: var(--font-mono);
+  font-weight: 700;
   letter-spacing: 0.5px;
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .folder-chip.active {
@@ -255,7 +267,7 @@
   opacity: 0.42;
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-name {
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.2px;
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .col-fixed {
@@ -390,4 +402,85 @@
 }
 :is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .section {
   box-shadow: inset 0 2px 0 var(--rule-strong);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   控件形状 · 档案标签（孤星专属，不只是换颜色）
+     左上角切一刀 = 可点；编号列做成装订方块 = 档案页的行号。
+   clip-path 只裁角、不参与盒模型 —— 尺寸、间距、布局全都不变。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-lone-star-light, .theme-lone-star-dark) {
+  --done-mark: #71818A;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .folder-chip, .song-btn, .pd-btn,
+  .gm-btn, .gm-add, .ad-sort-btn, .bp-sort-btn, .pwd-toggle, .quit-btn, .float-btn
+) {
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
+}
+/* 行号：装订方块 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-index {
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--rule-soft);
+}
+/* ══════════════════════════════════════════════════════════════════
+   孤星 · 更强的档案特征（不改尺寸 / 布局）
+     · 页面底纹：工程图纸网格（46px 一格）
+     · 行首：双细线（档案裁口）
+     · 已完成：冷灰底
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-lone-star-light) { --done-bg: rgba(20, 27, 34, 0.07); }
+:is(.theme-lone-star-dark)  { --done-bg: rgba(232, 226, 211, 0.06); }
+:is(.theme-lone-star-light) .local-music {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(20, 27, 34, 0.035) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(180deg, rgba(20, 27, 34, 0.035) 0 1px, transparent 1px 46px);
+}
+:is(.theme-lone-star-dark) .local-music {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(232, 226, 211, 0.03) 0 1px, transparent 1px 46px),
+    repeating-linear-gradient(180deg, rgba(232, 226, 211, 0.03) 0 1px, transparent 1px 46px);
+}
+/* 行首：2px 实心 + 一条细线 = 档案的裁口 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item::after {
+  width: 5px;
+  background: linear-gradient(to bottom,
+    var(--bar-top, var(--border-color)) 0 50%,
+    var(--bar-bottom, var(--border-color)) 50% 100%);
+  box-shadow: 3px 0 0 rgba(113, 129, 138, 0.35);
+}
+/* ══════════════════════════════════════════════════════════════════
+   孤星 · 控件语言 —— 档案铭牌
+     内框双线 + 左缘工业橙刻线 + 右上角编号角标（孤星独有的一枚小方块）。
+     输入类控件做成「下划双线」，像档案表格里填的一行。
+     全部用 inset 阴影与绝对定位伪元素，尺寸与布局不变。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .folder-chip, .pd-btn, .sb-trigger
+) {
+  position: relative;
+  box-shadow: inset 0 0 0 1px var(--rule-soft), inset 3px 0 0 var(--accent);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .folder-chip, .pd-btn, .sb-trigger
+)::after {
+  content: '';
+  position: absolute;
+  right: 4px; top: 4px;
+  width: 5px; height: 5px;
+  background: var(--accent);
+  opacity: 0.9;
+  pointer-events: none;
+}
+/* 输入类：下划双线（档案表格） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music :is(
+  .search-box, .form-row input, .form-row select, .form-select, .pd-inp
+) {
+  box-shadow: inset 0 -2px 0 var(--rule-strong), inset 0 -5px 0 var(--rule-soft);
+}
+/* 行内按钮：方框 + 右上角小刻度，像档案页的角标 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-btn {
+  position: relative;
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--rule-soft);
 }

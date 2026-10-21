@@ -31,6 +31,8 @@
         <span class="view-tabs view-switch">
           <span class="tl-entry-btn" :class="{ active: view === 'all' }" @click="view = 'all'">全部</span>
           <span class="tl-entry-btn" :class="{ active: view === 'todo' }" @click="view = 'todo'">代办</span>
+          <!-- 已结束：已归档 / 已取消 / 已完成的记录在这里，便于查看并清理 -->
+          <span class="tl-entry-btn" :class="{ active: view === 'closed' }" @click="view = 'closed'">已结束</span>
         </span>
         <span class="view-tabs">
           <span class="tl-entry-btn" :class="{ active: sortMode === 'hosting' }" @click="setSortMode('hosting')">托管</span>
@@ -66,12 +68,12 @@
       </div>
 
       <!-- 数据列表 -->
-      <div class="song-list" :key="listKey" v-if="view === 'all' || view === 'todo'">
+      <div class="song-list" :key="listKey" v-if="view === 'all' || view === 'todo' || view === 'closed'">
         <div
           v-for="(item, idx) in visibleRecords"
           :key="item.id"
           class="song-item"
-          :class="{ dimmed: isGrayed(item), hosting: item.status === 2, selected: isSelected(item.id) }"
+          :class="{ dimmed: isGrayed(item), hosting: item.status === 2, selected: isSelected(item.id), done: isRecordDone(item) }"
           :style="rowStyle(item, idx)"
           @click="toggleSelect(item.id)"
         >
@@ -88,7 +90,8 @@
           </div>
 
           <div class="col-fixed">
-            <span v-if="isLocked(item)">待激活</span>
+            <span v-if="isRecordDone(item)">已完成</span>
+            <span v-else-if="isLocked(item)">待激活</span>
             <span v-else-if="isConfirmedToday(item)">今日已确认</span>
             <span v-else-if="item.state === 'paused'">暂停中</span>
             <span v-else-if="isHosting(item)">{{ hostProgress(item).completed }}/{{ hostProgress(item).planned }}次</span>
@@ -156,6 +159,7 @@
         @restore="onDetailRestore"
         @add-period="onDetailAddPeriod"
         @remove="onDetailRemove"
+        @force-remove="onDetailForceRemove"
       />
     </div>
   </div>
@@ -176,12 +180,12 @@ import ProjectDetail from '@/components/ProjectDetail.vue'
 import { projectsRepo, gamesRepo } from '@/data/repos.js'
 import { completeTaskById } from '@/utils/taskComplete.js'
 import {
-  updateProject, archiveProject, hardDeleteProject, canHardDelete,
+  updateProject, archiveProject, hardDeleteProject, forceDeleteProject, canHardDelete,
   restoreProject, addHostingPeriod,
 } from '@/services/projectService.js'
 import { buildProjectDetail } from '@/services/projectDetail.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
-import { isHosting, hostProgress, isClosed, STATE_LABEL } from '@/domain/project.js'
+import { isHosting, hostProgress, isClosed, isCompleted, isArchived, STATE_LABEL } from '@/domain/project.js'
 
 const navigateToAdd = inject('navigateToAdd')
 const { startAdd } = useEditState()
@@ -255,6 +259,14 @@ function isLocked(item) {
   return !!item.locked
 }
 
+// ══════ 已完成（含归档 / 取消）：与「进行中」明确分层 ══════
+// 列表里两者混排时，靠灰调 + 删除线 + 左缘灰条 + 「已完成」字样区分，
+// 不再让一条结束的托管看起来和正在跑的一样。
+function isRecordDone(item) {
+  if (!item) return false
+  return item.status === 0 || isCompleted(item) || isArchived(item) || isClosed(item)
+}
+
 // ══════ 托管「每日只能确认一次」═════
 // 用本地日期（避免 toISOString 的 UTC 跨时区偏移）
 const todayStr = computed(() => {
@@ -295,7 +307,7 @@ function rowStyle(item, idx) {
 }
 const searchQuery = ref('')
 const gameFilter = ref('')
-const view = ref('all')       // all | todo
+const view = ref('all')       // all | todo | closed（closed = 已结束：已归档 / 已取消 / 已完成）
 
 // 「代办」视图：与「全部」共用同一份列表与样式，只筛出今日未确定的托管与未确定的单项
 const todoIds = computed(() => new Set(todayTaskItems(todayStr.value).map(t => String(t.id))))
@@ -319,7 +331,12 @@ function setSortMode(mode) {
   requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
 }
 const filteredRecords = computed(() => {
-  let list = records.value.filter(r => r.status !== 0 && !isClosed(r))
+  // 「已结束」视图列出全部结束（status 0 / 已归档 / 已取消）的记录 ——
+  // 这些记录在「全部 / 代办」里是看不到的，但数据仍然存在，需要能在这里找到并清理。
+  const closedView = view.value === 'closed'
+  let list = records.value.filter(r => (
+    closedView ? (r.status === 0 || isClosed(r)) : (r.status !== 0 && !isClosed(r))
+  ))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
     list = list.filter(r => (
@@ -402,6 +419,13 @@ function onDetailAddPeriod(payload) {
 function onDetailRemove() {
   if (!detail.value) return
   const r = hardDeleteProject(detail.value.project.id)
+  if (r && r.ok) closeDetail()
+  else refreshDetail()
+}
+// 强制删除：连执行记录一起删，并清理其它项目对它的引用（早期/后期数据冲突时用）
+function onDetailForceRemove() {
+  if (!detail.value) return
+  const r = forceDeleteProject(detail.value.project.id)
   if (r && r.ok) closeDetail()
   else refreshDetail()
 }

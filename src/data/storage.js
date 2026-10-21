@@ -27,6 +27,8 @@ export const KEYS = {
   REPORT_BG: 'tr-report-bg',
   // 每日汇报主题皮肤（与背景、应用主题三方各自独立）
   REPORT_THEME: 'tr-report-theme',
+  // 价格一览的画布外观（原版 / 终末地风格，独立于应用主题）
+  PRICE_THEME: 'tr-price-theme',
 }
 
 export const SCHEMA_VERSION = 2

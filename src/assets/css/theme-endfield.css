@@ -1,0 +1,550 @@
+/* ══════════════════════════════════════════════════════════════════
+   终末地主题 · 视觉语言 —— 工业工作台
+
+   设计依据：endfield-ui skill（终末地风味）
+     变体：夜班 + 标准混用（accent = lime #B8FF3D / paper = neutral）
+     主视觉：托管台账（真实项目数、剩余天数、今日完成数）
+   六条不变量（所有产品都一样，规则来自 skill）：
+     1. 只有一种强调色（lime），只表示「当前位置 / 可点击 / 醒目提醒」，
+        只做**填充**，上面写墨字；浅色下强调色不当线、不当字（trace 用墨色）。
+     2. 切掉一个角 = 可以按；正文与展示容器是直角；圆角一律 0。
+     3. 宽体大写拉丁小字 + 粗体中文，标题前缀 `//`。
+     4. 编号 / 日期 / 计数用等宽数字排，数字必须是真实数据。
+     5. 1px 细线分区，不用投影、发光、装饰性渐变。
+     6. 动效短、硬、机械；「减少动态效果」时全部关闭。
+
+   ⚠ 本文件不改布局：只改颜色 / 边框色 / 切角（clip-path）/ 内嵌阴影 /
+     绝对定位伪元素 / 字重字距 / 背景图层，不改 padding 之外任何影响
+     行高与换行的属性（唯一的 padding 调整只给可点击控件的切角留白）。
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) {
+  /* 字体：宽体几何拉丁（Windows 自带 Bahnschrift）+ 中文黑体 */
+  --font-ui: 'Bahnschrift', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  /* 三色条：品红 / 强调色 / 薄荷绿 —— 只出现在屏幕开始与详情标题下方 */
+  --ef-strip: linear-gradient(90deg,
+    var(--ef-tri-a) 0 33.33%,
+    var(--ef-tri-b) 33.33% 66.66%,
+    var(--ef-tri-c) 66.66% 100%);
+  /* 切角：只给可点击的东西 */
+  --ef-cut-corner: polygon(0 0, 100% 0, 100% calc(100% - var(--ef-cut)), calc(100% - var(--ef-cut)) 100%, 0 100%);
+  /* 斜线纹：45°，墨色 6% —— 只做质底与空状态，不压正文 */
+  --ef-hatch: repeating-linear-gradient(-45deg,
+    transparent 0 5px,
+    rgba(22, 22, 22, 0.06) 5px 6.5px);
+  --ef-hatch-light: repeating-linear-gradient(-45deg,
+    transparent 0 5px,
+    rgba(237, 237, 237, 0.08) 5px 6.5px);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   一、应用框架：深色命令栏（两套主题都深色）+ 切角导航
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-title-bar {
+  background: #161616;
+  color: #EDEDED;
+  border-bottom-color: #161616;
+  box-shadow: inset 0 -3px 0 var(--ef-signal);
+}
+/* 标题前缀取代原来的工业橙竖条：这是命令栏，不是可点元素，所以是直的 */
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-title-bar::before {
+  left: 0; top: 0; transform: none;
+  width: 3px; height: 100%;
+  background: var(--ef-signal);
+}
+/* `//` 眉标：编号在前，标题在后 */
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-title-bar h2::before {
+  content: '// ';
+  color: var(--ef-signal);
+  letter-spacing: 0;
+  opacity: 1;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-window-controls {
+  border-left: 1px solid rgba(237, 237, 237, 0.18);
+}
+
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-sub-sidebar {
+  background: var(--bg-sidebar);
+  box-shadow: inset -1px 0 0 rgba(237, 237, 237, 0.16);
+}
+/* 导航项：切角 = 可点击；当前项 = 强调色填充 + 墨色图标 */
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-sub-func-btn {
+  border: 1px solid var(--sb-line);
+  background: transparent;
+  color: var(--sb-fg);
+  clip-path: var(--ef-cut-corner);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-sub-func-btn:hover {
+  background: rgba(237, 237, 237, 0.1);
+  border-color: rgba(237, 237, 237, 0.4);
+  color: var(--ef-signal);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-sub-func-btn.active {
+  background: var(--ef-signal);
+  border-color: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  box-shadow: none;
+}
+/* 当前页指示条落在深色命令栏上：深色里强调色可以当线 */
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-nav-indicator {
+  background: var(--ef-signal);
+}
+/* 分隔：斜线纹（不是刻度，不是发光） */
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-sub-divider {
+  background: transparent;
+  background-image: var(--ef-hatch-light);
+  opacity: 0.8;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   二、页面开始：三色条 + `//` 眉标 + 细线
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 屏幕开始的三色条：整宽 3px，贴在封面上沿（绝对定位，不占布局） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-header::before {
+  left: 0; top: 0;
+  width: 100%; height: 3px;
+  background: var(--ef-strip);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-header {
+  background: transparent;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-header h2 {
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+/* 眉标：`//` 用 trace（浅色墨、深色强调色），词条用常规大小写 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-header h2::before {
+  content: '// ';
+  color: var(--ef-trace);
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-header .desc {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  position: relative;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-header .desc::before {
+  content: '';
+  position: absolute;
+  left: -10px; top: 2px; bottom: 2px;
+  width: 2px;
+  background: var(--ef-trace);
+}
+
+/* 图例 → 细线分区的小字段（无底色，只用线） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .legend {
+  background: transparent;
+  border: 1px solid var(--rule-soft);
+  color: var(--text-primary);
+  opacity: 1;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .legend .legend-label {
+  color: var(--text-primary);
+  opacity: 0.5;
+  letter-spacing: 0.14em;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .legend .legend-item {
+  color: var(--text-primary);
+  opacity: 0.9;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .legend .legend-dot {
+  border-color: var(--rule-strong);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   三、控制台（工具栏）：细线 + 切角按钮 + 强调色从左擦入
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-toolbar {
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--rule-soft);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .rc-global-btn,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .tl-entry-btn {
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  background: var(--ef-chip);
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  /* 切角那一侧留出切角宽度的空白，字永远不压进切角 */
+  padding-right: calc(12px + var(--ef-cut));
+  clip-path: var(--ef-cut-corner);
+}
+/* 主操作：静止是 chip，悬停时强调色从左擦入（280ms，机械收尾） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-toolbar > .rc-global-btn:first-child {
+  background-color: var(--ef-chip);
+  background-image: linear-gradient(90deg, var(--ef-signal) 0 100%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  color: var(--text-primary);
+  font-weight: 900;
+  transition: background-size var(--motion-duration-slow) var(--motion-easing-ease);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-toolbar > .rc-global-btn:first-child:hover {
+  background-size: 100% 100%;
+  color: var(--ef-signal-ink);
+  border-color: var(--ef-trace);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .rc-global-btn:hover {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  border-color: var(--ef-trace);
+}
+/* 当前页签 = 当前位置 = 强调色填充 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .view-tabs .tl-entry-btn.active,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .theme-picker .tl-entry-btn.active {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  border-color: var(--ef-trace);
+  font-weight: 700;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .search-box {
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--ef-trace);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .search-input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   四、数据看板（统计条）：深色命令栏 + 等宽数字
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .summary-strip {
+  --border-color: var(--plate-line);
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  box-shadow: inset 0 3px 0 var(--ef-signal);
+}
+/* 数据带左端的三色竖条（屏幕开始那件部件的竖版）：绝对定位，不占 flex 位、不改布局 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .summary-strip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg,
+    var(--ef-tri-a) 0 33.33%,
+    var(--ef-tri-b) 33.33% 66.66%,
+    var(--ef-tri-c) 66.66% 100%);
+  pointer-events: none;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .summary-chip {
+  background: transparent;
+  border-color: var(--plate-line);
+  color: var(--plate-fg-dim);
+  letter-spacing: 0.06em;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .summary-chip strong {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--plate-fg);
+}
+/* 第一块通常是「今天要处理的事」—— 只有它用强调色标出来 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .summary-chip:first-child strong {
+  color: var(--ef-signal);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   五、筛选块与台账列表
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .folder-strip {
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--rule-soft);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .folder-chip {
+  border-width: 1px;
+  border-color: var(--rule-soft);
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding-right: calc(10px + var(--ef-cut));
+  clip-path: var(--ef-cut-corner);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .folder-chip:hover {
+  background: var(--ef-chip);
+  border-color: var(--rule-strong);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .folder-chip.active {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  border-color: var(--ef-trace);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .folder-chip.active .folder-count {
+  background: rgba(22, 22, 22, 0.16);
+  color: var(--ef-signal-ink);
+}
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-list {
+  background: var(--surface-raised);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item {
+  border-bottom-color: var(--rule-soft);
+  transition: transform var(--motion-duration-fast) var(--motion-easing-ease),
+              color var(--motion-duration-fast) var(--motion-easing-ease);
+}
+/* 行的编号：宽体等宽数字，是这行的真实序号 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-index {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-name {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .col-fixed {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0.88;
+}
+/* 正在托管：左边缘一条强调色，这是「此刻」的标记 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.hosting {
+  box-shadow: inset 3px 0 0 var(--ef-signal);
+}
+/* 行的悬停与选中统一由 hover-states.css 管理（整行反相 + 强调色状态条），
+   这里不再各写一套，避免「文字换了色、底色没跟上」的打架。 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.selected {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  box-shadow: inset 3px 0 0 var(--ef-signal-ink);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.selected .song-name,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.selected .song-artist,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.selected .song-index,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.selected .song-duration,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item.selected .col-fixed {
+  color: var(--ef-signal-ink);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-btn {
+  border-width: 1px;
+  border-color: var(--rule-soft);
+  background: transparent;
+  color: inherit;
+  clip-path: var(--ef-cut-corner);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-btn:hover {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  border-color: var(--ef-trace);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   六、侧边抽屉（详情 / 续费 / 外观）：三色条压在标题下方
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .modal-mask .edit-popup {
+  background: var(--surface-raised);
+  border-width: 1px;
+  border-color: var(--rule-strong);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .modal-mask .edit-popup h4 {
+  position: relative;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+/* 详情标题下方的三色条（绝对定位，不占布局） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .modal-mask .edit-popup h4::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -7px;
+  height: 3px;
+  background: var(--ef-strip);
+  pointer-events: none;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .detail-field {
+  border-bottom-color: var(--rule-soft);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .detail-field .dl {
+  letter-spacing: 0.1em;
+  opacity: 0.55;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .detail-section {
+  letter-spacing: 0.14em;
+  opacity: 0.6;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .form-row input,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .form-row select,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .form-select,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .pd-inp {
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  background: var(--ef-chip);
+  color: var(--text-primary);
+}
+/* 主要操作 = 强调色填充；取消 = chip */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .save-btn {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  border-width: 1px;
+  border-color: var(--ef-trace);
+  letter-spacing: 0.06em;
+  clip-path: var(--ef-cut-corner);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .save-btn:hover {
+  background: var(--ef-chip);
+  color: var(--text-primary);
+  border-color: var(--rule-strong);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .cancel-btn {
+  background: transparent;
+  color: var(--text-primary);
+  border-width: 1px;
+  border-color: var(--rule-strong);
+  clip-path: var(--ef-cut-corner);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .cancel-btn:hover {
+  background: var(--ef-chip);
+  color: var(--text-primary);
+}
+/* 「生效中」状态块：强调色填充 + 墨字（不是浅色底上用强调色写字） */
+:is(.theme-endfield-light, .theme-endfield-dark) .pd-state-active,
+:is(.theme-endfield-light, .theme-endfield-dark) .pd-state.st-active {
+  background: var(--ef-signal);
+  color: var(--ef-signal-ink);
+  border-color: var(--ef-signal);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   七、次级页面：蓝图 / 代肝记录 / 设置 / 数据管理
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .bp-header {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  border-color: var(--surface-plate);
+  box-shadow: inset 3px 0 0 var(--ef-signal);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .bp-header h2,
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .bp-header .desc {
+  color: var(--plate-fg);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .bp-group-head {
+  background: var(--bg-secondary);
+  box-shadow: inset 0 1px 0 var(--rule-strong),
+              inset 0 -1px 0 var(--rule-soft);
+  letter-spacing: 0.1em;
+}
+/* 代肝记录的统计块：与其它页同一块深色命令栏，否则浅色字压浅底看不见 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .wd-summary {
+  background: var(--surface-plate);
+  color: var(--plate-fg);
+  box-shadow: inset 3px 0 0 var(--ef-signal),
+              inset 0 0 0 1px var(--plate-line);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .income-title {
+  letter-spacing: 0.12em;
+  opacity: 0.6;
+}
+/* 小底必须配本文色：父级是 --plate-fg（浅字），直接继承会浅字压浅底 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .income-chip {
+  background: var(--ef-chip);
+  border-color: var(--rule-soft);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .setting-row {
+  border-bottom-color: var(--rule-soft);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .setting-label {
+  letter-spacing: 0.03em;
+  font-weight: 800;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .setting-hint {
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .section {
+  box-shadow: inset 0 2px 0 var(--rule-strong);
+}
+
+/* 空状态：斜线纹当底，不铺正文 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .empty {
+  background-image: var(--ef-hatch);
+  opacity: 0.7;
+}
+
+/* 「减少动态效果」：擦入与位移一并关掉 */
+@media (prefers-reduced-motion: reduce) {
+  :is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-toolbar > .rc-global-btn:first-child {
+    transition: none;
+  }
+  :is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item {
+    transition: none;
+  }
+  :is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item:active {
+    transform: none;
+  }
+}
+
+/* ── 已完成行的灰调标记（终末地） ── */
+:is(.theme-endfield-light) { --done-mark: #8A8A85; }
+:is(.theme-endfield-dark) { --done-mark: #6E6E6E; }
+/* ══════════════════════════════════════════════════════════════════
+   终末地 · 更强的工作台特征（不改尺寸 / 布局）
+     · 页面底纹：45° 工业斜线纹
+     · 行首：4px 实心 + 右下切角（与控件同一套切角语言）
+     · 已完成：石墨中性底
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-endfield-light) .local-music {
+  background-image: repeating-linear-gradient(-45deg,
+    rgba(22, 22, 22, 0.035) 0 1px,
+    transparent 1px 7px);
+}
+:is(.theme-endfield-dark) .local-music {
+  background-image: repeating-linear-gradient(-45deg,
+    rgba(237, 237, 237, 0.03) 0 1px,
+    transparent 1px 7px);
+}
+/* 行首：实心 + 右下切角 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item::after {
+  width: 4px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+/* ══════════════════════════════════════════════════════════════════
+   终末地 · 控件语言 —— 工作台面板
+     左缘强调条 + 右上角小三角（切角语言的缩小版）+ 右下切角（已有）。
+     输入类控件：右下切角 + 底部细线。
+     只用 inset 阴影、伪元素与 clip-path，尺寸与布局不变。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .folder-chip, .pd-btn, .sb-trigger
+) {
+  position: relative;
+  box-shadow: inset 3px 0 0 var(--ef-signal);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .folder-chip, .pd-btn, .sb-trigger
+)::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0;
+  width: 9px; height: 9px;
+  background: var(--ef-signal);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  pointer-events: none;
+}
+/* 输入类：右下切角 + 底部细线（工业面板的开孔） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(
+  .search-box, .form-row input, .form-row select, .form-select, .pd-inp
+) {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  box-shadow: inset 0 -2px 0 var(--rule-soft);
+}
+/* 行内按钮：切角 + 左缘细条 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-btn {
+  box-shadow: inset 2px 0 0 var(--ef-signal);
+}

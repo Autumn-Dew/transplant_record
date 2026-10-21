@@ -33,7 +33,7 @@
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">界面主题</span>
-          <span class="setting-hint">四套主题平级独立，选择后立即生效并记住你的选择</span>
+          <span class="setting-hint">八套主题平级独立，选择后立即生效并记住你的选择</span>
         </div>
         <div class="theme-picker">
           <button
@@ -72,6 +72,18 @@
         <input ref="restoreInput" type="file" accept="application/json,.json" hidden @change="onRestoreFile" />
       </div>
 
+      <!-- 个人标签：署名 / 水印统一用这个 -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">个人标签</span>
+          <span class="setting-hint">价格表画布右下的署名用它，随导出图一起带出</span>
+        </div>
+        <span class="setting-sign">
+          <span class="setting-sign-mark"></span>
+          <span class="setting-sign-name">{{ SIGNATURE }}</span>
+        </span>
+      </div>
+
       <div class="setting-divider"></div>
 
       <button class="quit-btn" @click="handleClearData" :style="clearStyle">
@@ -96,8 +108,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import { useGlobalTheme } from '@/composables/useGlobalTheme.js'
 
-// 主题选择：四套主题平级，一个入口切换（与侧栏按钮同一份状态）
+// 主题选择：十套主题平级，一个入口切换（与侧栏按钮同一份状态）
 const { themeId, themes, setTheme } = useGlobalTheme()
+
+// 个人标签：署名 / 水印统一用这个
+const SIGNATURE = '秋の露'
 
 const entered = ref(false)
 onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
@@ -128,7 +143,7 @@ function backupAll() {
     .forEach(k => { keys[k] = localStorage.getItem(k) })
   const payload = {
     app: '代肝记录',
-    version: '1.0.44',
+    version: '1.0.5',
     exportedAt: new Date().toISOString(),
     note: '还原：把 keys 里每一项按原键名写回 localStorage 即可（键名与结构均未改动）',
     keys,

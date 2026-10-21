@@ -26,8 +26,13 @@
   --warn: var(--lt-alert);
   --gauge: var(--lt-gauge);
 
-  /* ── 字体 ── */
-  --font-ui: "Microsoft YaHei", "PingFang SC", sans-serif;
+  /* ── 字体 ──
+     --font-ui    正文字体（Bahnschrift + 中文黑体），六套界面主题共用
+     --font-mono  等宽字体：编号 / 金额 / 日期 / 标签用。
+     注意：等宽字体在同一个 font-size 下比正文字体更「小」更紧凑，
+     换成正文字体会让这些文字看起来变大 —— 所以数字 / 编号 / 备注
+     这类位置保留等宽字体，字号与视觉大小维持原样。 */
+  --font-ui: 'Bahnschrift', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
   --font-mono: "Fira Code", "Cascadia Code", Consolas, "Courier New", monospace;
 
   /* ── 工程编号 / 数据标识 ── */

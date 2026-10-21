@@ -192,14 +192,14 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
 
 <style scoped>
 .gm-root { display: flex; flex-direction: column; min-height: 0; }
-.gm-legend { display: flex; align-items: center; gap: 12px; font-size: 11px; font-family: monospace; opacity: 0.7; }
+.gm-legend { display: flex; align-items: center; gap: 12px; font-size: 11px; font-family: var(--font-mono); opacity: 0.7; }
 .gm-body { display: flex; gap: 12px; padding: 0 12px 16px; align-items: flex-start; }
 .gm-col-list {
   width: 300px; flex-shrink: 0;
   border: 2px solid var(--border-color); background: var(--bg-primary);
 }
 .gm-col-head {
-  padding: 8px 12px; font-size: 11px; font-family: monospace; letter-spacing: 2px;
+  padding: 8px 12px; font-size: 11px; font-family: var(--font-mono); letter-spacing: 2px;
   background: var(--bg-secondary); border-bottom: 2px solid var(--border-color); opacity: 0.75;
 }
 .gm-item {
@@ -214,9 +214,9 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
 .gm-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
 .gm-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .gm-name { font-size: 13px; font-weight: 700; }
-.gm-sub { font-size: 10px; font-family: monospace; opacity: 0.6; }
+.gm-sub { font-size: 10px; font-family: var(--font-mono); opacity: 0.6; }
 .gm-tag {
-  font-size: 10px; font-family: monospace; padding: 1px 5px;
+  font-size: 10px; font-family: var(--font-mono); padding: 1px 5px;
   border: 1px solid currentColor; opacity: 0.7;
 }
 .gm-item-actions { display: flex; flex-direction: column; gap: 1px; }
@@ -224,7 +224,7 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
 .gm-btn {
   font-size: 9px; line-height: 1.3; padding: 0 5px;
   border: 1px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-primary); cursor: pointer; font-family: monospace;
+  color: var(--text-primary); cursor: pointer; font-family: var(--font-mono);
 }
 .gm-btn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); }
 .gm-btn:disabled { opacity: 0.15; cursor: default; }
@@ -242,10 +242,10 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
   border-bottom: 1px solid var(--border-color);
 }
 .gm-detail-title { font-size: 12px; font-weight: 800; letter-spacing: 1px; }
-.gm-detail-id { font-size: 10px; font-family: monospace; opacity: 0.5; }
+.gm-detail-id { font-size: 10px; font-family: var(--font-mono); opacity: 0.5; }
 .gm-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin-bottom: 14px; }
 .gm-field { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.gm-field > span { width: 64px; opacity: 0.55; font-family: monospace; font-size: 11px; flex-shrink: 0; }
+.gm-field > span { width: 64px; opacity: 0.55; font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; }
 .gm-field input {
   flex: 1; min-width: 0; height: 28px; padding: 0 8px;
   border: 2px solid var(--border-color); background: var(--bg-secondary);
@@ -264,14 +264,14 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
 .gm-add {
   height: 24px; padding: 0 10px; border: 1px dashed var(--border-color);
   background: var(--bg-secondary); color: var(--text-primary);
-  font-family: monospace; font-size: 11px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 11px; cursor: pointer;
 }
 .gm-add:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); }
 
 .gm-svc-head, .gm-svc { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
 .gm-list-body, .gm-svc-list { position: relative; }
 .gm-svc-head { border-bottom: 1px solid var(--border-color); padding-bottom: 4px; margin-bottom: 4px; }
-.gm-svc-head span { font-size: 10px; font-family: monospace; opacity: 0.45; }
+.gm-svc-head span { font-size: 10px; font-family: var(--font-mono); opacity: 0.45; }
 .gm-svc-sort { width: 44px; display: flex; gap: 1px; flex-shrink: 0; }
 .w-name { width: 170px; flex-shrink: 0; }
 .w-price { width: 76px; flex-shrink: 0; }
@@ -288,7 +288,7 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
 .gm-del {
   width: 30px; height: 26px; border: 2px solid var(--border-color);
   background: var(--bg-secondary); color: var(--text-primary);
-  font-family: monospace; font-size: 13px; cursor: pointer; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 13px; cursor: pointer; flex-shrink: 0;
 }
 .gm-del:hover { background: #d00; border-color: #d00; color: #fff; }
 .gm-hint { font-size: 11px; opacity: 0.5; line-height: 1.6; margin-top: 12px; }

@@ -242,7 +242,7 @@ function downloadJSON() {
 .ad-cat-name { flex: 1; font-weight: 700; font-size: 13px; }
 .ad-cat-items { padding: 8px 12px; }
 .ad-item-header { display: flex; gap: 6px; padding: 4px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 6px; }
-.ad-item-header span { font-size: 10px; font-family: monospace; opacity: 0.4; }
+.ad-item-header span { font-size: 10px; font-family: var(--font-mono); opacity: 0.4; }
 .ad-item { display: flex; gap: 6px; align-items: center; padding: 3px 0; }
 .ad-inp { border: 2px solid var(--border-color); padding: 3px 6px; font-size: 12px; font-family: inherit; background: var(--bg-primary); color: var(--text-primary); }
 .ad-inp:focus { border-color: var(--btn-hover-bg); outline: none; }
@@ -253,12 +253,12 @@ function downloadJSON() {
 .ad-col-note { flex: 1; min-width: 80px; }
 .ad-sort { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
 .ad-sort-sm { gap: 0; }
-.ad-sort-btn { font-size: 9px; padding: 0 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); cursor: pointer; font-family: monospace; line-height: 1.4; color: var(--text-primary); transition: background var(--motion-duration-normal), color var(--motion-duration-normal); }
+.ad-sort-btn { font-size: 9px; padding: 0 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); cursor: pointer; font-family: var(--font-mono); line-height: 1.4; color: var(--text-primary); transition: background var(--motion-duration-normal), color var(--motion-duration-normal); }
 .ad-sort-btn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); }
 .ad-sort-btn:disabled { opacity: 0.15; cursor: default; }
 .ad-sort-btn:disabled:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.ad-btn-del { font-size: 14px; padding: 2px 6px; border: 2px solid var(--border-color); background: var(--bg-secondary); cursor: pointer; font-family: monospace; color: var(--text-primary); flex-shrink: 0; transition: background var(--motion-duration-normal), color var(--motion-duration-normal), border-color var(--motion-duration-normal); }
+.ad-btn-del { font-size: 14px; padding: 2px 6px; border: 2px solid var(--border-color); background: var(--bg-secondary); cursor: pointer; font-family: var(--font-mono); color: var(--text-primary); flex-shrink: 0; transition: background var(--motion-duration-normal), color var(--motion-duration-normal), border-color var(--motion-duration-normal); }
 .ad-btn-del:hover { background: #d00; color: #fff; border-color: #d00; }
-.ad-add-item { font-size: 11px; padding: 4px 8px; border: 2px dashed var(--border-color); background: var(--bg-secondary); cursor: pointer; font-family: monospace; margin-top: 6px; width: 100%; color: var(--text-primary); transition: border-color var(--motion-duration-normal); }
+.ad-add-item { font-size: 11px; padding: 4px 8px; border: 2px dashed var(--border-color); background: var(--bg-secondary); cursor: pointer; font-family: var(--font-mono); margin-top: 6px; width: 100%; color: var(--text-primary); transition: border-color var(--motion-duration-normal); }
 .ad-add-item:hover { border-color: var(--btn-hover-bg); }
 </style>

@@ -301,9 +301,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   display: flex; align-items: center; gap: 6px;
   margin-left: auto; padding-left: 10px; flex-wrap: nowrap;
 }
-.income-title { font-family: monospace; font-size: 11px; opacity: 0.5; letter-spacing: 1px; white-space: nowrap; }
+.income-title { font-family: var(--font-mono); font-size: 11px; opacity: 0.5; letter-spacing: 1px; white-space: nowrap; }
 .income-chip {
-  font-family: monospace; font-size: 11px; padding: 2px 8px;
+  font-family: var(--font-mono); font-size: 11px; padding: 2px 8px;
   border: 1px solid var(--border-color); opacity: 0.85; white-space: nowrap;
 }
 .income-chip strong { font-weight: 800; }

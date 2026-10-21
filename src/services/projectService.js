@@ -481,6 +481,49 @@ export function hardDeleteProject(id) {
   return { ok: true }
 }
 
+/**
+ * 强制删除（危险操作）：普通删除在「有执行记录」或「被后继项目引用」时会退化成
+ * 归档（`canHardDelete` 返回 false → 界面上没有删除入口），于是早期数据与后期数据
+ * 冲突时——比如同一托管出现两条、天数还不一样——其中一条就再也删不掉。
+ *
+ * 这里给一条明确的通路：
+ *   · 删除项目本身；
+ *   · `withHistory`（默认 true）时连它的执行记录一起删；
+ *   · 清理其它项目对它的引用：`prevTaskId` 指向它 → 置空；`hostingChainId` 指向它
+ *     → 挂到自己身上。否则删完会留下指向不存在项目的悬空引用。
+ *
+ * 返回 { ok, removedCompletions, clearedRefs }；项目不存在时 ok=false。
+ */
+export function forceDeleteProject(id, { withHistory = true } = {}) {
+  const target = projectsRepo.find(id)
+  if (!target) return { ok: false, reason: 'not-found', removedCompletions: 0, clearedRefs: 0 }
+
+  let removedCompletions = 0
+  if (withHistory) {
+    const keep = []
+    for (const c of completionsRepo.state.value) {
+      const owner = String(c.projectId || c.taskId || '')
+      if (owner === String(id)) removedCompletions++
+      else keep.push(c)
+    }
+    if (removedCompletions > 0) completionsRepo.replaceAll(keep)
+  }
+
+  // 先收集要改的引用，再逐个写回（update 会替换数组，边遍历边改会漏项）
+  const refFixes = []
+  for (const p of projectsRepo.state.value) {
+    if (String(p.id) === String(id)) continue
+    const patch = {}
+    if (p.prevTaskId != null && String(p.prevTaskId) === String(id)) patch.prevTaskId = null
+    if (p.hostingChainId != null && String(p.hostingChainId) === String(id)) patch.hostingChainId = p.id
+    if (Object.keys(patch).length) refFixes.push([p.id, patch])
+  }
+  for (const [pid, patch] of refFixes) projectsRepo.update(pid, patch)
+
+  projectsRepo.remove(id)
+  return { ok: true, removedCompletions, clearedRefs: refFixes.length }
+}
+
 // ── 续费（历史形态：每次续费新建一个独立项目）──
 //
 // ⚠ 界面已不再使用本组函数：现在「续期」走 addHostingPeriod()（在原项目上加天数 + 一条收费记录）。

@@ -451,7 +451,7 @@ onUnmounted(() => document.removeEventListener('click', onSvcDocClick))
 .bp-hex-input {
   width: 96px; height: 26px; padding: 0 6px;
   border: 2px solid var(--border-color); background: var(--bg-primary);
-  color: var(--text-primary); font-family: monospace; font-size: 12px;
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 12px;
 }
 .bp-hex-input.invalid { border-color: #d00; color: #d00; }
 </style>

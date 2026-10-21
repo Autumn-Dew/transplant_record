@@ -1,0 +1,373 @@
+/* ══════════════════════════════════════════════════════════════════
+   悬停（hover）语言 —— 六套主题 × 浅/深，各一套强对比 + 各自的造型
+
+   两条原则：
+     ① 对比要强：悬停一律「反相填充」（浅底用深色块、深底用浅色块），
+        上面写反相的文字色，不再用「同色系稍微深一点」这种看不出的暗示。
+     ② 造型要有主题特色，不是只换颜色：
+          孤星（档案 / 终端）—— 铭牌压入：整块反相 + 左缘工业橙状态条
+          P3R（白昼 / 深夜）—— 海报斜切：反相色块从左侧擦入，右下角切掉一块
+          终末地（白皮书 / 夜班）—— 工作台：强调色从左擦入 + 切角描边
+
+   只动画 / 改动颜色、背景、描边、裁角（clip-path）与内嵌阴影，
+   不改宽高、内边距、字号 —— 控件尺寸与布局完全不变。
+
+   ── 变量 ──
+     --hv-fill / --hv-ink    实心控件的悬停填充与其上文字
+     --hv-soft / --hv-line   轻填充（chip、菜单项）与描边
+     --hv-row / --hv-row-ink 列表行悬停底色与文字
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 孤星 · 档案（浅）：悬停落墨色铭牌 ── */
+:is(.theme-lone-star-light) {
+  --hv-fill: #101923;
+  --hv-ink: #E8E2D3;
+  --hv-soft: rgba(20, 27, 34, 0.07);
+  --hv-line: #101923;
+  --hv-row: #101923;
+  --hv-row-ink: #E8E2D3;
+  --hv-mark: #D87938;
+}
+/* ── 孤星 · 终端（深）：浅铭牌压深底，反相且更亮 ── */
+:is(.theme-lone-star-dark) {
+  --hv-fill: #E8E2D3;
+  --hv-ink: #101923;
+  --hv-soft: rgba(232, 226, 211, 0.12);
+  --hv-line: #E8E2D3;
+  --hv-row: #E8E2D3;
+  --hv-row-ink: #101923;
+  --hv-mark: #D87938;
+}
+/* ── P3R · 白昼（浅）：悬停 = 明蓝块 ── */
+:is(.theme-p3r-light) {
+  --hv-fill: #1264C8;
+  --hv-ink: #F4F6FA;
+  --hv-soft: rgba(18, 100, 200, 0.12);
+  --hv-line: #1264C8;
+  --hv-row: #1264C8;
+  --hv-row-ink: #F4F6FA;
+  --hv-mark: #F5D83D;
+}
+/* ── P3R · 深夜（深）：悬停 = 明黄块 + 深蓝字（最高对比） ── */
+:is(.theme-p3r-dark) {
+  --hv-fill: #F5D83D;
+  --hv-ink: #071B3A;
+  --hv-soft: rgba(245, 216, 61, 0.16);
+  --hv-line: #F5D83D;
+  --hv-row: #F5D83D;
+  --hv-row-ink: #071B3A;
+  --hv-mark: #071B3A;
+}
+/* ── 终末地 · 白皮书（浅）：悬停 = 墨块（lime 只留给「当前」） ── */
+:is(.theme-endfield-light) {
+  --hv-fill: #161616;
+  --hv-ink: #F4F4F2;
+  --hv-soft: rgba(22, 22, 22, 0.08);
+  --hv-line: #161616;
+  --hv-row: #161616;
+  --hv-row-ink: #F4F4F2;
+  --hv-mark: #B8FF3D;
+}
+/* ── 终末地 · 夜班（深）：悬停 = lime 填充 + 墨字 ── */
+:is(.theme-endfield-dark) {
+  --hv-fill: #B8FF3D;
+  --hv-ink: #161616;
+  --hv-soft: rgba(184, 255, 61, 0.16);
+  --hv-line: #B8FF3D;
+  --hv-row: #B8FF3D;
+  --hv-row-ink: #161616;
+  --hv-mark: #161616;
+}
+/* ── 瑞士 · 纸面（浅）：悬停 = 墨色平涂反相，左缘一条红 ── */
+:is(.theme-swiss-light) {
+  --hv-fill: #111111;
+  --hv-ink: #F2EFE9;
+  --hv-soft: rgba(17, 17, 17, 0.05);
+  --hv-line: #111111;
+  --hv-row: #111111;
+  --hv-row-ink: #F2EFE9;
+  --hv-mark: #DA291C;
+}
+/* ── 风格派 · 米白（浅）：悬停 = 蓝块平涂，左缘一条红 ── */
+:is(.theme-stijl-light) {
+  --hv-fill: #1D3F8C;
+  --hv-ink: #F4F1EA;
+  --hv-soft: rgba(29, 63, 140, 0.08);
+  --hv-line: #111111;
+  --hv-row: #1D3F8C;
+  --hv-row-ink: #F4F1EA;
+  --hv-mark: #D0302A;
+}
+/* ── 风格派 · 反白（深）：悬停 = 米白块，左缘一条黄 ── */
+:is(.theme-stijl-dark) {
+  --hv-fill: #F4F1EA;
+  --hv-ink: #111111;
+  --hv-soft: rgba(244, 241, 234, 0.1);
+  --hv-line: #F4F1EA;
+  --hv-row: #F4F1EA;
+  --hv-row-ink: #111111;
+  --hv-mark: #EBC226;
+}
+/* ── 瑞士 · 墨底（深）：悬停 = 米白平涂反相，左缘一条红 ── */
+:is(.theme-swiss-dark) {
+  --hv-fill: #F2EFE9;
+  --hv-ink: #111111;
+  --hv-soft: rgba(242, 239, 233, 0.1);
+  --hv-line: #F2EFE9;
+  --hv-row: #F2EFE9;
+  --hv-row-ink: #111111;
+  --hv-mark: #DA291C;
+}
+
+@media (hover: hover) and (pointer: fine) {
+/* ══════════════════════════════════════════════════════════════════
+   ① 列表行：整行反相 + 行内文字全部跟随 + 行内按钮改描边
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item:hover:not(.selected)::before {
+  background: var(--hv-row);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item:hover:not(.selected) {
+  color: var(--hv-row-ink);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item:hover:not(.selected) :is(
+  .song-name, .song-artist, .song-duration, .song-index, .song-info,
+  .col-fixed, .col-note, .fee-main, .fee-sub, .fee-dim, .fee-col,
+  .bp-col, .bp-code, .bp-name, .status-tag, .copyable, .pd-sub
+) {
+  color: inherit;
+  opacity: 1;
+}
+/* 行内操作按钮：平时按行文字色描边；按钮自己被悬停才反相填充，
+   所以「行底色 / 按钮填充」永远不同色，按上去不会消失。 */
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item .song-btn {
+  background: transparent;
+  border-color: currentColor;
+  color: inherit;
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item:hover:not(.selected) .song-btn {
+  border-color: var(--hv-row-ink);
+  color: var(--hv-row-ink);
+}
+/* 行内按钮自己被悬停：在行反相底上再反相一次（行文字色作填充、行底色作图符色），
+   确保按钮与行底永远不同色。特异性高于「行 hover」那条，否则会被行规则压住。 */
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item:hover:not(.selected) .song-btn:hover {
+  background: var(--hv-row-ink);
+  border-color: var(--hv-row-ink);
+  color: var(--hv-row);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item .song-btn:hover {
+  background: var(--hv-fill);
+  border-color: var(--hv-fill);
+  color: var(--hv-ink);
+}
+/* 选中行本身就是实心块：悬停不再叠色，只留按钮描边提示 */
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item.selected::before {
+  background: transparent;
+}
+
+/* ── 孤星：铭牌压入 —— 行左缘落一条工业橙「状态条」 ── */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item:hover {
+  box-shadow: inset 3px 0 0 var(--hv-mark);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music .song-item.selected:hover {
+  box-shadow: inset 3px 0 0 var(--hv-mark);
+}
+
+/* ── P3R：海报斜切 —— 反相色块右下切掉一块，从左侧擦入 ── */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item::before {
+  transform-origin: left center;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item:hover {
+  box-shadow: inset 4px 0 0 var(--hv-mark);
+}
+
+/* ── 终末地：工作台 —— 切角 + 左缘强调色实心条 ── */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item::before {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item:hover {
+  box-shadow: inset 3px 0 0 var(--hv-mark);
+}
+
+/* ── 风格派：切格 —— 严格直角平涂 + 左缘一条粗色条（横竖、不切角） ── */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item::before {
+  clip-path: none;
+  transform-origin: left center;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item:hover {
+  box-shadow: inset 5px 0 0 var(--hv-mark);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn
+):not(.danger):not(:disabled):hover {
+  border-radius: 0;
+  box-shadow: inset 5px 0 0 var(--hv-mark);
+}
+
+/* ── 瑞士：版面 —— 严格直角平涂 + 左缘一条红（没有切角、没有投影） ── */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item::before {
+  clip-path: none;
+  transform-origin: left center;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item:hover {
+  box-shadow: inset 3px 0 0 var(--hv-mark);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn
+):not(.danger):not(:disabled):hover {
+  border-radius: 0;
+  box-shadow: inset 3px 0 0 var(--hv-mark);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ② 实心控件：悬停 = 反相填充（红是删除专用，不参与）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pwd-toggle, .quit-btn, .float-btn,
+  .pd-btn, .gm-btn, .gm-add, .ad-sort-btn, .ad-add-item, .bp-sort-btn,
+  .sb-trigger, .sb-option
+):not(.danger):not(.gm-del):not(.ad-btn-del):not(:disabled):hover {
+  background: var(--hv-fill);
+  color: var(--hv-ink);
+  border-color: var(--hv-fill);
+}
+
+/* 孤星：铭牌 + 左缘状态条 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn, .sb-trigger, .sb-option
+):not(.danger):not(:disabled):hover {
+  box-shadow: inset 3px 0 0 var(--hv-mark);
+}
+
+/* P3R：斜切块（右下角裁掉一块） */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn
+):not(.danger):not(:disabled):hover {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+
+/* 终末地：强调色从左擦入（不是瞬间换色） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn
+):not(.danger):not(:disabled) {
+  background-image: linear-gradient(90deg, var(--hv-fill) 0 100%);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  transition: background-size var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out),
+              color var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn
+):not(.danger):not(:disabled):hover {
+  background-size: 100% 100%;
+  background-color: transparent;
+}
+
+/* 取消类按钮：悬停也只做轻填充，不和主操作抢注意力 */
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .cancel-btn:hover {
+  background: var(--hv-soft);
+  color: var(--text-primary);
+  border-color: var(--hv-line);
+  box-shadow: inset 3px 0 0 var(--hv-line);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ③ 筛选块 chip：悬停 = 轻填充 + 强描边；只有选中才是实心
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .folder-chip:hover {
+  background: var(--hv-soft);
+  color: var(--text-primary);
+  border-color: var(--hv-line);
+  box-shadow: inset 3px 0 0 var(--hv-line);
+}
+/* 已选中：保持选中态，只把描边加强一档 */
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .folder-chip.active:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent-ink);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ④ 其它可点元素
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .gm-item:hover {
+  background: var(--hv-soft);
+  box-shadow: inset 3px 0 0 var(--hv-line);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .copyable:hover {
+  opacity: 1;
+  background: var(--hv-soft);
+  box-shadow: inset 0 -2px 0 var(--hv-line);
+}
+:is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .search-clear:hover {
+  opacity: 1;
+  color: var(--hv-line);
+}
+
+/* 侧栏（深色命令栏）：悬停 = 浅块反相，不是「稍微亮一点」 */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-sub-sidebar .rc-sub-func-btn:hover {
+  background: #E8E2D3;
+  border-color: #E8E2D3;
+  color: #101923;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-sub-sidebar .rc-sub-func-btn:hover {
+  background: #F5D83D;
+  border-color: #F5D83D;
+  color: #071B3A;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-sub-sidebar .rc-sub-func-btn:hover {
+  background: #F2EFE9;
+  border-color: #F2EFE9;
+  color: #111111;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-sub-sidebar .rc-sub-func-btn:hover {
+  background: #1D3F8C;
+  border-color: #1D3F8C;
+  color: #F4F1EA;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-sub-sidebar .rc-sub-func-btn:hover {
+  background: #B8FF3D;
+  border-color: #B8FF3D;
+  color: #161616;
+}
+/* 标题栏窗口按钮：同一条语法（深色命令栏 → 浅块） */
+:is(.theme-lone-star-light, .theme-lone-star-dark) .rc-window-btn:hover {
+  background: #E8E2D3;
+  color: #101923;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-window-btn:hover {
+  background: #F5D83D;
+  color: #071B3A;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-window-btn:hover {
+  background: #F2EFE9;
+  color: #111111;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-window-btn:hover {
+  background: #F4F1EA;
+  color: #111111;
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-window-btn:hover {
+  background: #B8FF3D;
+  color: #161616;
+}
+
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ⑤ 减少动态效果：只换色，不加过渡
+   ══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  :is(.theme-lone-star-light, .theme-lone-star-dark, .theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark, .theme-stijl-light, .theme-stijl-dark) .local-music .song-item::before {
+    transition: none !important;
+  }
+  :is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(.rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn) {
+    transition: none !important;
+  }
+}

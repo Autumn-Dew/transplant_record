@@ -3,7 +3,8 @@
    所有组件应通过此文件的 CSS 变量引用动效参数。
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── 时长阶梯 ── */
+/* ── 时长阶梯 ──
+   UI 动效一律 < 300ms（超时会被判定为迟钝）；0.32s 只留给「反馈类」的颜色闪烁。 */
 :root {
   --motion-duration-instant: 0.1s;
   --motion-duration-micro:    0.12s;
@@ -11,9 +12,9 @@
   --motion-duration-fast:    0.15s;
   --motion-duration-medium:  0.18s;
   --motion-duration-normal:  0.2s;
-  --motion-duration-slow:    0.25s;
-  --motion-duration-slower:  0.3s;
-  --motion-duration-glacial: 0.5s;
+  --motion-duration-slow:    0.24s;
+  --motion-duration-slower:  0.28s;
+  --motion-duration-glacial: 0.32s;
 
   /* ── 缓动曲线 ── */
   --motion-easing-standard:  cubic-bezier(0.2, 0, 0.2, 1);

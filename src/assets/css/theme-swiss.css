@@ -1,0 +1,373 @@
+/* ══════════════════════════════════════════════════════════════════
+   瑞士主题 · 视觉语言 —— 国际主义平面设计风格（Swiss Style /
+   International Typographic Style）
+
+   六条规则（全部来自这套风格的原始定义，不做「商业化折中」）：
+     1. 12 栏模块化网格：所有元素的边缘都对齐到网格线，网格本身就是可见的细线。
+     2. 新怪诞无衬线体（Helvetica Neue / Inter），**只用 400 与 700 两档字重**，
+        没有 900、没有 800、没有半粗。
+     3. 大小对比靠「字重 + 字距 + 留白」表达；**不改任何既有元素的字号**。
+     4. 文字一律左对齐，不居中、不两端对齐（这是「右边不齐」的排版纪律）。
+     5. 不对称构图 + 大面积留白；元素靠左缘与上缘定位。
+     6. 只用三种颜色：墨黑 #111111、米白 #F2EFE9、强调红 #DA291C。
+        全部平涂：无渐变、无阴影、无纹理、无装饰插画。
+     点缀：01 / 02 这样的红色编号 + 小号的年份 / 地点文字。
+     分区只用 1px 细线。
+
+   ⚠ 与其它主题一样不改布局：只改颜色 / 边框 / 字重 / 字距 / 绝对定位伪元素 /
+     背景图层。字号一律沿用页面原有值（用户明确要求：字体大小不能动）。
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-swiss-light, .theme-swiss-dark) {
+  /* 字体：新怪诞无衬线（Helvetica Neue 优先，Inter 次之，中文回落系统黑体）。
+     只换正文字体 —— 编号 / 金额 / 日期仍沿用全站等宽字体，
+     这样它们的字号与视觉大小和别的主题一致（不因为换字体而看起来变大）。 */
+  --font-ui: var(--ch-font);
+  /* 12 栏网格：每栏 8.3333%，栏线 1px */
+  --ch-cols: repeating-linear-gradient(90deg,
+    var(--ch-grid-line) 0 1px,
+    transparent 1px var(--ch-col));
+  /* 红色编号：01 / 02 …… 只做小字标注，不做大面积填充 */
+  --ch-index: var(--ch-red);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   一、应用框架：深色命令栏 + 直角导航（0 圆角、无切角）
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-title-bar {
+  background: var(--ch-ink);
+  color: var(--ch-paper);
+  border-bottom: 1px solid var(--ch-ink);
+  box-shadow: none;
+}
+/* 标题前不留装饰色块：瑞士风格里位置由「左对齐 + 排版层级」表达 */
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-title-bar::before {
+  left: 0; top: 0; transform: none;
+  width: 100%; height: 1px;
+  background: var(--ch-paper);
+  opacity: 0.28;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-title-bar h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-title-bar h2::before {
+  content: '01';
+  margin-right: 10px;
+  color: var(--ch-red);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-window-controls {
+  border-left: 1px solid rgba(242, 239, 233, 0.24);
+}
+
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-sub-sidebar {
+  background: var(--bg-sidebar);
+  box-shadow: inset -1px 0 0 var(--sb-line);
+}
+/* 导航项：直角、细线、无填充；当前项 = 红色左缘细条 + 米白反相 */
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-sub-func-btn {
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sb-fg);
+  clip-path: none;
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-sub-func-btn:hover {
+  background: rgba(242, 239, 233, 0.1);
+  border-color: rgba(242, 239, 233, 0.32);
+  color: var(--ch-paper);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-sub-func-btn.active {
+  background: var(--ch-paper);
+  border-color: var(--ch-paper);
+  color: var(--ch-ink);
+  box-shadow: inset 3px 0 0 var(--ch-red);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-nav-indicator {
+  background: var(--ch-red);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-sub-divider {
+  background: var(--sb-line);
+  height: 1px;
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   二、页面开始：极大标题 + 红色编号 + 12 栏网格底
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 页面底色：平涂纸面 + 12 栏竖线（细线，透明度 10%） */
+:is(.theme-swiss-light, .theme-swiss-dark) .rc-main-container {
+  background-color: var(--bg-primary);
+  background-image: var(--ch-cols);
+  background-position: 0 0;
+  background-repeat: repeat;
+  background-size: auto;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music {
+  background: transparent;
+  background-image: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-header {
+  background: transparent;
+}
+/* 页面上沿一条 1px 墨线：瑞士风格里「开始」由线而不是色块表示 */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-header::before {
+  left: 0; top: 0;
+  width: 100%; height: 1px;
+  background: var(--ch-ink);
+  opacity: 1;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-header::after {
+  content: none;
+}
+/* 标题：**不改字号**（风格差异靠字重、字距与留白表达），只换成粗体 + 紧字距 + 左对齐 */
+html[data-theme]:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-header h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: left;
+  position: relative;
+}
+/* 红色编号 01：绝对定位在标题左上方，不占布局、不影响标题的换行与宽度 */
+html[data-theme]:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-header h2::before {
+  content: '01';
+  position: absolute;
+  left: 0; top: -1.1em;
+  color: var(--ch-red);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+}
+/* 说明文字：常规字重 + 左对齐（同样不改字号） */
+html[data-theme]:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-header .desc {
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  opacity: 0.78;
+  text-align: left;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   三、工具带：细线分区 + 平涂直角控件
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-toolbar {
+  background: transparent;
+  border-bottom: 1px solid var(--ch-ink);
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(.rc-global-btn, .tl-entry-btn) {
+  border: 1px solid var(--ch-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  clip-path: none;
+  box-shadow: none;
+}
+/* 主操作：墨色平涂（这套风格里「最重的那块」就是主操作） */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .local-toolbar > .rc-global-btn:first-child {
+  background: var(--ch-ink);
+  border-color: var(--ch-ink);
+  color: var(--ch-paper);
+  font-weight: 700;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .view-tabs .tl-entry-btn.active {
+  background: var(--ch-ink);
+  border-color: var(--ch-ink);
+  color: var(--ch-paper);
+  box-shadow: inset 2px 0 0 var(--ch-red);
+}
+
+/* 图例：细线框 + 极简色点（不做铭牌） */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .legend {
+  background: transparent;
+  border: 1px solid var(--rule-soft);
+  border-radius: 0;
+  box-shadow: none;
+  opacity: 1;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .legend-label,
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .legend-item {
+  color: var(--text-primary);
+  font-weight: 400;
+}
+
+/* 数据条：一侧红色细线 + 编号，不用底色块 */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .summary-strip {
+  background: transparent;
+  border-top: 1px solid var(--ch-ink);
+  border-bottom: 1px solid var(--rule-soft);
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .summary-strip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--ch-red);
+  pointer-events: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .summary-chip {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text-primary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .summary-chip strong {
+  font-weight: 700;
+  color: var(--ch-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   四、筛选与列表：细线分行 + 左对齐 + 编号
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .folder-strip {
+  background: transparent;
+  border-bottom: 1px solid var(--rule-soft);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .folder-chip {
+  border: 1px solid var(--rule-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  clip-path: none;
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .folder-chip.active {
+  background: var(--ch-ink);
+  border-color: var(--ch-ink);
+  color: var(--ch-paper);
+  font-weight: 700;
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .folder-chip.active .folder-count {
+  background: transparent;
+  color: var(--ch-paper);
+  font-weight: 700;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .folder-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-list {
+  background: transparent;
+  border-top: 1px solid var(--ch-ink);
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item {
+  background: transparent;
+  border-bottom: 1px solid var(--rule-soft);
+}
+/* 行号：红色编号（01 / 02 ……），等宽数字，左对齐 */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-index {
+  background: transparent;
+  box-shadow: none;
+  color: var(--ch-red);
+  font-weight: 700;
+  opacity: 1;
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-name {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(.song-artist, .song-info, .col-fixed, .col-note) {
+  font-weight: 400;
+  opacity: 0.84;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(.song-duration, .fee-main, .fee-sub, .status-tag, .setting-static) {
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .fee-main {
+  font-weight: 700;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-btn {
+  border: 1px solid var(--rule-soft);
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+  box-shadow: none;
+}
+/* 进行中：左缘一条墨色细线；已完成：整行转灰（不画删除之外的红色） */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item.hosting {
+  box-shadow: inset 2px 0 0 var(--ch-ink);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item.selected {
+  background: var(--ch-ink);
+  color: var(--ch-paper);
+  box-shadow: inset 3px 0 0 var(--ch-red);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item.selected :is(.song-name, .song-artist, .song-duration, .song-index, .song-info, .col-fixed, .col-note, .fee-main, .fee-sub, .status-tag) {
+  color: var(--ch-paper);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   五、表单与弹窗：直角、1px 细线、无阴影、无圆角
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(
+  .search-box, .search-input, .pd-field input, .pd-input, .ad-input, .ad-add-input,
+  .gm-input, .sb-trigger, .bp-input, .setting-input
+) {
+  border: 1px solid var(--rule-soft);
+  border-radius: 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 400;
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .modal-mask .edit-popup {
+  border: 1px solid var(--ch-ink);
+  border-radius: 0;
+  background: var(--ch-paper);
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .modal-mask .edit-popup h4 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  /* 标题下的细线用内嵌阴影画，不占布局（不改 padding） */
+  box-shadow: inset 0 -1px 0 var(--ch-ink);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(.pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn, .save-btn, .cancel-btn) {
+  border: 1px solid var(--ch-ink);
+  border-radius: 0;
+  background: transparent;
+  font-weight: 700;
+  clip-path: none;
+  box-shadow: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .save-btn {
+  background: var(--ch-ink);
+  color: var(--ch-paper);
+}
+/* 删除是唯一允许红色的操作 */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(.danger, .gm-del, .ad-btn-del) {
+  border-color: var(--ch-red);
+  color: var(--ch-red);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   六、减少动态效果：这套风格本来就不用动效叙事，直接落到「无过渡」
+   ══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  :is(.theme-swiss-light, .theme-swiss-dark) .local-music :is(.rc-global-btn, .tl-entry-btn, .folder-chip, .song-btn, .pd-btn) {
+    transition: none !important;
+  }
+}

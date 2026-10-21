@@ -66,9 +66,10 @@
 
 /* ── 工具类 ───────────────────────────────────────────────── */
 
+/* 数据归位闪烁用当前主题的强调色（不再写死孤星橙），时长走 --mv-settle（≤300ms） */
 .mv-settle { animation: mv-settle-flash var(--mv-settle) var(--mv-ease-out); }
 @keyframes mv-settle-flash {
-  0%   { background-color: rgba(216, 121, 56, 0.22); }
+  0%   { background-color: color-mix(in srgb, var(--accent) 22%, transparent); }
   100% { background-color: transparent; }
 }
 

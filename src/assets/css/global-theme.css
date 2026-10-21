@@ -144,6 +144,246 @@
     --band-yellow: #F5D83D;
 }
 
+/* ── 终末地 · 白皮书（浅色） ────────────────────────────────────
+   工业工作台：纸白 #F4F4F2 + 墨 #161616 + 唯一强调色 lime #B8FF3D。
+   强调色只做填充（上面永远写墨字），"当前位置"的线在浅色下用墨色 trace。
+   红色只留给删除。 */
+.theme-endfield-light {
+    --bg-primary: #F4F4F2;
+    --bg-secondary: #E4E4E0;
+    --bg-sidebar: #161616;
+    --text-primary: #161616;
+    --border-color: #161616;
+    --btn-hover-bg: #161616;
+    --btn-hover-text: #F4F4F2;
+    --disabled-bg: #E4E4E0;
+    --disabled-text: #8A8A85;
+    --disabled-border: #C9C9C4;
+    --sb-fg: #EDEDED;
+    --sb-line: rgba(237, 237, 237, 0.26);
+    --accent: #B8FF3D;
+    --accent-ink: #161616;
+    --warn: #B3261E;
+    --gauge: #5C5C5C;
+    /* 构图层：面板是纯白承载面，墨色命令栏是唯一的大面积深色 */
+    --surface-raised: #FFFFFF;
+    --surface-sunken: #E4E4E0;
+    --surface-plate: #161616;
+    --plate-fg: #EDEDED;
+    --plate-fg-dim: rgba(237, 237, 237, 0.6);
+    --plate-line: rgba(237, 237, 237, 0.22);
+    --rule-strong: #161616;
+    --rule-soft: #D9D9D6;
+    --figure-ink: #161616;
+    /* 终末地专用：强调填充 / 切角 / 三色条 */
+    --ef-signal: #B8FF3D;
+    --ef-signal-ink: #161616;
+    --ef-trace: #161616;
+    --ef-cut: 8px;
+    --ef-chip: #E4E4E0;
+    --ef-tri-a: #FF00F0;
+    --ef-tri-b: #B8FF3D;
+    --ef-tri-c: #00FFA2;
+}
+
+/* ── 终末地 · 夜班（深色） ──────────────────────────────────────
+   石墨黑 #191919 + 浅墨 #EDEDED + 同一支 lime 强调色（一个产品只用一种）。
+   深色下强调色可以当线用（trace = signal）。 */
+.theme-endfield-dark {
+    --bg-primary: #191919;
+    --bg-secondary: #2E2E2E;
+    --bg-sidebar: #0F0F0F;
+    --text-primary: #EDEDED;
+    --border-color: #3A3A3A;
+    --btn-hover-bg: #B8FF3D;
+    --btn-hover-text: #161616;
+    --disabled-bg: #262626;
+    --disabled-text: #6E6E6E;
+    --disabled-border: #3A3A3A;
+    --sb-fg: #EDEDED;
+    --sb-line: rgba(237, 237, 237, 0.18);
+    --accent: #B8FF3D;
+    --accent-ink: #161616;
+    --warn: #FF8A7A;
+    --gauge: #A3A3A3;
+    --surface-raised: #222222;
+    --surface-sunken: #141414;
+    --surface-plate: #0F0F0F;
+    --plate-fg: #EDEDED;
+    --plate-fg-dim: rgba(237, 237, 237, 0.55);
+    --plate-line: rgba(237, 237, 237, 0.16);
+    --rule-strong: #4A4A4A;
+    --rule-soft: #2E2E2E;
+    --figure-ink: #B8FF3D;
+    --ef-signal: #B8FF3D;
+    --ef-signal-ink: #161616;
+    --ef-trace: #B8FF3D;
+    --ef-cut: 8px;
+    --ef-chip: #2E2E2E;
+    --ef-tri-a: #FF00F0;
+    --ef-tri-b: #B8FF3D;
+    --ef-tri-c: #00FFA2;
+}
+
+/* ── 瑞士 · 纸面（浅色） ────────────────────────────────────────
+   国际主义平面设计风格（Swiss Style / International Typographic Style）：
+   只有三种颜色 —— 墨黑 #111111、米白 #F2EFE9、强调红 #DA291C。
+   全部平涂：没有渐变、没有阴影、没有纹理；分区靠 1px 细线与 12 栏网格。
+   字重只用 400 / 700 两档（新怪诞无衬线：Helvetica / Inter）。
+   红色只做「编号 / 强调 / 删除」，不当大面积底色。 */
+.theme-swiss-light {
+    --bg-primary: #F2EFE9;
+    --bg-secondary: #E7E3DA;
+    --bg-sidebar: #111111;
+    --text-primary: #111111;
+    --border-color: #111111;
+    --btn-hover-bg: #111111;
+    --btn-hover-text: #F2EFE9;
+    --disabled-bg: #DCD7CC;
+    --disabled-text: #8A857B;
+    --disabled-border: #C4BEB2;
+    --sb-fg: #F2EFE9;
+    --sb-line: rgba(242, 239, 233, 0.3);
+    --accent: #DA291C;
+    --accent-ink: #F2EFE9;
+    --warn: #DA291C;
+    --gauge: #6E6A63;
+    /* 构图层：纸面 + 细线，没有第二层阴影面 */
+    --surface-raised: #F7F4EE;
+    --surface-sunken: #E7E3DA;
+    --surface-plate: #111111;
+    --plate-fg: #F2EFE9;
+    --plate-fg-dim: rgba(242, 239, 233, 0.62);
+    --plate-line: rgba(242, 239, 233, 0.22);
+    --rule-strong: #111111;
+    --rule-soft: rgba(17, 17, 17, 0.16);
+    --figure-ink: #111111;
+    /* 瑞士专用：纸 / 墨 / 红 + 字体 + 网格步长 */
+    --ch-paper: #F2EFE9;
+    --ch-ink: #111111;
+    --ch-red: #DA291C;
+    --ch-font: 'Helvetica Neue', 'Helvetica', 'Inter', Arial, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    --ch-grid-line: rgba(17, 17, 17, 0.1);
+    --ch-col: 8.3333%;
+}
+
+/* ── 瑞士 · 墨底（深色） ────────────────────────────────────────
+   墨黑纸面 + 米白文字，红色仍是唯一强调色。
+   深色下网格线换成米白 10%，仍是 12 栏、仍是细线。 */
+.theme-swiss-dark {
+    --bg-primary: #111111;
+    --bg-secondary: #1C1C1C;
+    --bg-sidebar: #0A0A0A;
+    --text-primary: #F2EFE9;
+    --border-color: #3A3A3A;
+    --btn-hover-bg: #F2EFE9;
+    --btn-hover-text: #111111;
+    --disabled-bg: #222222;
+    --disabled-text: #6E6A63;
+    --disabled-border: #3A3A3A;
+    --sb-fg: #F2EFE9;
+    --sb-line: rgba(242, 239, 233, 0.2);
+    --accent: #DA291C;
+    --accent-ink: #F2EFE9;
+    --warn: #FF6B5A;
+    --gauge: #9A958C;
+    --surface-raised: #191919;
+    --surface-sunken: #0B0B0B;
+    --surface-plate: #F2EFE9;
+    --plate-fg: #111111;
+    --plate-fg-dim: rgba(17, 17, 17, 0.6);
+    --plate-line: rgba(17, 17, 17, 0.2);
+    --rule-strong: #F2EFE9;
+    --rule-soft: rgba(242, 239, 233, 0.18);
+    --figure-ink: #F2EFE9;
+    --ch-paper: #111111;
+    --ch-ink: #F2EFE9;
+    --ch-red: #DA291C;
+    --ch-font: 'Helvetica Neue', 'Helvetica', 'Inter', Arial, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    --ch-grid-line: rgba(242, 239, 233, 0.1);
+    --ch-col: 8.3333%;
+}
+
+/* ── 风格派 · 米白（浅色） ──────────────────────────────────────
+   新造型主义（De Stijl）：粗黑线只能水平或垂直，把画面切成大小不一的矩形；
+   只用三原色红 #D0302A / 黄 #EBC226 / 蓝 #1D3F8C，加黑、米白 #F4F1EA、浅灰。
+   全部平涂：没有渐变、没有阴影、没有纹理、没有圆角。
+   构图不对称但平衡：大面积米白，颜色只落在少量格子里。 */
+.theme-stijl-light {
+    --bg-primary: #F4F1EA;
+    --bg-secondary: #E8E4DA;
+    --bg-sidebar: #111111;
+    --text-primary: #111111;
+    --border-color: #111111;
+    --btn-hover-bg: #111111;
+    --btn-hover-text: #F4F1EA;
+    --disabled-bg: #E0DCD2;
+    --disabled-text: #8C877C;
+    --disabled-border: #C6C0B4;
+    --sb-fg: #F4F1EA;
+    --sb-line: rgba(244, 241, 234, 0.28);
+    --accent: #D0302A;
+    --accent-ink: #F4F1EA;
+    --warn: #D0302A;
+    --gauge: #6B675E;
+    /* 构图层：只有一个平面 —— 米白纸面 + 黑线 + 色块 */
+    --surface-raised: #F4F1EA;
+    --surface-sunken: #E8E4DA;
+    --surface-plate: #111111;
+    --plate-fg: #F4F1EA;
+    --plate-fg-dim: rgba(244, 241, 234, 0.62);
+    --plate-line: rgba(244, 241, 234, 0.22);
+    --rule-strong: #111111;
+    --rule-soft: #C6C0B4;
+    --figure-ink: #111111;
+    /* 风格派专用 */
+    --st-ink: #111111;
+    --st-paper: #F4F1EA;
+    --st-red: #D0302A;
+    --st-yellow: #EBC226;
+    --st-blue: #1D3F8C;
+    --st-grey: #D8D4CB;
+    --st-font: 'Helvetica Neue', 'Inter', Arial, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+/* ── 风格派 · 反白（深色） ──────────────────────────────────────
+   黑纸面 + 米白字，三原色不变（红当强调、黄当小面积、蓝当结构块）。
+   仍是平涂与直角，只是「底色格」和「色块」互换。 */
+.theme-stijl-dark {
+    --bg-primary: #111111;
+    --bg-secondary: #1B1B1B;
+    --bg-sidebar: #0A0A0A;
+    --text-primary: #F4F1EA;
+    --border-color: #3A3A3A;
+    --btn-hover-bg: #F4F1EA;
+    --btn-hover-text: #111111;
+    --disabled-bg: #222222;
+    --disabled-text: #6B675E;
+    --disabled-border: #3A3A3A;
+    --sb-fg: #F4F1EA;
+    --sb-line: rgba(244, 241, 234, 0.2);
+    --accent: #D0302A;
+    --accent-ink: #F4F1EA;
+    --warn: #D0302A;
+    --gauge: #9A958C;
+    --surface-raised: #181818;
+    --surface-sunken: #0B0B0B;
+    --surface-plate: #F4F1EA;
+    --plate-fg: #111111;
+    --plate-fg-dim: rgba(17, 17, 17, 0.6);
+    --plate-line: rgba(17, 17, 17, 0.2);
+    --rule-strong: #F4F1EA;
+    --rule-soft: #2E2E2E;
+    --figure-ink: #F4F1EA;
+    --st-ink: #F4F1EA;
+    --st-paper: #111111;
+    --st-red: #D0302A;
+    --st-yellow: #EBC226;
+    --st-blue: #1D3F8C;
+    --st-grey: #2E2E2E;
+    --st-font: 'Helvetica Neue', 'Inter', Arial, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
 /* 全局禁用按钮 */
 .rc-global-btn:disabled,
 .rc-global-btn[disabled] {

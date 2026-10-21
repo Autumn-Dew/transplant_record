@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="rc-main-container" :class="[themeClass]">
     <!-- 标题栏 -->
     <div class="rc-title-bar">
@@ -35,7 +35,17 @@
           <div class="rc-sub-divider-wrapper">
             <div class="rc-sub-divider"></div>
           </div>
-          <button class="rc-sub-func-btn" @click="toggleTheme" title="切换主题">
+          <button
+            class="rc-sub-func-btn rc-theme-trigger"
+            @click="toggleThemeMenu"
+            @mouseenter="openThemeMenu"
+            @mouseleave="scheduleCloseThemeMenu"
+            @focus="openThemeMenu"
+            @blur="scheduleCloseThemeMenu"
+            :aria-expanded="themeMenuOpen"
+            aria-haspopup="true"
+            title="切换主题"
+          >
             <svg class="rc-sub-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path :d="themeIcon" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -59,11 +69,64 @@
         <ReportPage v-show="activeTab === 'report'" />
       </div>
     </div>
+
+    <!-- 主题快捷切换浮层：悬停 / 聚焦侧栏主题按钮时列出全部主题（只做定位，不参与布局） -->
+    <div
+      v-if="themeMenuOpen"
+      ref="themeMenuRef"
+      class="rc-theme-menu"
+      :style="themeMenuStyle"
+      role="menu"
+      aria-label="界面主题"
+      @mouseenter="cancelCloseThemeMenu"
+      @mouseleave="scheduleCloseThemeMenu"
+    >
+      <div class="rc-theme-menu-head">
+        <span class="rc-theme-menu-title">界面主题</span>
+        <span class="rc-theme-menu-count">{{ families.length }} 族</span>
+      </div>
+      <!-- ① 选族：每族一行（色板取该族当前的明暗版本） -->
+      <button
+        v-for="f in families"
+        :key="f.id"
+        class="rc-theme-item"
+        :class="{ active: familyId === f.id }"
+        role="menuitemradio"
+        :aria-checked="familyId === f.id"
+        :title="f.hint"
+        @click="setFamily(f.id)"
+      >
+        <span class="rc-theme-swatch" :class="`theme-${themeMode === 'dark' ? f.dark : f.light}`"></span>
+        <span class="rc-theme-item-text">
+          <span class="rc-theme-item-label">{{ f.label }}</span>
+          <span class="rc-theme-item-hint">{{ f.hint }}</span>
+        </span>
+      </button>
+      <!-- ② 切明暗：只管当前这一族的浅色 / 深色 -->
+      <div class="rc-theme-menu-head rc-theme-menu-head-sub">
+        <span class="rc-theme-menu-title">明暗</span>
+        <span class="rc-theme-menu-count">{{ families.find(f => f.id === familyId)?.label }}</span>
+      </div>
+      <span class="rc-theme-modes">
+        <button
+          class="rc-theme-mode"
+          :class="{ active: themeMode === 'light' }"
+          :aria-pressed="themeMode === 'light'"
+          @click="setMode('light')"
+        >浅色</button>
+        <button
+          class="rc-theme-mode"
+          :class="{ active: themeMode === 'dark' }"
+          :aria-pressed="themeMode === 'dark'"
+          @click="setMode('dark')"
+        >深色</button>
+      </span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
+import { ref, computed, onMounted, onUnmounted, provide, nextTick } from 'vue'
 import { useGlobalTheme } from '@/composables/useGlobalTheme'
 import { playClick } from '@/utils/sound'
 import AccountPage from '@/views/AccountPage.vue'
@@ -75,7 +138,72 @@ import ReportPage from '@/views/ReportPage.vue'
 import AdminPage from '@/views/AdminPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 
-const { themeClass, isDark, toggleTheme } = useGlobalTheme()
+const { themeClass, isDark, families, familyId, themeMode, setFamily, setMode } = useGlobalTheme()
+
+// ── 主题切换浮层 ──
+// 点击侧栏的主题按钮才打开（不再「点一下就循环切一套」）；悬停仍可直接预览打开。
+// 浮层里先选「族」，再切「暗/浅」—— 八套主题不再平铺出来。
+// 浮层只做 position: fixed 定位，不参与任何布局，所以不会改变控件大小与页面结构。
+const themeMenuOpen = ref(false)
+const themeMenuStyle = ref({})
+const themeMenuRef = ref(null)
+const themeMenuPinned = ref(false)   // true = 点击打开，鼠标移开也不关
+let themeMenuTimer = null
+async function openThemeMenu(e) {
+  cancelCloseThemeMenu()
+  const el = e && (e.currentTarget || e.target)
+  const rect = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
+  if (rect) {
+    themeMenuStyle.value = {
+      left: Math.round(rect.right + 12) + 'px',
+      top: Math.max(8, Math.round(rect.top - 8)) + 'px',
+    }
+  }
+  themeMenuOpen.value = true
+  // 渲染后量一次实际高度：底部不能溢出窗口（窗口矮时整体上移，仍放不下就内部滚动）
+  await nextTick()
+  const menu = themeMenuRef.value
+  if (menu && rect) {
+    const h = menu.offsetHeight
+    const maxTop = Math.max(8, window.innerHeight - h - 8)
+    themeMenuStyle.value = {
+      left: Math.round(rect.right + 12) + 'px',
+      top: Math.round(Math.max(8, Math.min(rect.top - 8, maxTop))) + 'px',
+    }
+  }
+}
+/* 点击按钮：开 / 关。打开后「钉住」，鼠标移开不自动关闭，点按钮或点外面才关。 */
+function toggleThemeMenu(e) {
+  if (themeMenuOpen.value) { closeThemeMenu() ; return }
+  themeMenuPinned.value = true
+  openThemeMenu(e)
+}
+function closeThemeMenu() {
+  cancelCloseThemeMenu()
+  themeMenuOpen.value = false
+  themeMenuPinned.value = false
+}
+function scheduleCloseThemeMenu() {
+  if (themeMenuPinned.value) return
+  cancelCloseThemeMenu()
+  // 给指针从按钮移到浮层的时间（160ms 足够，且不会拖慢手感）
+  themeMenuTimer = setTimeout(() => { themeMenuOpen.value = false; themeMenuTimer = null }, 160)
+}
+function cancelCloseThemeMenu() {
+  if (themeMenuTimer) { clearTimeout(themeMenuTimer); themeMenuTimer = null }
+}
+function onThemeMenuKeydown(e) {
+  if (e.key === 'Escape' && themeMenuOpen.value) closeThemeMenu()
+}
+/* 钉住状态下点浮层外面就关（捕获阶段，避免被页面自己的 click 拦掉） */
+function onDocumentClick(e) {
+  if (!themeMenuOpen.value || !themeMenuPinned.value) return
+  const menu = themeMenuRef.value
+  const trigger = document.querySelector('.rc-theme-trigger')
+  if (menu && menu.contains(e.target)) return
+  if (trigger && trigger.contains(e.target)) return
+  closeThemeMenu()
+}
 
 const activeTab = ref('accounts')
 
@@ -170,9 +298,14 @@ onMounted(() => {
     window.electron.onWindowMaximized((state) => { isMaximized.value = state })
   }
   document.addEventListener('click', onGlobalClick, true)
+  document.addEventListener('click', onDocumentClick)
+  document.addEventListener('keydown', onThemeMenuKeydown)
 })
 onUnmounted(() => {
   document.removeEventListener('click', onGlobalClick, true)
+  document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('keydown', onThemeMenuKeydown)
+  cancelCloseThemeMenu()
 })
 
 // ══════ 全局按钮音效 ══════
@@ -196,7 +329,12 @@ function onGlobalClick(e) {
 @import '@/assets/css/global-theme.css';
 @import '@/assets/css/theme-lone-star.css';
 @import '@/assets/css/theme-p3r.css';
+@import '@/assets/css/theme-endfield.css';
+@import '@/assets/css/theme-swiss.css';
+@import '@/assets/css/theme-stijl.css';
 @import '@/assets/css/page-common.css';
+@import '@/assets/css/motion-themes.css';
+@import '@/assets/css/hover-states.css';
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -321,4 +459,122 @@ html, body, #app {
 }
 /* 每日汇报常驻渲染时，转场仍需一个单子元素占位 */
 .rc-report-slot { height: 0; overflow: hidden; }
+
+/* ── 主题快捷切换浮层（侧栏主题按钮 hover / focus） ──
+   position: fixed + 内联坐标，不参与布局，控件尺寸与页面结构都不变。
+   配色跟随当前主题：surface-raised 承载面 + accent 标记当前主题。 */
+.rc-theme-menu {
+  position: fixed;
+  z-index: 90000;
+  width: 232px;
+  /* 窗口再矮也不能溢出：超出时浮层内部滚动（不显示滚动条） */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 8px;
+  background: var(--surface-raised, var(--bg-secondary));
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  transform-origin: left top;
+  animation: rc-theme-menu-in var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out) both;
+}
+/* 浮层从触发按钮那一侧展开（origin 在左上）；起点 scale 0.96，不是凭空淡入 */
+@keyframes rc-theme-menu-in {
+  from { opacity: 0; transform: translateX(-4px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+.rc-theme-menu-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 2px 6px 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--rule-soft, var(--border-color));
+}
+.rc-theme-menu::-webkit-scrollbar { display: none !important; width: 0 !important; }
+.rc-theme-menu-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  opacity: 0.6;
+}
+.rc-theme-menu-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.45;
+}
+.rc-theme-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out),
+              border-color var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out);
+}
+/* 悬停用「轻填充 + 边框」，与「当前主题」的强调色边框区分开 */
+.rc-theme-item:hover {
+  background: var(--hv-soft, rgba(0, 0, 0, 0.07));
+  border-color: var(--hv-line, var(--border-color));
+}
+.rc-theme-item.active {
+  border-color: var(--accent);
+  background: var(--hv-soft, rgba(0, 0, 0, 0.07));
+}
+.rc-theme-item.active .rc-theme-item-label { font-weight: 800; }
+/* 色板：直接用该主题自己的底色 / 边框 / 强调色，一眼看出是哪一套 */
+.rc-theme-swatch {
+  width: 22px; height: 22px; flex-shrink: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.rc-theme-item-text { display: flex; flex-direction: column; min-width: 0; }
+.rc-theme-item-label { font-size: 12px; font-weight: 600; }
+/* 第二节（明暗）：与第一节之间只留一条细线 */
+.rc-theme-menu-head-sub { margin-top: 8px; }
+/* 明暗切换：两等分按钮，当前项用强调色描边 + 轻填充 */
+.rc-theme-modes {
+  display: flex;
+  gap: 6px;
+  padding: 0 6px 2px;
+}
+.rc-theme-mode {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out),
+              border-color var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out);
+}
+.rc-theme-mode:hover {
+  background: var(--hv-soft, rgba(0, 0, 0, 0.07));
+  border-color: var(--hv-line, var(--border-color));
+}
+.rc-theme-mode.active {
+  background: var(--hv-soft, rgba(0, 0, 0, 0.07));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.rc-theme-item-hint {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  opacity: 0.55;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-theme-menu { animation: none !important; }
+  .rc-theme-item { transition: none !important; }
+}
 </style>

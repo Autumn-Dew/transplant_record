@@ -26,6 +26,32 @@ export function periodFee(p) {
 }
 
 /**
+ * 同客户同服务的其它托管记录 —— 只用于提示，不做任何修改。
+ *
+ * 判定：账号 + 游戏 + 服务三项都相同、id 不同。早期数据与后期数据冲突时，
+ * 这里会出现两条周期不同的记录（一条可能还是「待激活」），页面据此提醒用户
+ * 是哪一条在打架，再用「强制删除」清理。
+ */
+function duplicatesOf(p) {
+  const key = o => `${String(o.account || '')}|${String(o.game || '')}|${String(o.service || '')}`
+  const self = key(p)
+  return projectsRepo.state.value
+    .filter(o => String(o.id) !== String(p.id) && key(o) === self)
+    .map(o => {
+      const h = isHosting(o) ? hostProgress(o) : null
+      return {
+        id: o.id,
+        days: h ? h.totalDays : 0,
+        startDate: h ? h.startDate : '',
+        endDate: h ? h.endDate : '',
+        locked: !!o.locked,
+        archived: isArchived(o),
+        state: o.state || '',
+      }
+    })
+}
+
+/**
  * 详情窗口里可用的操作。
  *   · 续费 = 在原项目上加天数 + 记一笔收费
  *   · 归档 = 消耗全部剩余天数、直接完成整个托管
@@ -36,12 +62,15 @@ export function availableActions(id) {
   if (!p) return {}
   const hosting = isHosting(p)
   const archived = isArchived(p)
+  const canRemove = canHardDelete(id).ok
   return {
     edit: true,
     renew: hosting,
     archive: !archived,
     restore: archived,
-    remove: canHardDelete(id).ok,
+    remove: canRemove,
+    // 删不掉（有执行记录 / 被后继引用）时给出强制删除入口，避免数据冲突时无处下手
+    forceRemove: !canRemove,
   }
 }
 
@@ -79,5 +108,8 @@ export function buildProjectDetail(id) {
       payments,
     },
     actions: availableActions(id),
+    // 同客户同服务（同账号 + 同游戏 + 同服务）的其它托管记录：
+    // 早期数据与后期数据冲突时这里会出现两条周期不同的记录，提示用户是哪一条。
+    duplicates: duplicatesOf(p),
   }
 }

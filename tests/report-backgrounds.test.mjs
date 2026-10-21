@@ -26,6 +26,7 @@ const {
   findReportBg,
   readReportBg,
   writeReportBg,
+  bgTone,
 } = await import('../src/data/report-backgrounds.js')
 
 test('提供多套浅色背景，且都带底色与背景值', () => {
@@ -70,8 +71,8 @@ test('每套背景都有明确的构图重心，且不压住正文', () => {
   }
 })
 
-test('背景按「默认 / 孤星风格 / P3R 风格」分组，分组即风格系列', () => {
-  assert.deepEqual(REPORT_BG_GROUPS.map(g => g.id), ['default', 'lone-star', 'p3r'], '三个分组顺序固定')
+test('背景按「默认 / 孤星风格 / P3R 风格 / 终末地风格 / 瑞士风格」分组，分组即风格系列', () => {
+  assert.deepEqual(REPORT_BG_GROUPS.map(g => g.id), ['default', 'lone-star', 'p3r', 'endfield', 'swiss', 'stijl'], '六个分组顺序固定')
   const grouped = REPORT_BG_GROUPS.flatMap(g => g.items.map(b => b.id))
   assert.deepEqual([...grouped].sort(), [...REPORT_BG_IDS].sort(), '分组必须覆盖全部背景且不重复')
   for (const g of REPORT_BG_GROUPS) {
@@ -83,10 +84,12 @@ test('背景按「默认 / 孤星风格 / P3R 风格」分组，分组即风格�
   assert.equal(REPORT_BG_GROUPS[0].items.length, 1, '默认组只有纯白一套')
   assert.ok(REPORT_BG_GROUPS[1].items.length >= 3, '孤星风格至少 3 套')
   assert.ok(REPORT_BG_GROUPS[2].items.length >= 3, 'P3R 风格至少 3 套')
+  assert.ok(REPORT_BG_GROUPS[3].items.length >= 3, '终末地风格至少 3 套（工业纸 / 石墨夜班 / 工程网格）')
+  assert.ok(REPORT_BG_GROUPS[4].items.length >= 3, '瑞士风格至少 3 套（十二栏 / 不对称留白 / 墨底）')
+  assert.ok(REPORT_BG_GROUPS[5].items.length >= 3, '风格派至少 3 套（粗格 / 色块 / 粗线…）')
 })
 
-test('背景独立持久化到 tr-report-bg，不占用主题键', () => {
-  assert.equal(writeReportBg('p3r-moon'), 'p3r-moon')
+test('背景独立持久化到 tr-report-bg，不占用主题键', () => {  assert.equal(writeReportBg('p3r-moon'), 'p3r-moon')
   assert.equal(JSON.parse(localStorage.getItem('tr-report-bg')), 'p3r-moon')
   assert.equal(localStorage.getItem('tr-theme'), null, '写背景不得碰主题键')
   assert.equal(readReportBg(), 'p3r-moon')
@@ -121,7 +124,7 @@ test('编辑器内有紧凑的背景选择入口（与主题分区并列）', ()
   assert.match(sheet, /@click="setReportBg\(b\.id\)/, '点击即切换')
   // 选择入口是侧边弹窗（与项目详情窗口同一套版式），展开时不挤压工作区
   assert.match(sheet, /class="edit-popup pd-popup rp-look"/, '外观选择在侧边弹窗内')
-  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*height:\s*52px/, '缩略图为固定高度（够大才看得出构图差异）')
+  assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*height:\s*34px/, '缩略图为固定高度（一行四张仍看得出构图差异）')
   assert.match(sheet, /\.rp-bg-thumb\s*\{[^}]*width:\s*100%/, '缩略图铺满色卡宽度')
 })
 
@@ -130,6 +133,23 @@ test('背景不再决定内容皮肤：画布皮肤只跟着汇报主题走', ()
   assert.match(sheet, /class="rp-wrap"[^>]*:class="`rp-theme-\$\{reportTheme\.id\}`"/, '画布挂汇报主题类')
   assert.equal(/rp-style-\$\{reportBg\.style\}/.test(sheet), false, '画布类名不得再取自背景')
   assert.equal(/reportBg\.style/.test(sheet), false, '组件不再读背景的 style 字段决定样式')
+})
+
+test('背景标出「深 / 浅」，和主题的「暗 / 浅」一起看就能配对', () => {
+  // bgTone 由 base 底色的相对亮度判断
+  assert.equal(bgTone({ base: '#ffffff' }), 'light')
+  assert.equal(bgTone({ base: '#191919' }), 'dark')
+  assert.equal(bgTone({ base: '#111111' }), 'dark')
+  assert.equal(bgTone(null), 'light')
+
+  const darkIds = REPORT_BACKGROUNDS.filter(b => bgTone(b) === 'dark').map(b => b.id)
+  assert.ok(darkIds.includes('ef-night'), '石墨夜班是深色画布')
+  assert.ok(darkIds.includes('ch-black'), '墨底是深色画布')
+  assert.ok(darkIds.length >= 2, '至少两套深色背景')
+
+  // 选择器里显示「深 / 浅」标签
+  const sheet = read('src/components/ReportSheet.vue')
+  assert.match(sheet, /bgTone\(b\) === 'dark' \? '深' : '浅'/, '背景卡标出深/浅')
 })
 
 test('切换背景不会写入主题键，切换主题不会动背景键', () => {

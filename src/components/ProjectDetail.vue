@@ -13,6 +13,14 @@
         <span class="pd-state" :class="stateClass">{{ stateText }}</span>
       </div>
       <p class="pd-locked" v-if="detail.locked">上一期托管尚未完成 → 本期待开始，暂不可确认执行</p>
+      <!-- 早期 / 后期数据冲突提示：同客户同服务还有别的托管记录 -->
+      <p class="pd-dup" v-if="detail.duplicates && detail.duplicates.length">
+        同一客户还有 {{ detail.duplicates.length }} 条相同的托管记录（
+        <template v-for="(d, i) in detail.duplicates" :key="d.id">
+          <template v-if="i">，</template>{{ d.days ? d.days + ' 天' : '无周期' }}<template v-if="d.locked">·待激活</template><template v-else-if="d.archived">·已归档</template>
+        </template>
+        ）。若是早期数据残留，打开对应记录用「强制删除」清理。
+      </p>
 
       <div class="detail-grid">
         <p class="detail-section">基本信息</p>
@@ -132,6 +140,14 @@
           :title="cfm.titleOf('remove', '删除')"
           @click="onRemove"
         >删除</button>
+        <!-- 有执行记录 / 被后继引用时普通删除会退化成归档，这里给一条明确的强制通路 -->
+        <button
+          v-if="detail.actions.forceRemove"
+          class="pd-btn danger"
+          :style="cfm.styleOf('force-remove')"
+          :title="cfm.titleOf('force-remove', '强制删除：连执行记录一起删，不可恢复')"
+          @click="onForceRemove"
+        >强制删除</button>
         <button class="pd-btn" @click="requestClose">关闭</button>
       </div>
 
@@ -176,7 +192,7 @@ const props = defineProps({
   detail: { type: Object, required: true },
   gameOptions: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['close', 'save', 'archive', 'restore', 'add-period', 'remove'])
+const emit = defineEmits(['close', 'save', 'archive', 'restore', 'add-period', 'remove', 'force-remove'])
 
 function requestClose() { emit('close') }
 function onKeydown(e) { if (e.key === 'Escape') requestClose() }
@@ -334,9 +350,9 @@ function toDatetimeLocal(iso) {
 .pd-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .pd-head-main { flex: 1; min-width: 0; }
 .pd-name { font-size: 15px; font-weight: 800; }
-.pd-sub { font-size: 11px; font-family: monospace; opacity: 0.6; margin-top: 2px; }
+.pd-sub { font-size: 11px; font-family: var(--font-mono); opacity: 0.6; margin-top: 2px; }
 .pd-state {
-  font-size: 10px; font-family: monospace; padding: 2px 8px;
+  font-size: 10px; font-family: var(--font-mono); padding: 2px 8px;
   border: 1px solid currentColor; opacity: 0.85; white-space: nowrap;
 }
 .pd-state.st-active { color: var(--accent); }
@@ -344,11 +360,11 @@ function toDatetimeLocal(iso) {
 .pd-state.st-completed { color: #00B0FF; }
 .pd-state.st-scheduled { color: var(--warn, #D87938); }
 .pd-locked {
-  font-size: 11px; font-family: monospace; padding: 6px 8px; margin: 0 0 8px;
+  font-size: 11px; font-family: var(--font-mono); padding: 6px 8px; margin: 0 0 8px;
   border-left: 3px solid var(--warn, #D87938); background: var(--bg-secondary);
 }
 
-.mono { font-family: monospace; }
+.mono { font-family: var(--font-mono); }
 .pd-flex { flex: 1; min-width: 0; }
 .pd-inp {
   flex: 1; min-width: 0; height: 24px; padding: 0 6px;
@@ -358,7 +374,7 @@ function toDatetimeLocal(iso) {
 .pd-inp:focus { outline: none; border-color: var(--btn-hover-bg); }
 .pd-mini {
   font-size: 10px; padding: 1px 6px; border: 1px solid var(--border-color);
-  background: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-family: monospace;
+  background: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-family: var(--font-mono);
 }
 
 .pd-actions { flex-wrap: wrap; align-items: center; }
@@ -370,12 +386,24 @@ function toDatetimeLocal(iso) {
 }
 .pd-btn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); }
 .pd-btn.primary { background: var(--btn-hover-bg); color: var(--btn-hover-text); font-weight: 700; }
+/* 删除专用红：告警一律用强调色与墨线，只有「删掉东西」才配红 */
+.pd-btn.danger { border-color: var(--warn); color: var(--warn); }
+.pd-btn.danger:hover { background: var(--warn); border-color: var(--warn); color: #FFFFFF; }
+/* 同客户同服务的其它托管：早期 / 后期数据冲突的提示 */
+.pd-dup {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.72;
+  border-left: 2px solid var(--warn);
+  padding-left: 8px;
+}
 
 /* ── 续费（加天数 + 收费）── */
 .pd-renew { border-top: 2px solid var(--accent); margin-top: 12px; padding-top: 10px; }
 .pd-renew-title { font-size: 12px; font-weight: 800; margin-bottom: 6px; }
 .pd-renew-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; flex-wrap: wrap; }
-.pd-renew-row .dl { width: 64px; flex-shrink: 0; opacity: 0.55; font-family: monospace; font-size: 11px; }
+.pd-renew-row .dl { width: 64px; flex-shrink: 0; opacity: 0.55; font-family: var(--font-mono); font-size: 11px; }
 .pd-renew-row .pd-inp { max-width: 150px; }
 .pd-renew-hint { font-size: 10px; opacity: 0.6; line-height: 1.6; }
 .pd-renew-actions { display: flex; gap: 6px; }

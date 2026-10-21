@@ -25,12 +25,12 @@ const {
   normalizeThemeId,
 } = await import('../src/composables/useGlobalTheme.js')
 
-test('四套主题平级存在，ID 唯一', () => {
-  assert.equal(THEME_IDS.length, 4)
-  assert.equal(new Set(THEME_IDS).size, 4, '主题 ID 不得重复')
+test('十套主题平级存在，ID 唯一', () => {
+  assert.equal(THEME_IDS.length, 10)
+  assert.equal(new Set(THEME_IDS).size, 10, '主题 ID 不得重复')
   assert.deepEqual(
     [...THEME_IDS].sort(),
-    ['lone-star-dark', 'lone-star-light', 'p3r-dark', 'p3r-light'],
+    ['endfield-dark', 'endfield-light', 'lone-star-dark', 'lone-star-light', 'p3r-dark', 'p3r-light', 'stijl-dark', 'stijl-light', 'swiss-dark', 'swiss-light'],
   )
   THEMES.forEach(t => {
     assert.ok(t.label && t.hint, `${t.id} 需要 label 与 hint`)
@@ -51,10 +51,16 @@ test('未知值回落到默认主题，不会把用户留在无主题状态', ()
   assert.equal(normalizeThemeId('theme-p3r-dark'), DEFAULT_THEME_ID, '不接受带前缀的类名')
 })
 
-test('P3R 深色与浅色是两套独立主题，不是运行时组合', () => {
+test('深色与浅色是两套独立主题，不是运行时组合', () => {
   // 两者在 CSS 中各自成块，各自定义完整变量集
   const theme = read('src/assets/css/global-theme.css')
-  for (const sel of ['.theme-lone-star-light', '.theme-lone-star-dark', '.theme-p3r-light', '.theme-p3r-dark']) {
+  for (const sel of [
+    '.theme-lone-star-light', '.theme-lone-star-dark',
+    '.theme-p3r-light', '.theme-p3r-dark',
+    '.theme-endfield-light', '.theme-endfield-dark',
+    '.theme-swiss-light', '.theme-swiss-dark',
+    '.theme-stijl-light', '.theme-stijl-dark',
+  ]) {
     const block = theme.slice(theme.indexOf(sel))
     const body = block.slice(0, block.indexOf('}'))
     for (const v of ['--bg-primary', '--bg-secondary', '--bg-sidebar', '--text-primary', '--border-color', '--accent']) {
@@ -71,6 +77,27 @@ test('P3R 使用约定的调色板', () => {
   for (const hex of ['#071B3A', '#1264C8', '#28B8F2', '#F5D83D', '#F4F6FA', '#A8B8D0', '#F07858']) {
     assert.ok(p3r.includes(hex), `theme-p3r.css 应包含调色板色 ${hex}`)
   }
+})
+
+test('终末地使用约定的调色板（纸 / 墨 / 唯一强调色 lime）', () => {
+  const theme = read('src/assets/css/global-theme.css')
+  for (const [sel, paper] of [['.theme-endfield-light', '#F4F4F2'], ['.theme-endfield-dark', '#191919']]) {
+    const block = theme.slice(theme.indexOf(sel))
+    const body = block.slice(0, block.indexOf('}'))
+    assert.match(body, new RegExp(`--bg-primary:\\s*${paper}`, 'i'), `${sel} 的纸色应是 ${paper}`)
+    assert.match(body, /--ef-signal:\s*#B8FF3D/i, `${sel} 的唯一强调色应是 lime`)
+    assert.match(body, /--ef-trace:/, `${sel} 需要 trace 色（标出当前位置的线）`)
+  }
+  const css = read('src/assets/css/theme-endfield.css')
+  for (const hex of ['#161616', '#EDEDED']) {
+    assert.ok(css.includes(hex), `theme-endfield.css 应包含调色板色 ${hex}`)
+  }
+  // 三色条的三格颜色定义在主题变量里
+  assert.match(theme, /--ef-tri-a:\s*#FF00F0/i, '三色条第一格 = 品红')
+  assert.match(theme, /--ef-tri-c:\s*#00FFA2/i, '三色条第三格 = 薄荷绿')
+  // 切角只给可点击的东西：导航 / 按钮 / 筛选块共用同一个 --ef-cut
+  assert.match(css, /--ef-cut-corner:/, '切角需要统一的 polygon 定义')
+  assert.match(css, /clip-path:\s*var\(--ef-cut-corner\)/, '可点击控件用切角')
 })
 
 test('主题标记用 classList 增删，不整体覆盖根元素 className', () => {
@@ -96,9 +123,9 @@ test('P3R 动效尊重 prefers-reduced-motion', () => {
   assert.match(p3r, /@media \(prefers-reduced-motion: reduce\)/, '必须有减动效降级')
 })
 
-test('设置页提供四个平级主题选项（不额外加深/浅开关）', () => {
+test('设置页提供平级主题选项（不额外加深/浅开关）', () => {
   const settings = read('src/views/SettingsPage.vue')
-  assert.match(settings, /v-for="t in themes"/, '遍历四套主题')
+  assert.match(settings, /v-for="t in themes"/, '遍历全部主题')
   assert.match(settings, /setTheme\(t\.id\)/, '点击直接选主题')
   assert.equal(/isDark\s*=\s*!/.test(settings), false, '没有独立的明暗切换开关')
 })

@@ -131,6 +131,9 @@ async function main() {
     return true
   })()`)
 
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.executeJavaScript(`window.__errs = []; window.addEventListener('error', e => { (window.__errs = window.__errs || []).push(String((e.error && e.error.stack) || e.message)) })`).catch(() => {})
+  })
   await win.loadFile(path.join(ROOT, 'dist', 'index.html'))
   await sleep(1600)
   check('首屏已渲染（.rc-main-container 存在）', await js(`!!document.querySelector('.rc-main-container')`))
@@ -142,10 +145,10 @@ async function main() {
   await clickText('.tl-entry-btn', '全部'); await sleep(600); await shot('01-accounts-all')
   await clickText('.tl-entry-btn', '代办'); await sleep(600); await shot('02-accounts-todo')
 
-  // ── 四套主题：平级循环切换 + 即时生效 + 持久化 ──
+  // ── 八套主题：平级循环切换 + 即时生效 + 持久化 ──
   const themeSeq = []
   const bgSeq = []
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     await clickByTitle('切换主题')
     await sleep(320)
     const id = await js(`document.documentElement.dataset.theme`)
@@ -155,15 +158,16 @@ async function main() {
   }
   console.log('    主题循环：', JSON.stringify(themeSeq))
   console.log('    背景变量：', JSON.stringify(bgSeq))
-  check('四套主题循环切换', new Set(themeSeq).size === 4)
-  check('每套主题背景色都不同（四套独立色板）', new Set(bgSeq).size === 4)
+  check('八套主题循环切换', new Set(themeSeq).size === 8)
+  check('每套主题背景色都不同（八套独立色板）', new Set(bgSeq).size === 8)
   check('P3R 主题已生效（含深海军蓝 #071B3A）', bgSeq.includes('#071B3A'))
+  check('终末地主题已生效（含纸白 #F4F4F2 与石墨黑 #191919）', bgSeq.includes('#F4F4F2') && bgSeq.includes('#191919'))
   const storedTheme = await js(`(() => { try { return JSON.parse(localStorage.getItem('tr-theme')) } catch { return localStorage.getItem('tr-theme') } })()`)
   check('主题已写入 tr-theme 并可恢复', themeSeq.includes(storedTheme))
 
   // 通过设置页把主题定为 P3R 深色，再逐页截图核对（走真实入口，不手改 DOM）
   await clickByTitle('设置'); await sleep(600)
-  check('设置页有四个主题选项', await js(`document.querySelectorAll('.theme-picker .tl-entry-btn').length === 4`))
+  check('设置页有八个主题选项', await js(`document.querySelectorAll('.theme-picker .tl-entry-btn').length === 8`))
   await js(`(() => { const b = [...document.querySelectorAll('.theme-picker .tl-entry-btn')].find(x => x.textContent.trim() === 'P3R · 深夜'); if (b) b.click(); return !!b })()`)
   await sleep(400)
   check('设置页可切到 P3R 深夜', await js(`document.documentElement.dataset.theme === 'p3r-dark'`))
@@ -435,23 +439,30 @@ async function main() {
   console.log('    外观弹窗：', JSON.stringify(picker))
   check('外观选择改为侧边弹窗（沿用详情窗口版式）', picker.popup)
   check('弹窗为右侧半宽抽屉', picker.drawer > 0)
-  check('汇报主题 7 套，且主题 / 背景分区呈现', picker.themes === 7 && picker.secs.some(x => x.startsWith('内容主题')) && picker.secs.some(x => x.startsWith('画布背景')))
-  check('背景选项保留原有 7 套', picker.bgs === 7)
+  check('汇报主题 41 套，且主题 / 背景分区呈现', picker.themes === 41 && picker.secs.some(x => x.startsWith('内容主题')) && picker.secs.some(x => x.startsWith('画布背景')))
+  check('背景选项 41 套（五族各 8 套）', picker.bgs === 41)
 
   const lookBefore = await js(`(() => {
     const w = document.querySelector('.rp-wrap')
-    const head = document.querySelector('.rp-card-head')
-    return { cls: w.className, bg: w.style.background, headBg: getComputedStyle(head).backgroundColor }
+    const head = w && w.querySelector('.rp-card-head')
+    return { cls: w.className, bg: w.style.background, headBg: head ? getComputedStyle(head).backgroundColor : null }
   })()`)
   await js(`(() => { const c = [...document.querySelectorAll('.modal-mask .rp-theme-card')].find(x => x.querySelector('.rp-opt-name').textContent.trim() === '科研档案'); if (c) c.click(); return !!c })()`)
-  await sleep(400)
-  const lookTheme = await js(`(() => {
-    const w = document.querySelector('.rp-wrap')
-    const head = document.querySelector('.rp-card-head')
-    return { cls: w.className, bg: w.style.background, headBg: getComputedStyle(head).backgroundColor, key: localStorage.getItem('tr-report-theme'), popupOpen: !!document.querySelector('.modal-mask .edit-popup.rp-look') }
-  })()`)
-  console.log('    切主题：', JSON.stringify({ cls: lookTheme.cls, headBg: lookTheme.headBg, key: lookTheme.key }))
-  check('切主题只换内容皮肤：类名变、背景不变', lookTheme.cls.includes('rp-theme-ls-archive') && lookTheme.bg === lookBefore.bg && lookTheme.headBg !== lookBefore.headBg)
+  // 等主题真的落到计算样式上（切换本身是同步的，但颜色有 180ms 过渡）
+  let lookTheme = null
+  for (let i = 0; i < 12; i++) {
+    await sleep(150)
+    lookTheme = await js(`(() => {
+      const w = document.querySelector('.rp-wrap')
+      const head = w && w.querySelector('.rp-card-head')
+      return { cls: w.className, bg: w.style.background, headBg: head ? getComputedStyle(head).backgroundColor : null, key: localStorage.getItem('tr-report-theme'), popupOpen: !!document.querySelector('.modal-mask .edit-popup.rp-look') }
+    })()`)
+    if (lookTheme && lookTheme.headBg !== lookBefore.headBg) break
+  }
+  console.log('    切主题：', JSON.stringify({ cls: lookTheme.cls, bg: lookTheme.bg, headBg: lookTheme.headBg, key: lookTheme.key }))
+  check('切主题只换内容皮肤：画布类名换成所选主题', lookTheme.cls.includes('rp-theme-ls-archive'))
+  check('切主题只换内容皮肤：画布背景不变', lookTheme.bg === lookBefore.bg, { before: lookBefore.bg, after: lookTheme.bg })
+  check('切主题只换内容皮肤：卡片标题底色跟着主题变', lookTheme.headBg !== lookBefore.headBg, { before: lookBefore.headBg, after: lookTheme.headBg })
   check('主题写入独立存储键 tr-report-theme', JSON.parse(lookTheme.key) === 'ls-archive')
   check('选完主题弹窗保持打开（可继续选背景）', lookTheme.popupOpen)
 
@@ -522,6 +533,7 @@ async function main() {
   if (failures.length) {
     console.log('\nUI SMOKE FAILED:')
     failures.forEach(f => console.log('  ✗ ' + f))
+    console.log('  页面堆栈：', await js(`JSON.stringify((window.__errs || []).slice(0, 3), null, 1)`))
     console.log('shots -> ' + OUT)
     await sleep(200)
     app.exit(1)

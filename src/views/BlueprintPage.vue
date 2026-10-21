@@ -447,7 +447,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <style scoped>
 .bp-col { flex: 1; min-width: 0; padding: 0 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bp-col.code { font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important; font-weight: 600; flex: 0.8; }
+.bp-col.code { font-family: var(--font-mono) !important; font-weight: 600; flex: 0.8; }
 .bp-col.name { font-weight: 700; flex: 0.8; }
 .bp-col.land { flex: 0.5; text-align: center; }
 .bp-col.products { flex: 1.2; }
@@ -462,7 +462,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   border-bottom: 2px solid var(--border-color);
   font-size: 11px;
   font-weight: 700;
-  font-family: monospace;
+  font-family: var(--font-mono);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -479,12 +479,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   cursor: pointer;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
-  font-size: 12px; font-weight: 700; font-family: monospace;
+  font-size: 12px; font-weight: 700; font-family: var(--font-mono);
   position: relative; z-index: 1;
 }
 .bp-group-name { letter-spacing: 1px; }
 .bp-caret { width: 12px; flex-shrink: 0; font-size: 11px; opacity: 0.6; }
-.bp-collapsed-hint { font-size: 10px; font-family: monospace; opacity: 0.45; }
+.bp-collapsed-hint { font-size: 10px; font-family: var(--font-mono); opacity: 0.45; }
 .bp-group-count {
   font-size: 10px; opacity: 0.6; padding: 0 6px;
   border: 1px solid var(--border-color);
@@ -503,7 +503,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .bp-sort-btn {
   font-size: 10px; padding: 1px 5px; line-height: 1.3;
   border: 1px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-primary); cursor: pointer; font-family: monospace;
+  color: var(--text-primary); cursor: pointer; font-family: var(--font-mono);
   transition: background var(--motion-duration-normal), color var(--motion-duration-normal);
 }
 .bp-sort-btn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); }
@@ -550,7 +550,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .bp-hex {
   width: 92px; height: 24px; padding: 0 6px;
   border: 1px solid var(--border-color); background: var(--bg-primary);
-  color: var(--text-primary); font-family: monospace; font-size: 11px;
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
 }
 .bp-hex.invalid { border-color: #d00; color: #d00; }
 </style>

@@ -325,6 +325,17 @@
   background: var(--p3r-yellow);
   height: 3px;
 }
+/* 数据带左端的斜切色块：绝对定位，不占 flex 位、不改布局 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-strip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 56px;
+  background: linear-gradient(var(--p3r-slant),
+    var(--p3r-blue) 0 26px,
+    transparent 26px);
+  pointer-events: none;
+}
 :is(.theme-p3r-dark, .theme-p3r-light) .local-music .summary-chip {
   background: var(--surface-plate);
   color: rgba(255, 255, 255, 0.72);
@@ -632,4 +643,85 @@
   :is(.theme-p3r-dark, .theme-p3r-light) .local-music .tl-entry-btn:active {
     transform: none;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   控件形状 · 海报斜切（P3R 专属）
+     右上角切掉一块（比终末地的右下切更大、更斜）= 可点；
+     编号列做成小色块 = 海报的编号牌。clip-path 不改盒模型。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-p3r-dark, .theme-p3r-light) {
+  --done-mark: var(--p3r-muted);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .folder-chip, .song-btn, .pd-btn,
+  .gm-btn, .gm-add, .ad-sort-btn, .bp-sort-btn, .pwd-toggle, .quit-btn, .float-btn
+) {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-index {
+  background: var(--p3r-panel);
+  color: var(--p3r-fg-muted);
+}
+/* ══════════════════════════════════════════════════════════════════
+   P3R · 更强的海报特征（不改尺寸 / 布局）
+     · 页面底纹：右上大面积斜切色带
+     · 行首：顶部斜切的色块
+     · 已完成：冷蓝灰底
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-p3r-light) { --done-bg: rgba(7, 27, 58, 0.06); }
+:is(.theme-p3r-dark)  { --done-bg: rgba(40, 184, 242, 0.07); }
+:is(.theme-p3r-light) .local-music {
+  background-image: linear-gradient(118deg,
+    transparent 0 62%,
+    rgba(18, 100, 200, 0.05) 62% 100%);
+}
+:is(.theme-p3r-dark) .local-music {
+  background-image: linear-gradient(118deg,
+    transparent 0 62%,
+    rgba(40, 184, 242, 0.07) 62% 100%);
+}
+/* 行首：顶部斜切的色块（海报的裁切语言） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-item::after {
+  width: 9px;
+  clip-path: polygon(0 0, 100% 14px, 100% 100%, 0 100%);
+}
+/* ══════════════════════════════════════════════════════════════════
+   P3R · 控件语言 —— 色块 + 硬边
+     底部 3px 主色带 + 左下角明黄方块（海报角标）+ 斜切（已有）。
+     输入类控件做成「底部色带 + 右端斜切」。
+     只用 inset 阴影与伪元素，尺寸与布局不变。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .sb-trigger
+) {
+  position: relative;
+  box-shadow: inset 0 -3px 0 var(--p3r-blue);
+}
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music :is(
+  .rc-global-btn, .tl-entry-btn, .pd-btn, .sb-trigger
+)::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 10px; height: 10px;
+  background: var(--p3r-yellow);
+  pointer-events: none;
+}
+/* 选中态：色带换成强调黄，方块反白 */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music :is(.tl-entry-btn.active, .folder-chip.active) {
+  box-shadow: inset 0 -3px 0 var(--p3r-yellow);
+}
+/* 输入类：底部色带（不再用四边框） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music :is(
+  .search-box, .form-row input, .form-row select, .form-select, .pd-inp
+) {
+  border-color: transparent;
+  box-shadow: inset 0 -3px 0 var(--p3r-blue);
+}
+/* 行内按钮：实心小块 + 顶部斜切（海报裁切） */
+:is(.theme-p3r-dark, .theme-p3r-light) .local-music .song-btn {
+  background: var(--p3r-panel);
+  border-color: transparent;
+  clip-path: polygon(0 4px, 6px 0, 100% 0, 100% 100%, 0 100%);
 }

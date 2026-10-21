@@ -50,7 +50,7 @@
   gap: 5px;
   align-items: flex-end;
   font-size: 11px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   opacity: 0.85;
   padding: 4px 8px;
   border: 1px solid var(--border-color);
@@ -192,7 +192,11 @@
   cursor: pointer;
   font-size: 12px;
   white-space: nowrap;
-  transition: all var(--motion-duration-fast);
+  /* 只过渡真正会变的四件事（不用 transition: all —— 那会把未来新增的属性也一起动画） */
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-ease),
+              color var(--motion-duration-fast) var(--motion-easing-ease),
+              border-color var(--motion-duration-fast) var(--motion-easing-ease),
+              box-shadow var(--motion-duration-fast) var(--motion-easing-ease);
   flex-shrink: 0;
 }
 .folder-chip svg {
@@ -231,7 +235,7 @@
 .summary-strip::-webkit-scrollbar { display: none; }
 .summary-chip {
   font-size: 11px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   padding: 3px 8px;
   border: 1px solid var(--border-color);
   white-space: nowrap;
@@ -329,7 +333,11 @@
   flex: 1;
   min-width: 0;
   text-align: center;
-  font-family: monospace;
+  font-family: var(--font-mono);
+  /* 数据列（游戏 / 账号 / 服务 / 备注 / 时间）与行内其它文字同号。
+     这里原来没写字号，继承 body 的 16px —— 比 13px 的标题还大，
+     换成非等宽字体会更明显。补上 12px，与 .song-artist 一致。 */
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -431,14 +439,14 @@
 /* ── 详细信息 table ── */
 .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .detail-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
-.detail-table td:first-child { width: 80px; opacity: .5; font-family: monospace; white-space: nowrap; }
+.detail-table td:first-child { width: 80px; opacity: .5; font-family: var(--font-mono); white-space: nowrap; }
 .detail-table td:last-child { color: var(--text-primary); }
-.detail-section { font-size: 11px; font-weight: 700; font-family: monospace; opacity: 0.5; padding: 10px 0 4px; }
+.detail-section { font-size: 11px; font-weight: 700; font-family: var(--font-mono); opacity: 0.5; padding: 10px 0 4px; }
 /* detail-grid：两列分展 */
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
 .detail-grid .detail-section { grid-column: 1 / -1; padding: 12px 0 4px; }
 .detail-field { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 12px; }
-.detail-field .dl { width: 64px; opacity: 0.5; font-family: monospace; flex-shrink: 0; white-space: nowrap; }
+.detail-field .dl { width: 64px; opacity: 0.5; font-family: var(--font-mono); flex-shrink: 0; white-space: nowrap; }
 .detail-field .dv { color: var(--text-primary); word-break: break-all; }
 
 .edit-form { display: flex; flex-direction: column; gap: 6px; }
@@ -453,7 +461,7 @@
   font-size: 12px;
   opacity: .7;
   flex-shrink: 0;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 .form-row input[type="text"],
 .form-row input:not([type]),
@@ -504,7 +512,7 @@
 .pwd-toggle {
   height: 28px; padding: 0 10px;
   border: 2px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-primary); font-size: 11px; font-family: monospace;
+  color: var(--text-primary); font-size: 11px; font-family: var(--font-mono);
   cursor: pointer; flex-shrink: 0; white-space: nowrap;
   transition: background var(--motion-duration-normal), color var(--motion-duration-normal);
 }
@@ -513,13 +521,13 @@
 .copyable:hover { opacity: 0.7; }
 .select-limit-box {
   display: flex; align-items: center; gap: 4px;
-  font-size: 11px; font-family: monospace; opacity: 0.85;
+  font-size: 11px; font-family: var(--font-mono); opacity: 0.85;
   white-space: nowrap; flex-shrink: 0;
 }
 .select-limit-box input {
   width: 42px; height: 28px; padding: 0 4px; text-align: center;
   border: 2px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-primary); font-size: 12px; font-family: monospace; outline: none;
+  color: var(--text-primary); font-size: 12px; font-family: var(--font-mono); outline: none;
   transition: background var(--motion-duration-normal), border-color var(--motion-duration-normal);
   -moz-appearance: textfield; appearance: textfield;
 }
@@ -527,7 +535,7 @@
 .select-limit-box input::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
 .select-limit-box input:focus { border-color: var(--btn-hover-bg); background: var(--bg-primary); }
 .mono-input {
-  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important;
+  font-family: var(--font-mono) !important;
   font-weight: 600;
 }
 .check-label {
@@ -543,7 +551,7 @@
 .form-section-title {
   font-size: 11px;
   font-weight: 700;
-  font-family: monospace;
+  font-family: var(--font-mono);
   padding: 4px 0 0;
   border-top: 1px solid var(--border-color);
   margin-top: 4px;
@@ -557,7 +565,7 @@
   border: 2px solid var(--border-color);
   font-size: 12px;
   cursor: pointer;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   transition: var(--motion-btn-hover);
 }
@@ -653,14 +661,33 @@
 .setting-hint {
   font-size: 11px;
   opacity: .45;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 .setting-static {
   font-size: 12px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   opacity: .5;
 }
-/* 设置页：主题选择（四套主题平级，一个入口） */
+/* 个人标签：签名样式（短线 + 字距拉开的署名，跟随主题强调色） */
+.setting-sign {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--border-color);
+}
+.setting-sign-mark {
+  display: block;
+  width: 14px;
+  height: 2px;
+  background: var(--accent);
+}
+.setting-sign-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+/* 设置页：主题选择（十套主题平级，一个入口） */
 .theme-picker {
   display: flex;
   align-items: center;
@@ -689,7 +716,7 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 13px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   cursor: pointer;
   transition: var(--motion-btn-hover);
 }
@@ -700,7 +727,7 @@
   display: flex; align-items: center; gap: 6px;
   height: 32px; padding: 0 12px;
   border: 2px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-primary); font-size: 12px; font-family: monospace;
+  color: var(--text-primary); font-size: 12px; font-family: var(--font-mono);
   cursor: pointer; flex-shrink: 0;
   transition: background var(--motion-duration-normal), color var(--motion-duration-normal),
               border-color var(--motion-duration-normal), transform var(--motion-duration-micro) var(--motion-easing-ease);
@@ -713,9 +740,9 @@
 }
 .view-tabs { display: flex; gap: 0; }
 .view-tabs .tl-entry-btn:not(:first-child) { border-left: none; }
-/* view-tabs 入场动画 */
+/* view-tabs 入场动画（从 0.96 起、不是从 0 起：元素不会「凭空出现」） */
 .local-music .view-tabs .tl-entry-btn {
-  opacity: 0; transform: scaleX(0);
+  opacity: 0; transform: scaleX(0.96);
   transition: opacity var(--motion-duration-micro) var(--motion-easing-ease),
               transform var(--motion-duration-btn-transform) var(--motion-easing-enter);
 }
@@ -748,7 +775,7 @@
 
 /* ── 工具栏按钮入场 ── */
 .local-music .local-toolbar .rc-global-btn {
-  opacity: 0; transform: scaleX(0);
+  opacity: 0; transform: scaleX(0.96);
   transition: opacity var(--motion-duration-micro) var(--motion-easing-ease),
               transform var(--motion-duration-btn-transform) var(--motion-easing-enter);
 }
@@ -859,9 +886,9 @@
 .pd-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .pd-head-main { flex: 1; min-width: 0; }
 .pd-name { font-size: 15px; font-weight: 800; }
-.pd-sub { font-size: 11px; font-family: monospace; opacity: 0.6; margin-top: 2px; }
+.pd-sub { font-size: 11px; font-family: var(--font-mono); opacity: 0.6; margin-top: 2px; }
 .pd-state {
-  font-size: 10px; font-family: monospace; padding: 2px 8px;
+  font-size: 10px; font-family: var(--font-mono); padding: 2px 8px;
   border: 1px solid currentColor; opacity: 0.85; white-space: nowrap;
 }
 .pd-state-active, .pd-state.st-active { color: var(--accent); }
@@ -877,3 +904,66 @@
 .renew-head-line .pd-name,
 .renew-head-line .pd-sub { margin-top: 0; white-space: nowrap; }
 .renew-sep { opacity: 0.3; font-size: 11px; flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════════
+   已完成 vs 进行中：两套语法，不是「再暗一点」
+     · 进行中：左缘主题强调色 + 满对比
+     · 已完成（含归档 / 取消）：整体降调 + 名称删除线 + 左缘灰条
+   只改颜色与文字装饰，不动尺寸、间距与布局。
+   ══════════════════════════════════════════════════════════════════ */
+.song-item.done {
+  opacity: 0.6;
+  box-shadow: inset 3px 0 0 var(--done-mark, #9E9E9E);
+}
+.song-item.done .song-name {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.song-item.done .col-fixed,
+.song-item.done .song-artist {
+  opacity: 0.8;
+}
+/* 已完成的行悬停时也不该再「亮起来」——最多恢复到可读 */
+.song-item.done:hover {
+  opacity: 0.85;
+}
+/* ══════════════════════════════════════════════════════════════════
+   行背景色：用「色环」的淡色铺底，让状态一眼可分
+     · 进行中：行首状态色（--bar-top，由页面按类型/金额算出来）的 9% 铺底
+     · 已完成：换成主题中性灰底（--done-bg），与进行中彻底分开
+   只改背景色，不动尺寸与布局；hover 的整行反相仍由 hover-states 接管。
+   ══════════════════════════════════════════════════════════════════ */
+.song-item:not(.done) {
+  background: color-mix(in srgb, var(--bar-top, transparent) 9%, transparent);
+}
+.song-item.done {
+  background: var(--done-bg, rgba(128, 128, 128, 0.12));
+}
+/* ══════════════════════════════════════════════════════════════════
+   排印基线（六套主题共用，等同于每日汇报 P3R 皮肤那套字体）
+     · 标题 / 名称：更重的字重
+     · 数字列：等宽数字（tabular-nums），金额与次数不再左右跳动
+   只改字重 / 数字排法，不动字号与行高 —— 布局与尺寸完全不变。
+   用 html[data-theme] 前缀拿到与主题规则相同的特异性，再靠先后顺序生效。
+   ══════════════════════════════════════════════════════════════════ */
+html[data-theme] .rc-title-bar h2 { font-weight: 800; }
+html[data-theme] .local-music .local-header h2 { font-weight: 900; }
+html[data-theme] .local-music .song-name { font-weight: 800; }
+html[data-theme] .local-music .pd-name,
+html[data-theme] .local-music .setting-label { font-weight: 800; }
+html[data-theme] .local-music :is(.col-fixed, .song-duration, .song-index,
+  .fee-main, .fee-sub, .summary-chip strong, .folder-count, .status-tag, .setting-static) {
+  font-variant-numeric: tabular-nums;
+}
+html[data-theme] .local-music .summary-chip strong { font-weight: 900; }
+html[data-theme] .local-music .fee-main { font-weight: 800; }
+/* ══════════════════════════════════════════════════════════════════
+   控件焦点态：键盘可见的强调色描边（六套主题共用）
+   只画在元素外侧 1px，不改变任何盒模型。
+   ══════════════════════════════════════════════════════════════════ */
+html[data-theme] :is(.rc-global-btn, .tl-entry-btn, .folder-chip, .song-btn,
+  .pd-btn, .sb-trigger, .save-btn, .cancel-btn):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

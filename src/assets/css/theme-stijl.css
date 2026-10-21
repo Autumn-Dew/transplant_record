@@ -1,0 +1,360 @@
+/* ══════════════════════════════════════════════════════════════════
+   风格派主题 · 视觉语言 —— 新造型主义（De Stijl / Neoplasticism）
+
+   六条规则（来自这套风格的原始定义，不做「商业化折中」）：
+     1. 粗黑线只能水平或垂直，把画面切成大小不一的矩形；没有斜线、
+        没有曲线、没有圆角。
+     2. 只用三原色：红 #D0302A / 黄 #EBC226 / 蓝 #1D3F8C，
+        加黑 #111111、米白 #F4F1EA、浅灰 #D8D4CB。
+     3. 全部平涂：没有渐变、没有阴影、没有纹理。
+     4. 构图不对称但平衡：大面积米白，颜色只落在少量格子 / 贴边条里。
+     5. 文字落在米白格里，几何无衬线、左对齐；标题用矩形拼的方块字母。
+     6. 动效只走横竖：黑线干脆地切进画面、色块像刷子一样刷满；
+        不弹跳、不旋转（见 motion-themes.css 的风格派族）。
+
+   ⚠ 与其它主题一样不改布局：只改颜色 / 边框 / 字重 / 字距 /
+     绝对定位伪元素 / 背景图层，不动 padding、字号与行高。
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-stijl-light, .theme-stijl-dark) {
+  --font-ui: var(--st-font);
+  /* 粗黑线宽度：界面尺度 3px（画布尺度见汇报主题的 16px） */
+  --st-line: 3px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   一、应用框架：黑格 + 米白格，粗线只走横竖
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-title-bar {
+  background: var(--st-ink);
+  color: var(--st-paper);
+  border-bottom: var(--st-line) solid var(--st-red);
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-title-bar::before {
+  left: 0; top: 0; transform: none;
+  width: 100%; height: 100%;
+  background: transparent;
+}
+/* 标题前的「方块字母」：三段矩形拼出的方块（竖条 + 横条 + 小方块） */
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-title-bar h2 {
+  position: relative;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-title-bar h2::before {
+  content: '';
+  display: inline-block;
+  width: 10px; height: 10px;
+  margin-right: 8px;
+  background: var(--st-yellow);
+  box-shadow: 10px 0 0 var(--st-blue);
+  vertical-align: baseline;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-window-controls {
+  border-left: var(--st-line) solid rgba(244, 241, 234, 0.28);
+}
+
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-sub-sidebar {
+  background: var(--bg-sidebar);
+  box-shadow: inset calc(-1 * var(--st-line)) 0 0 var(--st-red);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-sub-func-btn {
+  border: var(--st-line) solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sb-fg);
+  clip-path: none;
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-sub-func-btn:hover {
+  background: var(--st-blue);
+  color: var(--st-paper);
+  border-color: var(--st-blue);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-sub-func-btn.active {
+  background: var(--st-red);
+  border-color: var(--st-red);
+  color: var(--st-paper);
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-nav-indicator {
+  background: var(--st-yellow);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-sub-divider {
+  background: var(--sb-line);
+  height: var(--st-line);
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   二、页面开始：米白格里的大标题 + 粗黑线
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-stijl-light, .theme-stijl-dark) .rc-main-container {
+  background: var(--bg-primary);
+  background-image: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music {
+  background: transparent;
+  background-image: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-header {
+  position: relative;
+  background: transparent;
+  padding-bottom: 10px;
+  border-bottom: var(--st-line) solid var(--st-ink);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-header::before {
+  left: 0; bottom: calc(-1 * var(--st-line));
+  top: auto;
+  width: 64px; height: var(--st-line);
+  background: var(--st-red);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-header::after {
+  content: none;
+}
+/* 标题：几何无衬线 + 紧字距；前置方块字母（黄块 + 蓝块拼出来） */
+html[data-theme]:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-header h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+html[data-theme]:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-header h2::before {
+  content: '';
+  display: inline-block;
+  width: 12px; height: 12px;
+  margin-right: 9px;
+  background: var(--st-blue);
+  box-shadow: 12px 0 0 var(--st-yellow);
+  vertical-align: baseline;
+}
+html[data-theme]:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-header .desc {
+  font-weight: 400;
+  text-align: left;
+  opacity: 0.8;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   三、工具带：粗黑线分区 + 直角平涂控件
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-toolbar {
+  background: transparent;
+  border-bottom: var(--st-line) solid var(--st-ink);
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(.rc-global-btn, .tl-entry-btn) {
+  border: var(--st-line) solid var(--st-ink);
+  border-radius: 0;
+  background: var(--st-paper);
+  color: var(--text-primary);
+  font-weight: 700;
+  clip-path: none;
+  box-shadow: none;
+}
+/* 主操作：红块平涂（这套风格里「最重的那块」就是主操作） */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .local-toolbar > .rc-global-btn:first-child {
+  background: var(--st-red);
+  border-color: var(--st-ink);
+  color: var(--st-paper);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .view-tabs .tl-entry-btn.active {
+  background: var(--st-blue);
+  border-color: var(--st-ink);
+  color: var(--st-paper);
+}
+
+/* 图例：米白格 + 粗黑框（黄块做一个小标记） */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .legend {
+  background: var(--st-paper);
+  border: var(--st-line) solid var(--st-ink);
+  border-radius: 0;
+  box-shadow: none;
+  opacity: 1;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .legend-label,
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .legend-item {
+  color: var(--text-primary);
+  font-weight: 400;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .legend-label::before {
+  content: '';
+  display: inline-block;
+  width: 8px; height: 8px;
+  margin-right: 6px;
+  background: var(--st-yellow);
+  vertical-align: baseline;
+}
+
+/* 数据条：上下两条粗线，第一个格子放黄块 */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .summary-strip {
+  position: relative;
+  background: transparent;
+  border-top: var(--st-line) solid var(--st-ink);
+  border-bottom: var(--st-line) solid var(--st-ink);
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .summary-strip::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 10px;
+  background: var(--st-yellow);
+  pointer-events: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .summary-chip {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text-primary);
+  font-weight: 400;
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .summary-chip strong {
+  font-weight: 700;
+  color: var(--st-ink);
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .summary-chip:first-child strong {
+  color: var(--st-red);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   四、筛选与列表：横向细线分行，选中 = 蓝块
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .folder-strip {
+  background: transparent;
+  border-bottom: 1px solid var(--st-grey);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .folder-chip {
+  border: 1px solid var(--st-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 400;
+  clip-path: none;
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .folder-chip.active {
+  background: var(--st-red);
+  border-color: var(--st-ink);
+  color: var(--st-paper);
+  font-weight: 700;
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .folder-chip.active .folder-count {
+  background: transparent;
+  color: var(--st-paper);
+  font-weight: 700;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .folder-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-list {
+  background: transparent;
+  border-top: var(--st-line) solid var(--st-ink);
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item {
+  background: transparent;
+  border-bottom: 1px solid var(--st-grey);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-index {
+  background: transparent;
+  box-shadow: none;
+  color: var(--st-blue);
+  font-weight: 700;
+  opacity: 1;
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-name {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(.song-artist, .song-info, .col-fixed, .col-note) {
+  font-weight: 400;
+  opacity: 0.86;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(.song-duration, .fee-main, .fee-sub, .status-tag, .setting-static) {
+  font-variant-numeric: tabular-nums;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .fee-main {
+  font-weight: 700;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-btn {
+  border: 1px solid var(--st-ink);
+  border-radius: 0;
+  background: transparent;
+  font-weight: 400;
+  box-shadow: none;
+}
+/* 进行中：左缘一条蓝；已完成：整行转灰（红色只给删除） */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item.hosting {
+  box-shadow: inset 4px 0 0 var(--st-blue);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item.selected {
+  background: var(--st-blue);
+  color: var(--st-paper);
+  box-shadow: inset 4px 0 0 var(--st-yellow);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item.selected :is(.song-name, .song-artist, .song-duration, .song-index, .song-info, .col-fixed, .col-note, .fee-main, .fee-sub, .status-tag) {
+  color: var(--st-paper);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   五、表单与弹窗：直角、粗黑框、无阴影
+   ══════════════════════════════════════════════════════════════════ */
+
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(
+  .search-box, .search-input, .pd-field input, .pd-input, .ad-input, .ad-add-input,
+  .gm-input, .sb-trigger, .bp-input, .setting-input
+) {
+  border: 1px solid var(--st-ink);
+  border-radius: 0;
+  background: var(--st-paper);
+  color: var(--text-primary);
+  font-weight: 400;
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .modal-mask .edit-popup {
+  border: var(--st-line) solid var(--st-ink);
+  border-radius: 0;
+  background: var(--st-paper);
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .modal-mask .edit-popup h4 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: inset 0 calc(-1 * var(--st-line)) 0 var(--st-ink);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(.pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn, .save-btn, .cancel-btn) {
+  border: var(--st-line) solid var(--st-ink);
+  border-radius: 0;
+  background: transparent;
+  font-weight: 700;
+  clip-path: none;
+  box-shadow: none;
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .save-btn {
+  background: var(--st-red);
+  color: var(--st-paper);
+}
+/* 删除是唯一允许红色的操作 */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(.danger, .gm-del, .ad-btn-del) {
+  border-color: var(--st-red);
+  color: var(--st-red);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   六、减少动态效果：这套风格本来就不用弹跳，只保留横竖切入
+   ══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  :is(.theme-stijl-light, .theme-stijl-dark) .local-music :is(.rc-global-btn, .tl-entry-btn, .folder-chip, .song-btn, .pd-btn) {
+    transition: none !important;
+  }
+}

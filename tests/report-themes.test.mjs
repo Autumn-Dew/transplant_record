@@ -28,19 +28,19 @@ const {
   writeReportTheme,
 } = await import('../src/data/report-themes.js')
 
-test('提供七套汇报主题，id 唯一且字段齐全', () => {
-  assert.equal(REPORT_THEMES.length, 7, '经典 1 + 孤星 3 + P3R 3')
+test('提供十套汇报主题，id 唯一且字段齐全', () => {
+  assert.equal(REPORT_THEMES.length, 41, '经典 1 + 五族各 8 套')
   assert.equal(new Set(REPORT_THEME_IDS).size, REPORT_THEMES.length, '主题 id 不得重复')
   for (const t of REPORT_THEMES) {
     assert.match(t.id, /^[a-z0-9-]+$/, `${t.id} 只能用小写字母 / 数字 / 连字符（同时用作类名）`)
     assert.ok(t.label, `${t.id} 需要 label`)
     assert.ok(t.hint && t.hint.length >= 4, `${t.id} 需要一句设计侧重说明`)
-    assert.ok(['classic', 'lone-star', 'p3r'].includes(t.family), `${t.id} 的 family 非法`)
+    assert.ok(['classic', 'lone-star', 'p3r', 'endfield', 'swiss', 'stijl'].includes(t.family), `${t.id} 的 family 非法`)
   }
 })
 
-test('分组：经典 1 套、孤星 3 套、P3R 3 套，且分组覆盖全部主题', () => {
-  assert.deepEqual(REPORT_THEME_GROUPS.map(g => g.id), ['classic', 'lone-star', 'p3r'], '三个分组顺序固定')
+test('分组：经典 1 套、孤星 3 套、P3R 3 套、终末地 3 套、瑞士 2 套，且分组覆盖全部主题', () => {
+  assert.deepEqual(REPORT_THEME_GROUPS.map(g => g.id), ['classic', 'lone-star', 'p3r', 'endfield', 'swiss', 'stijl'], '六个分组顺序固定')
   const grouped = REPORT_THEME_GROUPS.flatMap(g => g.items.map(t => t.id))
   assert.deepEqual([...grouped].sort(), [...REPORT_THEME_IDS].sort(), '分组必须覆盖全部主题且不重复')
   for (const g of REPORT_THEME_GROUPS) {
@@ -48,13 +48,16 @@ test('分组：经典 1 套、孤星 3 套、P3R 3 套，且分组覆盖全部�
     for (const t of g.items) assert.equal(t.family, g.id, `${t.id} 的 family 必须等于所在分组`)
   }
   assert.equal(REPORT_THEME_GROUPS[0].items.length, 1, '经典只有一套')
-  assert.equal(REPORT_THEME_GROUPS[1].items.length, 3, '孤星三套')
-  assert.equal(REPORT_THEME_GROUPS[2].items.length, 3, 'P3R 三套')
+  assert.equal(REPORT_THEME_GROUPS[1].items.length, 8, '孤星八套')
+  assert.equal(REPORT_THEME_GROUPS[2].items.length, 8, 'P3R 八套')
+  assert.equal(REPORT_THEME_GROUPS[3].items.length, 8, '终末地八套')
+  assert.equal(REPORT_THEME_GROUPS[4].items.length, 8, '瑞士八套')
+  assert.equal(REPORT_THEME_GROUPS[5].items.length, 8, '风格派八套')
 })
 
-test('孤星三套彼此不同、P3R 三套彼此不同（不是换色的同一套）', () => {
+test('同系列各套彼此不同（不是换色的同一套）', () => {
   const byFamily = fam => REPORT_THEMES.filter(t => t.family === fam)
-  for (const fam of ['lone-star', 'p3r']) {
+  for (const fam of ['lone-star', 'p3r', 'endfield', 'swiss', 'stijl']) {
     const hints = byFamily(fam).map(t => t.hint)
     assert.equal(new Set(hints).size, hints.length, `${fam} 各套的说明必须各不相同`)
     const labels = byFamily(fam).map(t => t.label)
@@ -110,9 +113,10 @@ test('画布挂汇报主题类，并与背景各自独立绑定', () => {
   assert.match(sheet, /class="edit-popup pd-popup rp-look"/, '沿用项目详情窗口的弹窗版式')
   assert.match(sheet, /<p class="detail-section">内容主题/, '主题分段')
   assert.match(sheet, /<p class="detail-section">画布背景/, '背景分段')
-  // 弹窗不设底部按钮、不出现滚动条，点遮罩关闭
+  // 弹窗不设底部按钮、不显示滚动条，但内容超出时可以滑动
   assert.equal(/class="edit-actions/.test(sheet), false, '外观弹窗不设底部按钮区（含「关闭」）')
-  assert.match(sheet, /\.modal-mask \.edit-popup\.rp-look \{[\s\S]{0,200}?overflow:\s*hidden/, '外观弹窗不使用滚动条')
+  assert.match(sheet, /\.modal-mask \.edit-popup\.rp-look \{[\s\S]{0,300}?overflow-y:\s*auto/, '外观弹窗内容超出时可滑动（隐藏滚动条不等于不能滚）')
+  assert.match(sheet, /\.modal-mask \.edit-popup\.rp-look::-webkit-scrollbar \{[\s\S]{0,120}?display:\s*none/, '滚动条仍然不显示')
   assert.match(sheet, /@click\.self="stylePanelOpen = false"/, '点遮罩即可关闭')
 })
 
@@ -182,4 +186,49 @@ test('导出同时带上主题与背景，且不改导出尺寸', () => {
   assert.match(sheet, /html2canvas\(wrapRef\.value,\s*\{[^}]*scale:\s*3/, '导出比例保持 3 倍不变')
   // 主题与背景都在画布元素上（DOM + 类名），html2canvas 按计算样式渲染，无需额外处理
   assert.match(sheet, /ref="wrapRef"[^>]*:class="`rp-theme-\$\{reportTheme\.id\}`"/, '主题类挂在导出根节点上')
+})
+
+test('今日获取资源：可以删到一项不剩，导出时整块隐藏', () => {  const sheet = read('src/components/ReportSheet.vue')
+  // 删除按钮不再有「至少保留一项」的门槛
+  assert.match(
+    sheet,
+    /class="rp-row-del rp-no-export" @click="resources\.splice\(i, 1\)"/,
+    '每行都能删',
+  )
+  assert.equal(
+    /@click="resources\.splice\(i, 1\)"[^>]*v-if="resources\.length > 1"/.test(sheet),
+    false,
+    '不再限制「至少留一项」',
+  )
+  // 资源卡片有独立类名，导出时按「有没有资源项」决定整块显隐
+  assert.match(sheet, /<div class="rp-card rp-res-card">/, '资源卡片带 rp-res-card 类')
+  assert.match(
+    sheet,
+    /if \(!resources\.length\) \{\s*const card = wrapRef\.value\.querySelector\('\.rp-res-card'\)/,
+    '导出前检查资源项数量',
+  )
+  const hideBlock = sheet.slice(sheet.indexOf('if (!resources.length)'))
+  assert.match(hideBlock.slice(0, 260), /card\.style\.display = 'none'/, '没有资源项时整块不导出')
+  assert.match(hideBlock.slice(0, 260), /wasHidden: true/, '导出后恢复显示（屏幕上仍可添加资源）')
+})
+
+test('每套汇报主题标明明暗倾向，选择器里显示「浅 / 暗」', () => {
+  for (const t of REPORT_THEMES) {
+    assert.ok(t.tone === 'light' || t.tone === 'dark', `${t.id} 需要 tone（light / dark）`)
+  }
+  const dark = REPORT_THEMES.filter(t => t.tone === 'dark').map(t => t.id)
+  assert.deepEqual(dark, ['ls-terminal', 'p3r-night', 'ef-nightshift', 'ef-terminal', 'swiss-index', 'swiss-inverse', 'st-inverse'], '七套暗色主题（含风格派的反白）')
+
+  const sheet = read('src/components/ReportSheet.vue')
+  // 卡片名后面带一个小标签，暗色主题用强调色描边
+  assert.match(sheet, /class="rp-opt-tone"[^>]*:class="`tone-\$\{t\.tone\}`"/, '主题卡标出浅/暗')
+  assert.match(sheet, /t\.tone === 'dark' \? '暗' : '浅'/, '文案是「暗 / 浅」')
+  assert.match(sheet, /\.rp-opt-tone\.tone-dark/, '暗色标签有独立样式')
+  // 分区下面有一句说明
+  assert.match(sheet, /class="rp-look-tip"/, '弹窗里有一句明暗说明')
+  // 缩略图底色跟随主题明暗：暗色主题的缩略图是深底
+  assert.match(sheet, /--rt-canvas: #ffffff/, '浅色主题的画布底色变量')
+  assert.match(sheet, /--rt-canvas: #191919/, '夜班的缩略图是石墨底')
+  assert.match(sheet, /--rt-canvas: #111111/, '索引版式的缩略图是墨底')
+  assert.match(sheet, /background: var\(--rt-canvas/, '缩略图用主题的画布底色')
 })

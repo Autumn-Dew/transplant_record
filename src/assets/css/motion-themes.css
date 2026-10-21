@@ -1,0 +1,343 @@
+/* ══════════════════════════════════════════════════════════════════
+   主题动效方案 —— 每套主题一套动效性格
+
+   依据 onetake skill 的三条基础曲线（tokens.json → motion）：
+     snap   cubic-bezier(0.16, 1, 0.3, 1)  到位快、几乎不过冲（t80 ≈ .23）
+     mech   cubic-bezier(0.7, 0, 0.2, 1)   起步慢、停得硬（机械）
+     ease   cubic-bezier(0.2, 0.7, 0.1, 1) 平直过渡（颜色 / 擦入）
+   以及它的两条节奏规则：
+     · 时长三档：回应操作 100–400ms，一次入场 ≤ 650ms，离场约为入场的 0.6–0.7
+     · 同类元素依次进入的间隔只用固定步长（行 38ms / 段 45ms）
+
+   ── 三套性格，六套主题 ──
+     孤星（档案 / 终端）  仪表：纵向、分段、轻微过冲 —— 机械但克制
+     P3R（白昼 / 深夜）   海报：snap 快到位、斜切擦入 —— 横向、干脆
+     终末地（白皮书 / 夜班）工作台：最短最硬、擦入无过冲 —— calm 入场
+
+   ⚠ 只动画 transform / opacity / clip-path（不触发布局）。
+     时长一律 < 300ms（页面级入场卡在 240–300ms，属「防止内容突变」的合理上限）。
+     prefers-reduced-motion 下：位移与擦入关掉，颜色与淡入保留（变轻，不是变零）。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+   一、孤星 · 档案 / 终端 —— 仪表
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-lone-star-light, .theme-lone-star-dark) {
+  --mv-tick: 0.14s;
+  --mv-module: 0.22s;
+  --mv-stage: 0.30s;
+  --mv-settle: 0.30s;
+  --mv-ease-frame: cubic-bezier(0.2, 0, 0, 1);
+  --mv-ease-mech: cubic-bezier(0.34, 1.16, 0.64, 1);
+  --mv-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --mv-stagger: 26ms;
+  --motion-duration-fast: 0.15s;
+  --motion-duration-normal: 0.2s;
+  --motion-easing-spring: cubic-bezier(0.34, 1.16, 0.64, 1);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   二、P3R · 白昼 / 深夜 —— 海报
+   snap 曲线让东西「啪」地到位；页面用斜切擦开，行进方向从右。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-p3r-light, .theme-p3r-dark) {
+  --mv-tick: 0.13s;
+  --mv-module: 0.20s;
+  --mv-stage: 0.28s;
+  --mv-settle: 0.28s;
+  --mv-ease-frame: cubic-bezier(0.16, 1, 0.3, 1);
+  --mv-ease-mech: cubic-bezier(0.16, 1, 0.3, 1);
+  --mv-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --mv-stagger: 45ms;
+  --motion-duration-fast: 0.12s;
+  --motion-duration-normal: 0.18s;
+  --motion-easing-spring: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 斜切擦开：从上边缘斜着扫下来（clip-path 只裁，不改布局） */
+@keyframes p3r-slash-open {
+  0%   { opacity: 0; clip-path: polygon(0 0, 100% 0, 100% 0, 0 26%); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered {
+  animation: p3r-slash-open var(--mv-stage) var(--mv-ease-frame);
+}
+/* 页面转场：进入用斜切，离开仍是短淡出（离场 ≈ 入场 0.6） */
+:is(.theme-p3r-light, .theme-p3r-dark) .mv-page-doc-enter-from {
+  opacity: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 0, 0 26%);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .mv-page-list-enter-from {
+  opacity: 0;
+  transform: translateX(14px);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .mv-page-list-enter-active {
+  transition: opacity var(--mv-stage) var(--mv-ease-frame),
+              transform var(--mv-stage) var(--mv-ease-frame);
+}
+/* 列表行：从右滑入（横向是海报的方向） */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item {
+  transform: translateX(18px);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered .song-item {
+  transform: translateX(0);
+}
+/* 列表增删：从左收，进入从右来 */
+:is(.theme-p3r-light, .theme-p3r-dark) .mv-list-enter-from {
+  opacity: 0;
+  transform: translateX(18px);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .mv-list-leave-to {
+  opacity: 0;
+  transform: translateX(-14px) scaleY(0.94);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   三、终末地 · 白皮书 / 夜班 —— 工作台
+   最短最硬：擦入、无过冲、行间隔 38ms。整天盯屏的工具，
+   入场去掉华丽的扫开（calm），只留一次自左向右的硬擦。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-endfield-light, .theme-endfield-dark) {
+  --mv-tick: 0.10s;
+  --mv-module: 0.18s;
+  --mv-stage: 0.24s;
+  --mv-settle: 0.26s;
+  --mv-ease-frame: cubic-bezier(0.7, 0, 0.2, 1);
+  --mv-ease-mech: cubic-bezier(0.7, 0, 0.2, 1);
+  --mv-ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --mv-stagger: 38ms;
+  --motion-duration-fast: 0.1s;
+  --motion-duration-normal: 0.14s;
+  --motion-easing-spring: cubic-bezier(0.7, 0, 0.2, 1);
+}
+
+/* 硬擦：自左向右擦开（不是淡入、不是位移） */
+@keyframes ef-wipe-in {
+  0%   { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered {
+  animation: ef-wipe-in var(--mv-stage) var(--mv-ease-frame);
+}
+/* 页面转场：进入擦开，离开直接收（离场 ≈ 入场的 0.6） */
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-page-list-enter-from,
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-page-form-enter-from,
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-page-doc-enter-from {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 100% 0 0);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-page-list-enter-active,
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-page-form-enter-active,
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-page-doc-enter-active {
+  transition: clip-path var(--mv-stage) var(--mv-ease-frame);
+}
+/* 列表行：从左擦入，短位移、无过冲 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item {
+  transform: translateX(-8px);
+  transition-duration: var(--mv-tick);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item {
+  transform: translateX(0);
+}
+/* 同类元素依次进入：只用固定步长 38ms（onetake：max 8 项后不再累加） */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item:nth-child(1) { transition-delay: 0ms; }
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item:nth-child(2) { transition-delay: 38ms; }
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item:nth-child(3) { transition-delay: 76ms; }
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item:nth-child(4) { transition-delay: 114ms; }
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item:nth-child(5) { transition-delay: 152ms; }
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered .song-item:nth-child(n+6) { transition-delay: 190ms; }
+/* 列表增删：进出都是同一条擦入 / 收起 */
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-list-enter-from {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 100% 0 0);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-list-leave-to {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 0 0 100%);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-list-enter-active {
+  transition: clip-path var(--mv-module) var(--mv-ease-frame);
+}
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-list-leave-active {
+  transition: clip-path var(--mv-tick) var(--mv-ease-frame);
+}
+/* 导航指示条：直接落位，不做弹性（工作台不讲花活） */
+:is(.theme-endfield-light, .theme-endfield-dark) .mv-nav-indicator {
+  transition: transform var(--mv-module) var(--mv-ease-frame);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   四、瑞士 · 纸面 / 墨底 —— 排版机
+   这套风格本来就不靠动效讲事：最短、直线、无过冲；入场是「上边缘的线
+   往下展开」，像字落在版面上。行不位移，只换不透明度。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-swiss-light, .theme-swiss-dark) {
+  --mv-tick: 0.10s;
+  --mv-module: 0.16s;
+  --mv-stage: 0.22s;
+  --mv-settle: 0.22s;
+  --mv-ease-frame: cubic-bezier(0.2, 0, 0.1, 1);
+  --mv-ease-mech: cubic-bezier(0.2, 0, 0.1, 1);
+  --mv-ease-settle: cubic-bezier(0.2, 0, 0.1, 1);
+  --mv-stagger: 22ms;
+  --motion-duration-fast: 0.1s;
+  --motion-duration-normal: 0.14s;
+  --motion-easing-spring: cubic-bezier(0.2, 0, 0.1, 1);
+}
+
+/* 版面落定：从上边缘往下展开（只裁不变形） */
+@keyframes ch-rule-open {
+  0%   { opacity: 0; clip-path: inset(0 0 100% 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music.entered {
+  animation: ch-rule-open var(--mv-stage) var(--mv-ease-frame);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-page-doc-enter-from,
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-page-list-enter-from,
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-page-form-enter-from {
+  opacity: 0;
+  transform: none;
+  clip-path: inset(0 0 100% 0);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-page-doc-enter-active,
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-page-list-enter-active,
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-page-form-enter-active {
+  transition: opacity var(--mv-stage) var(--mv-ease-frame),
+              clip-path var(--mv-stage) var(--mv-ease-frame);
+}
+/* 行不位移：这套风格里位移会破坏网格的秩序感 */
+:is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item {
+  transform: none;
+  transition: opacity var(--mv-tick) var(--mv-ease-frame);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-list-enter-from,
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-list-leave-to {
+  opacity: 0;
+  transform: none;
+  clip-path: none;
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-list-enter-active,
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-list-leave-active {
+  transition: opacity var(--mv-module) var(--mv-ease-frame);
+}
+:is(.theme-swiss-light, .theme-swiss-dark) .mv-nav-indicator {
+  transition: transform var(--mv-module) var(--mv-ease-frame);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   五、风格派 · 米白 / 反白 —— 排版机
+   动效只走横竖：黑线从上边缘「切」进画面，色块像刷子一样从左刷满。
+   不弹跳、不旋转、不过冲；行不位移，只横向擦入。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-stijl-light, .theme-stijl-dark) {
+  --mv-tick: 0.10s;
+  --mv-module: 0.16s;
+  --mv-stage: 0.22s;
+  --mv-settle: 0.22s;
+  --mv-ease-frame: cubic-bezier(0.2, 0, 0.1, 1);
+  --mv-ease-mech: cubic-bezier(0.2, 0, 0.1, 1);
+  --mv-ease-settle: cubic-bezier(0.2, 0, 0.1, 1);
+  --mv-stagger: 24ms;
+  --motion-duration-fast: 0.1s;
+  --motion-duration-normal: 0.14s;
+  --motion-easing-spring: cubic-bezier(0.2, 0, 0.1, 1);
+}
+
+/* 黑线切进：自上而下（只有竖直方向的擦入，没有缩放） */
+@keyframes st-line-cut {
+  0%   { opacity: 1; clip-path: inset(0 0 100% 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered {
+  animation: st-line-cut var(--mv-stage) var(--mv-ease-frame);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-page-doc-enter-from,
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-page-list-enter-from,
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-page-form-enter-from {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 0 100% 0);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-page-doc-enter-active,
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-page-list-enter-active,
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-page-form-enter-active {
+  transition: clip-path var(--mv-stage) var(--mv-ease-frame);
+}
+/* 行：像刷子从左刷满（横向擦入，没有位移与弹跳） */
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item {
+  transform: none;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--mv-tick) var(--mv-ease-frame);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered .song-item {
+  clip-path: inset(0 0 0 0);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered .song-item:nth-child(1) { transition-delay: 0ms; }
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered .song-item:nth-child(2) { transition-delay: 24ms; }
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered .song-item:nth-child(3) { transition-delay: 48ms; }
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered .song-item:nth-child(4) { transition-delay: 72ms; }
+:is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered .song-item:nth-child(n+5) { transition-delay: 96ms; }
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-list-enter-from {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 100% 0 0);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-list-leave-to {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 0 0 100%);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-list-enter-active {
+  transition: clip-path var(--mv-module) var(--mv-ease-frame);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-list-leave-active {
+  transition: clip-path var(--mv-tick) var(--mv-ease-frame);
+}
+:is(.theme-stijl-light, .theme-stijl-dark) .mv-nav-indicator {
+  transition: transform var(--mv-module) var(--mv-ease-frame);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   六、减少动态效果：五套性格一起关掉
+   ══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  /* 变轻 → 不是变零：时长压到 150ms，保留淡入与颜色变化，只去掉位移与擦开 */
+  :is(.theme-lone-star-light, .theme-lone-star-dark),
+  :is(.theme-p3r-light, .theme-p3r-dark),
+  :is(.theme-endfield-light, .theme-endfield-dark),
+  :is(.theme-swiss-light, .theme-swiss-dark),
+  :is(.theme-stijl-light, .theme-stijl-dark) {
+    --mv-tick: 0.1s;
+    --mv-module: 0.15s;
+    --mv-stage: 0.15s;
+    --mv-settle: 0.15s;
+  }
+  /* 主题入场动画（斜切 / 擦入 / 展开 / 切进）取消，页面靠淡入出现 */
+  :is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered,
+  :is(.theme-endfield-light, .theme-endfield-dark) .local-music.entered,
+  :is(.theme-swiss-light, .theme-swiss-dark) .local-music.entered,
+  :is(.theme-stijl-light, .theme-stijl-dark) .local-music.entered {
+    animation: none !important;
+  }
+  /* 行与页面的位移 / 擦入一律改回静止（保留 opacity 过渡） */
+  :is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item,
+  :is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item,
+  :is(.theme-swiss-light, .theme-swiss-dark) .local-music .song-item,
+  :is(.theme-stijl-light, .theme-stijl-dark) .local-music .song-item {
+    transform: none !important;
+    clip-path: none !important;
+    transition-delay: 0ms !important;
+  }
+  .mv-page-list-enter-from,
+  .mv-page-form-enter-from { transform: none !important; }
+  .mv-page-doc-enter-from { clip-path: none !important; opacity: 0 !important; }
+}

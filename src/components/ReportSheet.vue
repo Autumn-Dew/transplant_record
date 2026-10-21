@@ -200,7 +200,7 @@
         </div>
 
         <!-- 今日获取资源 -->
-        <div class="rp-card">
+        <div class="rp-card rp-res-card">
           <div class="rp-card-head">今日获取资源</div>
           <div class="rp-card-body">
             <!-- 已停用预选项：今日获取资源 -->
@@ -233,7 +233,7 @@
                 <span class="rp-arrow">→</span>
                 <input v-model="r.after" class="rp-inp rp-res-inp" placeholder="变更后" />
                 <input v-model="r.note" class="rp-inp rp-extra" placeholder="备注" />
-                <button class="rp-row-del rp-no-export" @click="resources.splice(i, 1)" v-if="resources.length > 1">×</button>
+                <button class="rp-row-del rp-no-export" @click="resources.splice(i, 1)" title="删除这一项（可以删到一项都不剩，导出时整块隐藏）">×</button>
               </div>
               <button class="rp-add-row rp-no-export" @click="resources.push({ label: '', before: '', after: '', note: '' })">+ 添加资源</button>
             </div>
@@ -327,6 +327,7 @@
 
         <div class="detail-grid">
           <p class="detail-section">内容主题 · 决定标题行 / 卡片 / 信息栏的样式</p>
+          <p class="rp-look-tip">「浅」= 深色字配浅底；「暗」= 浅墨字，建议配深色画布背景。</p>
           <div class="rp-look-wrap">
             <div v-for="g in REPORT_THEME_GROUPS" :key="g.id" class="rp-look-group">
               <div class="rp-look-group-label">{{ g.label }}</div>
@@ -348,8 +349,10 @@
                       <span class="rtt-body"></span>
                     </span>
                   </span>
-                  <span class="rp-opt-name">{{ t.label }}</span>
-                  <span class="rp-opt-hint">{{ t.hint }}</span>
+                  <span class="rp-opt-row">
+                    <span class="rp-opt-name">{{ t.label }}</span>
+                    <span class="rp-opt-tone" :class="`tone-${t.tone}`" :title="t.tone === 'dark' ? '暗色主题：浅墨文字，建议配深色背景' : '浅色主题：深色字配浅底'">{{ t.tone === 'dark' ? '暗' : '浅' }}</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -369,7 +372,10 @@
                   @click="setReportBg(b.id)"
                 >
                   <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
-                  <span class="rp-opt-name">{{ b.label }}</span>
+                  <span class="rp-opt-row">
+                    <span class="rp-opt-name">{{ b.label }}</span>
+                    <span class="rp-opt-tone" :class="`tone-${bgTone(b)}`" :title="bgTone(b) === 'dark' ? '深色画布：配「暗」主题不会出现浅墨字压在浅底上' : '浅色画布'">{{ bgTone(b) === 'dark' ? '深' : '浅' }}</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -387,10 +393,10 @@ import SelectBox from '@/components/SelectBox.vue'
 import { maskAccount, getDisplayName } from '@/composables/useMask'
 import { fmtDate as toDateStr, addMonth, isYmd } from '@/utils/date'
 import { completeTaskById, localToday } from '@/utils/taskComplete'
-import { hostProgress, isHosting } from '@/domain/project.js'
+import { hostProgress, isHosting, isClosed } from '@/domain/project.js'
 import { projectsRepo } from '@/data/repos.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
-import { REPORT_BG_GROUPS, readReportBg, writeReportBg, findReportBg } from '@/data/report-backgrounds.js'
+import { REPORT_BG_GROUPS, readReportBg, writeReportBg, findReportBg, bgTone } from '@/data/report-backgrounds.js'
 import { REPORT_THEME_GROUPS, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 
@@ -478,29 +484,52 @@ watch(dateFrom, (val) => {
 watch(dateTo, () => { calcDays() }, { immediate: true })
 
 // ── 托管项目选择（SelectBox + 脱敏）──
-const hostingTasks = ref(loadHostingTasks())
+// 托管项目列表直接跟着仓库走（computed，而不是 setup 时的一次性快照）：
+// 在「代肝代办」删掉的项目必须立刻从这里消失，否则会留下一条谁都删不掉的幽灵托管。
+// todayRef 只负责「跨天」这件事：切回本页时刷新一次，昨天已确认的项目今天会重新出现。
+const todayRef = ref(localToday())
+const hostingTasks = computed(() => loadHostingTasks(todayRef.value))
 const selectedTaskId = ref('')
-function loadHostingTasks() {
-  // 仅列出「当前生效」的托管：排除提前续费(locked)与「今日已确认」的项目
-  // 统一经 Repository 读取（不再直接读 localStorage）
-  const today = localToday()
-  return projectsRepo.state.value.filter(r => isHosting(r) && !r.locked && r.lastConfirmDate !== today)
+function loadHostingTasks(today = localToday()) {
+  // 只列「当前生效、且能操作」的托管：与「代肝代办」口径一致 ——
+  // 已结束（status 0）/ 已归档 / 已取消 / 提前续费(locked) / 今日已确认 的一律不出现，
+  // 否则日报下拉里会留下一条在代办页根本看不到、也点不动的记录。
+  return projectsRepo.state.value.filter(r => (
+    isHosting(r) &&
+    r.status !== 0 &&
+    !isClosed(r) &&
+    !r.locked &&
+    r.lastConfirmDate !== today
+  ))
 }
-// 项目选择按游戏排序（终末地优先）
-const GAME_ORDER = ['终末地', '明日方舟', '异环']
+// 游戏映射：库里的 game 既可能存名字（终末地），也可能存 id（endfield）——
+// 两种都要认，否则真实数据里「选中项目后游戏页不切换 → 任务与资源不跟着变」。
+const GAME_NAME_TO_KEY = { '终末地': 'endfield', '明日方舟': 'ak', '异环': 'nte' }
+const GAME_KEY_TO_NAME = { endfield: '终末地', ak: '明日方舟', nte: '异环' }
+const GAME_ORDER = ['endfield', 'ak', 'nte']
+function gameKeyOfRecord(t) {
+  const g = String((t && t.game) || '').trim()
+  if (GAME_NAME_TO_KEY[g]) return GAME_NAME_TO_KEY[g]
+  if (GAME_KEY_TO_NAME[g]) return g
+  return 'endfield'
+}
+function gameNameOfRecord(t) {
+  return GAME_KEY_TO_NAME[gameKeyOfRecord(t)] || String((t && t.game) || '终末地')
+}
+
 const hostingOptions = computed(() => {
-  const rank = (g) => { const i = GAME_ORDER.indexOf(g || '终末地'); return i < 0 ? 999 : i }
+  const rank = (t) => { const i = GAME_ORDER.indexOf(gameKeyOfRecord(t)); return i < 0 ? 999 : i }
   return [...hostingTasks.value]
-    .sort((a, b) => rank(a.game) - rank(b.game))
+    .sort((a, b) => rank(a) - rank(b))
     .map(t => {
       const name = getDisplayName(t) || maskAccount(t.account) || '未命名'
       const acct = maskAccount(t.account) || '—'
-      const game = t.game || '终末地'
+      const game = gameNameOfRecord(t)
       // 剩余天数跟随托管进度（含首尾、暂停顺延），旧 remainingDays 仅作兜底
-  const hp = (t.status === 2 || t.hosting) ? hostProgress(t) : null
-  const days = hp
-    ? Math.max(0, hp.totalDays - hp.dayIndex + 1)
-    : ((t.remainingDays != null && t.remainingDays !== '') ? t.remainingDays : '—')
+      const hp = (t.status === 2 || t.hosting) ? hostProgress(t) : null
+      const days = hp
+        ? Math.max(0, hp.totalDays - hp.dayIndex + 1)
+        : ((t.remainingDays != null && t.remainingDays !== '') ? t.remainingDays : '—')
       return { value: t.id, label: `${game} | ${name} | ${acct} | 剩余${days}天` }
     })
 })
@@ -509,6 +538,15 @@ const hostingOptions = computed(() => {
 watch(selectedTaskId, (id) => {
   const t = hostingTasks.value.find(r => String(r.id) === String(id))
   emit('update:label', t ? (getDisplayName(t) || maskAccount(t.account) || '') : '')
+})
+
+// 选中的托管被删除（或不再生效）时清空选择：
+// 否则工具栏会停在一条已经不存在的项目上，按钮怎么点都没反应。
+watch(hostingOptions, (opts) => {
+  if (!selectedTaskId.value) return
+  if (opts.some(o => String(o.value) === String(selectedTaskId.value))) return
+  selectedTaskId.value = ''
+  emit('update:label', '')
 })
 
 // ── 确认完成（同代肝代办）──
@@ -555,9 +593,8 @@ function applyTask() {
   if (!selectedTaskId.value) return
   const t = hostingTasks.value.find(r => String(r.id) === String(selectedTaskId.value))
   if (!t) return
-  // 自动切换到该项目对应的游戏页
-  const GAME_MAP = { '终末地': 'endfield', '明日方舟': 'ak', '异环': 'nte' }
-  const g = GAME_MAP[t.game]
+  // 自动切换到该项目对应的游戏页（game 可能存 id 也可能存名字，统一成 key 再比）
+  const g = gameKeyOfRecord(t)
   if (g && g !== reportGame.value) switchGame(g)
   // 日期：同步为托管项目的**真实起止**（含首尾天数）。
   // 托管超过一个月时不再截到一个月的近似值 —— 天数与日期区间都按项目实际情况同步，
@@ -569,15 +606,15 @@ function applyTask() {
   dateFrom.value = startStr
   dateTo.value = endStr
   calcDays()
-  // 回填：按 label 把上次保存的「变更后」填入「变更前」
-  // 放到 nextTick：等 watch(reportGame) 先把 resources 重置为新游戏的默认项后再回填
+  // 资源：按**该项目所属游戏**重建资源项，并回填该项目上次记录的「变更后」数值。
+  // 不做这一步的话：同游戏换项目时 reportGame 没变化 → watch 不触发 → 资源还停在上一个项目。
+  const roll = loadRoll()[selectedTaskId.value] || {}
+  resetResourcesForGame(g, roll)
   nextTick(() => {
     programmaticDate = false
-    const roll = loadRoll()[selectedTaskId.value]
-    if (!roll) return
-    resources.forEach(r => {
-      if (r.label && roll[r.label] !== undefined) r.before = roll[r.label]
-    })
+    // switchGame 会触发 watch(reportGame) 在本轮 flush 里重建一次资源项，
+    // 这里按同一份 roll 再建一次，保证「选中项目 → 资源数据填入」不会被覆盖掉。
+    resetResourcesForGame(g, roll)
   })
 }
 let programmaticDate = false
@@ -635,16 +672,53 @@ function commitRoll() {
   saveRoll(roll)
 }
 
-watch(reportGame, (game) => {
+// ── 今日获取资源：默认项按游戏重建，并回填该项目上次记录的「变更后」 ──
+function defaultResourceLabels(game) {
+  if (game === 'endfield') return ['嵌晶玉', '武库配额']
+  if (game === 'nte') return ['方斯', '环石']
+  return ['龙门币', '合成玉']
+}
+function resetResourcesForGame(game, roll = {}) {
   resources.splice(0, resources.length)
-  if (game === 'endfield') {
-    resources.push({ label: '嵌晶玉', before: '', after: '', note: '' }, { label: '武库配额', before: '', after: '', note: '' })
-  } else if (game === 'nte') {
-    resources.push({ label: '方斯', before: '', after: '', note: '' }, { label: '环石', before: '', after: '', note: '' })
-  } else {
-    resources.push({ label: '龙门币', before: '', after: '', note: '' }, { label: '合成玉', before: '', after: '', note: '' })
-  }
+  defaultResourceLabels(game).forEach(label => {
+    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '', note: '' })
+  })
+  // 上次用过的自定义资源也补回来（换项目 / 换游戏后自己加的那几行不该消失）
+  Object.keys(roll || {}).forEach(label => {
+    if (!label) return
+    if (resources.some(r => r.label === label)) return
+    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '', note: '' })
+  })
+}
+
+// 切换游戏页时按该游戏重建资源项；若当前已选中项目，顺带回填它上次记的数值
+watch(reportGame, (game) => {
+  const roll = selectedTaskId.value ? (loadRoll()[selectedTaskId.value] || {}) : {}
+  resetResourcesForGame(game, roll)
 })
+
+// ── 资源数值即时记忆（300ms 防抖）──
+// 以前只有「导出图片 / 复制到剪贴板」成功后才写 tr-report-roll：
+// 用「分享」导出、或者忘了导出，下次选中同一项目就没有数据可回填。
+// 现在填完就记，「变更后」优先、没有变更后就记住「变更前」，选中项目即可自动带出。
+let rollTimer = null
+watch(resources, () => {
+  if (!selectedTaskId.value) return
+  if (rollTimer) clearTimeout(rollTimer)
+  rollTimer = setTimeout(() => {
+    rollTimer = null
+    const id = selectedTaskId.value
+    if (!id) return
+    const roll = loadRoll()
+    const entry = roll[id] || {}
+    resources.forEach(r => {
+      const v = (r.after !== '' && r.after != null) ? r.after : r.before
+      if (r.label && v !== '' && v != null) entry[r.label] = v
+    })
+    roll[id] = entry
+    saveRoll(roll)
+  }, 300)
+}, { deep: true })
 
 const quickPlans = ['刷1-7搓玉', '刷红票本', '刷芯片本', '刷技能书本', '刷龙门币本', '打活动EX关', '打剿灭作战', '推主线']
 const quickMats = [
@@ -798,6 +872,31 @@ function restoreEmpty() {
   if (planEl && planEl.textContent.trim() === '无') planEl.innerHTML = '<div></div>'
 }
 
+// 导出时原生控件会被替换成 span —— html2canvas 不会按浏览器的方式绘制控件文字。
+// ⚠ 替代元素必须沿用原控件的**计算样式**（文字色 / 底色 / 边框色 / 字体）。
+//   如果写死「白底 + 继承父级颜色」，深色信息栏主题（科研档案 / 工业仪器 /
+//   斜切海报 / 都市拼贴）里输入框本是「浅底深字」，导出后会变成白底 + 父级的
+//   浅色文字，托管天数 / 日期几乎与底色同色，导出图里读不出来。
+function fieldStyle(el, extra) {
+  const cs = getComputedStyle(el)
+  const bg = cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)'
+    ? cs.backgroundColor
+    : 'transparent'
+  return [
+    'display:inline-block',
+    'vertical-align:middle',
+    `font-family:${cs.fontFamily}`,
+    `font-size:${cs.fontSize}`,
+    `font-weight:${cs.fontWeight}`,
+    `font-style:${cs.fontStyle}`,
+    'line-height:1.4',
+    `color:${cs.color}`,
+    `background:${bg}`,
+    `border:1px solid ${cs.borderTopColor}`,
+    'padding:2px 6px',
+  ].join(';') + ';' + extra
+}
+
 function prepareExport() {
   fillEmpty()
   const swaps = []
@@ -823,10 +922,15 @@ function prepareExport() {
     const card = planRef.value.closest('.rp-card')
     if (card) { card.style.display = 'none'; swaps.push({ parent: card.parentNode, old: card, current: card, wasHidden: true }) }
   }
+  // 「今日获取资源」一项都不剩时，整块（连标题）不导出
+  if (!resources.length) {
+    const card = wrapRef.value.querySelector('.rp-res-card')
+    if (card) { card.style.display = 'none'; swaps.push({ parent: card.parentNode, old: card, current: card, wasHidden: true }) }
+  }
   wrapRef.value.querySelectorAll('select').forEach(sel => {
     const span = document.createElement('span')
     span.textContent = sel.options[sel.selectedIndex]?.text || ''
-    span.style.cssText = 'display:inline-block;font-size:12px;font-family:inherit;padding:2px 6px;border:1px solid rgba(0,0,0,0.12);background:#fff;'
+    span.style.cssText = fieldStyle(sel, '')
     sel.parentNode.replaceChild(span, sel)
     swaps.push({ parent: span.parentNode, old: sel, current: span })
   })
@@ -840,7 +944,7 @@ function prepareExport() {
     if (inp.classList.contains('rp-extra')) extra += 'width:70px;'
     if (inp.classList.contains('rp-date-sm')) extra += 'width:115px;'
     if (inp.classList.contains('rp-label-inp')) extra += 'width:90px;'
-    span.style.cssText = `display:inline-block;font-size:12px;font-family:inherit;padding:2px 6px;border:1px solid rgba(0,0,0,0.12);line-height:1.4;vertical-align:middle;background:#fff;${extra}`
+    span.style.cssText = fieldStyle(inp, extra)
     inp.parentNode.replaceChild(span, inp)
     swaps.push({ parent: span.parentNode, old: inp, current: span })
   })
@@ -886,6 +990,7 @@ async function exportImage(toClipboard) {
 async function shareImage() {
   if (!wrapRef.value) return
   const undo = prepareExport()
+  let ok = false
   try {
     const canvas = await renderImage()
     const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
@@ -897,15 +1002,17 @@ async function shareImage() {
       const a = document.createElement('a'); a.href = url; a.download = '每日汇报.png'; a.click()
       URL.revokeObjectURL(url)
     }
-  } catch (e) { console.error(e) } finally { undo() }
+    ok = true
+  } catch (e) { console.error(e) } finally {
+    undo()
+    // 分享导出也要落一次资源记录（以前只有「导出图片 / 复制到剪贴板」会写）
+    if (ok) commitRoll()
+  }
 }
 
-onMounted(() => {
-  hostingTasks.value = loadHostingTasks()
-})
-
-// 本页常驻（v-show），需要时可被父级触发重新拉取当前生效的托管项目
-function refreshHosting() { hostingTasks.value = loadHostingTasks() }
+// 托管项目列表是 computed，删掉项目后这里会自动更新；refreshHosting 只刷新「今天」，
+// 让跨天后昨天已确认的项目重新回到列表里（ReportPage 切回本页时会调用）。
+function refreshHosting() { todayRef.value = localToday() }
 defineExpose({ refreshHosting })
 </script>
 
@@ -913,35 +1020,46 @@ defineExpose({ refreshHosting })
 .rp-sheet { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-primary); color: var(--text-primary); }
 .rp-sheet .rp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
-.rp-hint { font-size: 11px; opacity: 0.4; font-family: monospace; }
+.rp-hint { font-size: 11px; opacity: 0.4; font-family: var(--font-mono); }
 
 /* ── 汇报外观：工具栏按钮 + 侧边弹窗（版式与项目详情窗口一致） ── */
 .rp-look-btn { display: inline-flex; flex-shrink: 0; }
-/* 弹窗：高度随内容、不出现滚动条，也不放关闭按钮 —— 点遮罩即可关闭 */
+/* 弹窗：高度随内容，内容超出时可滑动，但不显示滚动条 —— 点遮罩即可关闭 */
 .modal-mask .edit-popup.rp-look {
   height: auto;
   max-height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* 滚动条一律隐藏（Chromium 那条 !important 来自 page-common 的通用弹窗规则） */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding-bottom: 16px;
 }
+.modal-mask .edit-popup.rp-look::-webkit-scrollbar { display: none !important; width: 0 !important; }
 /* detail-grid 是两列展布，外观区要整行铺开 */
-.rp-look-wrap { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; }
-/* 分组横排：组名在左、卡片在右，省纵向空间（一屏放得下四组主题 + 四组背景） */
-.rp-look-group { display: flex; align-items: flex-start; gap: 10px; }
-.rp-look-group-label {
-  width: 52px; flex-shrink: 0; padding-top: 8px;
-  font-size: 10px; font-family: monospace; letter-spacing: 1.2px; opacity: 0.55;
+.rp-look-wrap { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0; }
+/* 分组横排：组名在左、卡片在右；组与组之间一条细线，读起来是「分组清单」 */
+.rp-look-group {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 2px 0 4px;
+  border-bottom: 1px solid var(--rule-soft, rgba(0, 0, 0, 0.12));
 }
-.rp-look-row { flex: 1; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
-/* 一行三张，单张只占 1/3 宽（「经典」组只有一张时不会拉满整行） */
+.rp-look-group:last-child { border-bottom: none; padding-bottom: 0; }
+.rp-look-group-label {
+  width: 44px; flex-shrink: 0; padding-top: 6px;
+  font-size: 10px; font-family: var(--font-mono); letter-spacing: 1.2px; opacity: 0.55;
+}
+.rp-look-row { flex: 1; min-width: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+/* 一行四张：十二套主题 / 十三套背景都能在两屏内看完（说明文字在 title 提示里） */
 .rp-look-row > .rp-theme-card,
-.rp-look-row > .rp-bg-card { flex: 0 0 calc((100% - 16px) / 3); min-width: 0; }
+.rp-look-row > .rp-bg-card { flex: 0 0 calc((100% - 18px) / 4); min-width: 0; }
 /* 弹窗里的分区标题收紧一点，保证整屏可见 */
-.rp-look .detail-section { padding: 10px 0 3px; }
+.rp-look .detail-section { padding: 8px 0 3px; }
 /* ── 主题卡：缩略图由主题变量渲染，能看出标题带 / 信息栏 / 卡片头的实际外观 ── */
 .rp-theme-card {
-  display: flex; flex-direction: column; gap: 3px;
-  padding: 4px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 3px;
   border: 2px solid transparent; background: none; cursor: pointer;
   transition: border-color var(--motion-duration-fast, 120ms) ease;
   text-align: left;
@@ -950,9 +1068,10 @@ defineExpose({ refreshHosting })
 .rp-theme-card.active { border-color: var(--accent); }
 .rp-theme-thumb {
   display: flex; flex-direction: column; gap: 2px;
-  width: 100%; height: 58px; padding: 3px;
+  width: 100%; height: 42px; padding: 3px;
   border: 1px solid var(--border-color);
-  background: #ffffff;                 /* 所有汇报主题都是浅色画布 */
+  /* 缩略图的底色跟随主题的明暗倾向（暗色主题是深底，一眼就能分辨） */
+  background: var(--rt-canvas, #ffffff);
   overflow: hidden;
 }
 .rp-theme-card.active .rp-theme-thumb { box-shadow: 0 0 0 1px var(--accent); }
@@ -963,34 +1082,57 @@ defineExpose({ refreshHosting })
 .rtt-body  { flex: 1; background: var(--rt-inp-bg); }
 /* ── 背景卡：缩略图直接用与画布相同的 background 值 ── */
 .rp-bg-card {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 4px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 3px;
   border: 2px solid transparent; background: none; cursor: pointer;
   transition: border-color var(--motion-duration-fast, 120ms) ease;
 }
 .rp-bg-card:hover { border-color: var(--border-color); }
 .rp-bg-card.active { border-color: var(--accent); }
 .rp-bg-thumb {
-  display: block; width: 100%; height: 52px;
+  display: block; width: 100%; height: 34px;
   border: 1px solid var(--border-color);
 }
 .rp-bg-card.active .rp-bg-thumb { box-shadow: 0 0 0 1px var(--accent); }
 .rp-opt-name {
-  font-size: 10px; font-family: monospace; text-align: left;
+  font-size: 10px; font-family: var(--font-mono); text-align: left;
   color: var(--text-primary); opacity: 0.85; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
-.rp-opt-hint {
-  font-size: 9px; font-family: monospace; text-align: left;
-  color: var(--text-primary); opacity: 0.45; line-height: 1.3;
+/* 名称 + 明暗标签同一行 */
+.rp-opt-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.rp-opt-row .rp-opt-name { flex: 1; min-width: 0; }
+/* 明暗标签：浅 = 中性描边，暗 = 强调色描边（暗色主题要配深色背景，需要被看见） */
+.rp-opt-tone {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  padding: 0 3px;
+  border: 1px solid currentColor;
+  color: var(--text-primary);
+  opacity: 0.45;
+}
+.rp-opt-tone.tone-dark {
+  color: var(--accent);
+  border-color: var(--accent);
+  opacity: 0.95;
+}
+/* 分区下面的一句说明 */
+.rp-look-tip {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  opacity: 0.5;
 }
 .rp-theme-card.active .rp-opt-name { opacity: 1; font-weight: 700; }
-.rp-bg-card .rp-opt-name { text-align: center; }
 .rp-bg-card.active .rp-opt-name { opacity: 1; font-weight: 700; }
 /* 控件右侧的项目备注 */
 .rp-note {
   max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 11px; font-family: monospace; opacity: 0.75;
+  font-size: 11px; font-family: var(--font-mono); opacity: 0.75;
   padding: 2px 8px; border: 1px solid var(--border-color); flex-shrink: 1;
 }
 .rp-body { padding: 12px 0; }
@@ -1000,6 +1142,8 @@ defineExpose({ refreshHosting })
    各 .rp-theme-<id> 只覆盖这些变量，再按需要加不占布局的装饰。 */
 .rp-wrap,
 .rp-theme-thumb {
+  /* 画布底色倾向：浅色主题白底、暗色主题深底（只给缩略图当底，不影响导出） */
+  --rt-canvas: #ffffff;
   --rt-ink: #0d0d0d;
   --rt-ink-dim: rgba(13, 13, 13, 0.42);
   --rt-title-fg: #0d0d0d;
@@ -1043,7 +1187,7 @@ defineExpose({ refreshHosting })
 .rp-game-tabs button:first-child { margin-left: 0; }
 .rp-game-tabs button.active { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); border-color: var(--rt-tab-on-bg); }
 .rp-author-box { display: flex; align-items: center; gap: 0; margin-left: 16px; }
-.rp-author-label { font-size: 10px; color: var(--rt-ink-dim); font-family: monospace; margin-right: 6px; }
+.rp-author-label { font-size: 10px; color: var(--rt-ink-dim); font-family: var(--font-mono); margin-right: 6px; }
 .rp-author-btn { font-size: 12px; padding: 4px 14px; border: 1px solid var(--rt-tab-edge); background: none; cursor: pointer; font-family: inherit; margin-left: -1px; color: var(--rt-tab-fg); }
 .rp-author-btn:first-child { margin-left: 0; }
 .rp-author-btn:hover { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); }
@@ -1053,7 +1197,7 @@ defineExpose({ refreshHosting })
 .rp-cards-row .rp-card { margin-bottom: 0; }
 .rp-half { flex: 1; min-width: 0; }
 .rp-card-head { padding: 8px 14px; background: var(--rt-head-bg); color: var(--rt-head-fg); border-bottom: 1px solid var(--rt-head-rule); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.rp-reset-sm { font-size: 10px; padding: 1px 8px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; font-family: monospace; font-weight: 400; margin-left: auto; color: var(--rt-head-fg); }
+.rp-reset-sm { font-size: 10px; padding: 1px 8px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; font-family: var(--font-mono); font-weight: 400; margin-left: auto; color: var(--rt-head-fg); }
 .rp-reset-sm:hover { background: var(--rt-btn-on-bg); color: var(--rt-btn-on-fg); }
 .rp-card-body { padding: 0; }
 .rp-meta { font-size: 13px; padding: 10px 14px; border: 1px solid var(--rt-meta-edge); margin-bottom: 12px; background: var(--rt-meta-bg); color: var(--rt-meta-fg); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; box-shadow: inset 5px 0 0 var(--rt-meta-bar); }
@@ -1076,14 +1220,14 @@ defineExpose({ refreshHosting })
 .rp-radio input:checked + .rp-radio-box::after { content: ''; width: 6px; height: 6px; background: var(--rt-radio); }
 .rp-radio:has(input:checked) { opacity: 1; font-weight: 600; color: var(--rt-radio-checked); }
 .rp-quick-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--rt-row-rule); }
-.rp-quick-label { font-size: 10px; color: var(--rt-ink-dim); font-family: monospace; margin-right: 2px; }
+.rp-quick-label { font-size: 10px; color: var(--rt-ink-dim); font-family: var(--font-mono); margin-right: 2px; }
 .rp-quick-group-label { display: block; width: 100%; margin-top: 4px; }
-.rp-quick-btn { font-size: 11px; padding: 2px 8px; border: 1px solid var(--rt-btn-edge); cursor: pointer; font-family: monospace; margin: 1px 2px; color: var(--rt-ink); background: none; }
+.rp-quick-btn { font-size: 11px; padding: 2px 8px; border: 1px solid var(--rt-btn-edge); cursor: pointer; font-family: var(--font-mono); margin: 1px 2px; color: var(--rt-ink); background: none; }
 .rp-quick-btn:hover { background: var(--rt-btn-on-bg); color: var(--rt-btn-on-fg); }
 .rp-lines { outline: none; font-size: 13px; line-height: 1.8; min-height: 24px; padding: 10px 14px; }
-.rp-add-row { font-size: 11px; padding: 3px 8px; margin: 6px 14px; border: 1px dashed var(--rt-btn-edge); background: none; cursor: pointer; font-family: monospace; width: calc(100% - 28px); color: var(--rt-ink); }
+.rp-add-row { font-size: 11px; padding: 3px 8px; margin: 6px 14px; border: 1px dashed var(--rt-btn-edge); background: none; cursor: pointer; font-family: var(--font-mono); width: calc(100% - 28px); color: var(--rt-ink); }
 .rp-add-row:hover { border-color: var(--rt-accent); background: var(--rt-row-alt); }
-.rp-row-del { font-size: 14px; padding: 0 6px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; opacity: 0.4; font-family: monospace; line-height: 1; color: var(--rt-ink); }
+.rp-row-del { font-size: 14px; padding: 0 6px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; opacity: 0.4; font-family: var(--font-mono); line-height: 1; color: var(--rt-ink); }
 .rp-row-del:hover { opacity: 1; background: #d00; color: #fff; border-color: #d00; }
 .rp-images { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .rp-img-wrap { position: relative; width: 100%; }
@@ -1161,7 +1305,7 @@ defineExpose({ refreshHosting })
   content: 'FILE TR-DAILY / OPERATION REPORT';
   position: absolute;
   left: 0; top: -10px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   line-height: 1;
   letter-spacing: 2.4px;
@@ -1169,8 +1313,8 @@ defineExpose({ refreshHosting })
   pointer-events: none;
 }
 .rp-theme-ls-archive .rp-title { letter-spacing: 1.2px; }
-.rp-theme-ls-archive .rp-meta { font-family: monospace; letter-spacing: 0.6px; }
-.rp-theme-ls-archive .rp-meta .rp-inp { font-weight: 700; }
+.rp-theme-ls-archive .rp-meta { font-family: var(--font-mono); letter-spacing: 0.6px; }
+.rp-theme-ls-archive .rp-meta .rp-inp { font-weight: 900; }
 .rp-theme-ls-archive .rp-card-head { letter-spacing: 2.2px; }
 .rp-theme-ls-archive .rp-card-head .rp-reset-sm { border-color: rgba(232, 226, 211, 0.45); }
 .rp-theme-ls-archive .rp-task-label { font-weight: 600; letter-spacing: 0.3px; }
@@ -1219,7 +1363,7 @@ defineExpose({ refreshHosting })
   content: 'DWG · TR-DAILY / REV.A';
   position: absolute;
   left: 0; top: -10px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   line-height: 1;
   letter-spacing: 2.2px;
@@ -1286,7 +1430,7 @@ defineExpose({ refreshHosting })
 .rp-theme-ls-gauge .rp-card-head .rp-reset-sm { border-color: rgba(242, 244, 242, 0.45); }
 /* 信息栏：右端状态块 */
 .rp-theme-ls-gauge .rp-meta { box-shadow: inset 5px 0 0 var(--rt-meta-bar), inset -5px 0 0 rgba(216, 121, 56, 0.55); }
-.rp-theme-ls-gauge .rp-meta .rp-inp { font-weight: 800; font-variant-numeric: tabular-nums; }
+.rp-theme-ls-gauge .rp-meta .rp-inp { font-weight: 900; font-variant-numeric: tabular-nums; }
 .rp-theme-ls-gauge .rp-task-label { font-weight: 600; }
 
 /* ── C1. P3R · 斜切海报 ─────────────────────────────────────────────
@@ -1439,7 +1583,7 @@ defineExpose({ refreshHosting })
 .rp-theme-p3r-tiles .rp-title-row { box-shadow: inset 0 -3px 0 #28b8f2; }
 .rp-theme-p3r-tiles .rp-title { font-weight: 900; letter-spacing: 0.6px; }
 .rp-theme-p3r-tiles .rp-title-row .rp-author-label { color: rgba(244, 246, 250, 0.66); }
-.rp-theme-p3r-tiles .rp-meta .rp-inp { font-weight: 800; }
+.rp-theme-p3r-tiles .rp-meta .rp-inp { font-weight: 900; }
 /* 卡片：右上角明黄角块 + 左侧青条，像拼贴上去的一块标记 */
 .rp-theme-p3r-tiles .rp-card { position: relative; }
 .rp-theme-p3r-tiles .rp-card::after {
@@ -1456,5 +1600,1789 @@ defineExpose({ refreshHosting })
 }
 .rp-theme-p3r-tiles .rp-card-head .rp-reset-sm { border-color: rgba(244, 246, 250, 0.45); }
 .rp-theme-p3r-tiles .rp-task-label { font-weight: 600; }
+
+/* ── D1. 终末地 · 台账 ─────────────────────────────────────────────
+   工业工作台：纸白承载面 + 墨色信息栏 + 唯一强调色 lime。
+   lime 只做「标记」（左边缘状态条 / 卡片标题左侧条），不做文字色；
+   编号与数字用等宽数字排。切角在这里用不了（导出可靠性），
+   改用伪元素三色条与细线表达「这是一份记录」。 */
+.rp-theme-ef-ledger {
+  position: relative;
+  color: #161616;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22, 22, 22, 0.55);
+  --rt-title-fg: #161616;
+  --rt-tab-edge: rgba(22, 22, 22, 0.32);
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #F4F4F2;
+  --rt-card-bg: #FFFFFF;
+  --rt-card-edge: #D9D9D6;
+  --rt-head-bg: #161616;
+  --rt-head-fg: #EDEDED;
+  --rt-head-rule: #B8FF3D;
+  --rt-meta-bg: #161616;
+  --rt-meta-fg: #EDEDED;
+  --rt-meta-edge: #161616;
+  --rt-meta-bar: #B8FF3D;
+  --rt-inp-bg: #FFFFFF;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #D9D9D6;
+  --rt-radio: #161616;
+  --rt-radio-checked: #161616;
+  --rt-accent: #161616;
+  --rt-row-rule: #E4E4E0;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #D9D9D6;
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #F4F4F2;
+}
+/* 屏幕开始的三色条：绝对定位在画布内边距里，不占布局 */
+.rp-wrap.rp-theme-ef-ledger::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg,
+    #FF00F0 0 33.33%,
+    #B8FF3D 33.33% 66.66%,
+    #00FFA2 66.66% 100%);
+  pointer-events: none;
+}
+/* 眉标：`//` + 宽体大写字距（8px 小字，落在标题行上方） */
+.rp-theme-ef-ledger .rp-title-row::before,
+.rp-theme-ef-nightshift .rp-title-row::before {
+  content: '// DAILY RECORD';
+  position: absolute;
+  left: 0; top: -11px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.4px;
+  pointer-events: none;
+}
+.rp-theme-ef-ledger .rp-title-row::before { color: #5C5C5C; }
+.rp-theme-ef-nightshift .rp-title-row::before { color: #A3A3A3; }
+.rp-theme-ef-ledger .rp-title { font-weight: 800; letter-spacing: 0.4px; }
+/* 信息栏：深色命令栏 + 等宽数字（数字是真实数据，用等宽排） */
+.rp-theme-ef-ledger .rp-meta { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.rp-theme-ef-ledger .rp-meta .rp-inp {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+/* 卡片标题：左侧一条 lime 状态条（在 14px 内边距里，不压字） */
+.rp-theme-ef-ledger .rp-card-head {
+  letter-spacing: 1.6px;
+  box-shadow: inset 4px 0 0 #B8FF3D;
+}
+.rp-theme-ef-ledger .rp-card-head .rp-reset-sm { border-color: rgba(237, 237, 237, 0.45); }
+.rp-theme-ef-ledger .rp-task-label { font-weight: 600; letter-spacing: 0.02em; }
+.rp-theme-ef-ledger .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── D2. 终末地 · 夜班 ─────────────────────────────────────────────
+   同一套语法换成石墨黑：承载面是 #222 的板，文字浅墨，lime 仍是
+   唯一强调色（深色里它可以当线）。信息栏与卡片头比板更深一档。 */
+.rp-theme-ef-nightshift {
+  position: relative;
+  color: #EDEDED;
+  /* 暗色主题：缩略图用石墨底，一眼看出它要配深色画布 */
+  --rt-canvas: #191919;
+  --rt-ink: #EDEDED;
+  --rt-ink-dim: rgba(237, 237, 237, 0.55);
+  --rt-title-bg: #191919;
+  --rt-title-fg: #EDEDED;
+  --rt-tab-edge: rgba(237, 237, 237, 0.28);
+  --rt-tab-fg: #EDEDED;
+  --rt-tab-on-bg: #B8FF3D;
+  --rt-tab-on-fg: #161616;
+  --rt-card-bg: #222222;
+  --rt-card-edge: #353535;
+  --rt-head-bg: #0F0F0F;
+  --rt-head-fg: #EDEDED;
+  --rt-head-rule: #B8FF3D;
+  --rt-meta-bg: #0F0F0F;
+  --rt-meta-fg: #EDEDED;
+  --rt-meta-edge: #353535;
+  --rt-meta-bar: #B8FF3D;
+  --rt-inp-bg: #2E2E2E;
+  --rt-inp-fg: #EDEDED;
+  --rt-inp-edge: #4A4A4A;
+  --rt-radio: #B8FF3D;
+  --rt-radio-checked: #B8FF3D;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: #2E2E2E;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #3A3A3A;
+  --rt-btn-edge: #4A4A4A;
+  --rt-btn-on-bg: #B8FF3D;
+  --rt-btn-on-fg: #161616;
+}
+.rp-wrap.rp-theme-ef-nightshift::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg,
+    #FF00F0 0 33.33%,
+    #B8FF3D 33.33% 66.66%,
+    #00FFA2 66.66% 100%);
+  pointer-events: none;
+}
+.rp-theme-ef-nightshift .rp-title { font-weight: 800; letter-spacing: 0.4px; }
+.rp-theme-ef-nightshift .rp-meta { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.rp-theme-ef-nightshift .rp-meta .rp-inp {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.rp-theme-ef-nightshift .rp-card-head {
+  letter-spacing: 1.6px;
+  box-shadow: inset 4px 0 0 #B8FF3D;
+}
+.rp-theme-ef-nightshift .rp-card-head .rp-reset-sm { border-color: rgba(237, 237, 237, 0.45); }
+.rp-theme-ef-nightshift .rp-task-label { font-weight: 600; letter-spacing: 0.02em; }
+.rp-theme-ef-nightshift .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── D3. 终末地 · 工单 ─────────────────────────────────────────────
+   白纸表格：与「台账」的区别不是深浅，而是结构 —— 卡片与行都是 1px
+   墨色实线（表格感），信息栏反过来改成浅底墨字；lime 仍只做标记。 */
+.rp-theme-ef-workorder {
+  position: relative;
+  color: #161616;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22, 22, 22, 0.5);
+  --rt-title-fg: #161616;
+  --rt-tab-edge: #161616;
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #F4F4F2;
+  --rt-card-bg: #FFFFFF;
+  --rt-card-edge: #161616;
+  --rt-head-bg: #161616;
+  --rt-head-fg: #F4F4F2;
+  --rt-head-rule: #B8FF3D;
+  --rt-meta-bg: #F4F4F2;
+  --rt-meta-fg: #161616;
+  --rt-meta-edge: #161616;
+  --rt-meta-bar: #161616;
+  --rt-inp-bg: #FFFFFF;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #161616;
+  --rt-radio: #161616;
+  --rt-radio-checked: #161616;
+  --rt-accent: #161616;
+  --rt-row-rule: #161616;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #161616;
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #F4F4F2;
+}
+.rp-wrap.rp-theme-ef-workorder::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg,
+    #FF00F0 0 33.33%,
+    #B8FF3D 33.33% 66.66%,
+    #00FFA2 66.66% 100%);
+  pointer-events: none;
+}
+/* 眉标：工单 / 编号栏 */
+.rp-theme-ef-workorder .rp-title-row::before {
+  content: '// WORK ORDER / NO.';
+  position: absolute;
+  left: 0; top: -11px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.2px;
+  color: #5C5C5C;
+  pointer-events: none;
+}
+.rp-theme-ef-workorder .rp-title { font-weight: 800; letter-spacing: 1.2px; }
+.rp-theme-ef-workorder .rp-meta { font-family: var(--font-mono); letter-spacing: 0.08em; }
+.rp-theme-ef-workorder .rp-meta .rp-inp {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.rp-theme-ef-workorder .rp-card-head {
+  letter-spacing: 1.4px;
+  box-shadow: inset 4px 0 0 #B8FF3D;
+}
+.rp-theme-ef-workorder .rp-card-head .rp-reset-sm { border-color: rgba(244, 244, 242, 0.5); }
+.rp-theme-ef-workorder .rp-task-label { font-weight: 700; letter-spacing: 0.02em; }
+/* 任务行：实线分隔 + 左缘一条编号刻度（绝对定位，不占布局） */
+.rp-theme-ef-workorder .rp-task-row {
+  position: relative;
+  box-shadow: inset 0 -1px 0 var(--rt-row-rule);
+}
+.rp-theme-ef-workorder .rp-task-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;  background: rgba(22, 22, 22, 0.18);
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   孤星 / P3R：形状化装饰（保持原版风格，只加「形」不加尺寸）
+
+   全部是绝对定位伪元素 —— 不占布局、不改导出尺寸，也不使用
+   clip-path / filter（html2canvas 不可靠）。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 科研档案：卡片右上角的档案编号 */
+.rp-theme-ls-archive .rp-card { position: relative; }
+.rp-theme-ls-archive .rp-card::after {
+  content: 'FILE';
+  position: absolute;
+  right: 7px; top: 5px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.4px;
+  color: rgba(20, 27, 34, 0.3);
+  pointer-events: none;
+}
+
+/* 航天制图：标题行下方的制图基准刻度 */
+.rp-theme-ls-drafting .rp-title-row::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -5px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg,
+    rgba(43, 108, 176, 0.55) 0 1px,
+    transparent 1px 8px);
+  pointer-events: none;
+}
+
+/* 工业仪器：卡片标题右端的刻度块 */
+.rp-theme-ls-gauge .rp-card-head { position: relative; }
+.rp-theme-ls-gauge .rp-card-head::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 20px;
+  background: repeating-linear-gradient(90deg,
+    rgba(242, 244, 242, 0.45) 0 1px,
+    transparent 1px 4px);
+  pointer-events: none;
+}
+
+/* 斜切海报：卡片右上角的明黄斜线角标 */
+.rp-theme-p3r-poster .rp-card { position: relative; }
+.rp-theme-p3r-poster .rp-card::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0;
+  width: 20px; height: 20px;
+  background: linear-gradient(225deg,
+    transparent 0 44%,
+    #F5D83D 44% 56%,
+    transparent 56%);
+  pointer-events: none;
+}
+
+/* 月相编辑：标题行右端的细刻度（月相轨迹的收尾） */
+.rp-theme-p3r-lunar .rp-title-row::before {
+  content: '';
+  position: absolute;
+  right: 0; bottom: -6px;
+  width: 64px; height: 2px;
+  background: repeating-linear-gradient(90deg,
+    rgba(16, 35, 63, 0.35) 0 1px,
+    transparent 1px 5px);
+  pointer-events: none;
+}
+
+/* 都市拼贴：任务行右端的错位小色块 */
+.rp-theme-p3r-tiles .rp-task-row { position: relative; }
+.rp-theme-p3r-tiles .rp-task-row::after {
+  content: '';
+  position: absolute;
+  right: 6px; bottom: 4px;
+  width: 10px; height: 3px;
+  background: rgba(18, 100, 200, 0.55);
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   各风格扩充套（每族 8 套）：变量块 + 结构语言
+   变量只决定颜色；结构差异靠 border-style / inset 阴影 / 不占布局的伪元素表达。
+   瑞士族用 .rp-wrap. 前缀，把字重压回 400 / 700（压过下面的字体基线）。
+   ══════════════════════════════════════════════════════════════════ */
+/* ── 孤星 · 规格卡：双层细框 + 右上编号块 ── */
+.rp-theme-ls-spec {
+  position: relative;
+  color: #141b22;
+  --rt-canvas: #f7f4ec;
+  --rt-ink: #141b22;
+  --rt-ink-dim: rgba(20,27,34,0.5);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #141b22;
+  --rt-tab-edge: rgba(20,27,34,0.55);
+  --rt-tab-fg: #141b22;
+  --rt-tab-on-bg: #141b22;
+  --rt-tab-on-fg: #f7f4ec;
+  --rt-card-bg: rgba(255,255,255,0.72);
+  --rt-card-edge: rgba(20,27,34,0.55);
+  --rt-head-bg: #f1ece0;
+  --rt-head-fg: #141b22;
+  --rt-head-rule: #141b22;
+  --rt-meta-bg: #f7f4ec;
+  --rt-meta-fg: #141b22;
+  --rt-meta-edge: #141b22;
+  --rt-meta-bar: #d87938;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #141b22;
+  --rt-inp-edge: rgba(20,27,34,0.35);
+  --rt-radio: #141b22;
+  --rt-radio-checked: #d87938;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(20,27,34,0.18);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(20,27,34,0.35);
+  --rt-btn-edge: #141b22;
+  --rt-btn-on-bg: #141b22;
+  --rt-btn-on-fg: #f7f4ec;
+}
+.rp-theme-ls-spec .rp-card { box-shadow: inset 0 0 0 1px rgba(20,27,34,0.55), inset 0 0 0 4px rgba(255,255,255,0.9), inset 0 0 0 5px rgba(20,27,34,0.22); }
+.rp-theme-ls-spec .rp-card-head { position: relative; }
+.rp-theme-ls-spec .rp-card-head::after {
+  content: ''; position: absolute; right: 10px; top: 5px;
+  width: 16px; height: 16px; background: #141b22;
+  box-shadow: inset 0 0 0 3px rgba(247,244,236,0.9); pointer-events: none;
+}
+.rp-theme-ls-spec .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── 孤星 · 值班日志：整宽深色条 + 逐行实线 ── */
+.rp-theme-ls-log {
+  position: relative;
+  color: #141b22;
+  --rt-canvas: #f6f2e8;
+  --rt-ink: #141b22;
+  --rt-ink-dim: rgba(20,27,34,0.5);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #141b22;
+  --rt-tab-edge: rgba(20,27,34,0.5);
+  --rt-tab-fg: #141b22;
+  --rt-tab-on-bg: #101923;
+  --rt-tab-on-fg: #e8e2d3;
+  --rt-card-bg: #fbf8f0;
+  --rt-card-edge: rgba(20,27,34,0.18);
+  --rt-head-bg: #101923;
+  --rt-head-fg: #e8e2d3;
+  --rt-head-rule: #101923;
+  --rt-meta-bg: #efe9dc;
+  --rt-meta-fg: #141b22;
+  --rt-meta-edge: rgba(20,27,34,0.4);
+  --rt-meta-bar: #d87938;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #141b22;
+  --rt-inp-edge: rgba(20,27,34,0.3);
+  --rt-radio: #141b22;
+  --rt-radio-checked: #d87938;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(20,27,34,0.14);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(20,27,34,0.3);
+  --rt-btn-edge: #141b22;
+  --rt-btn-on-bg: #101923;
+  --rt-btn-on-fg: #e8e2d3;
+}
+.rp-theme-ls-log .rp-card-head { letter-spacing: 2.4px; }
+.rp-theme-ls-log .rp-card-head .rp-reset-sm { border-color: rgba(232,226,211,0.5); }
+.rp-theme-ls-log .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); box-shadow: inset 3px 0 0 rgba(20,27,34,0.1); }
+.rp-theme-ls-log .rp-task-row:last-child { border-bottom: none; }
+
+/* ── 孤星 · 电路图：虚线边框 + 节点圆点 ── */
+.rp-theme-ls-schematic {
+  position: relative;
+  color: #122029;
+  --rt-canvas: #f5f8f8;
+  --rt-ink: #122029;
+  --rt-ink-dim: rgba(18,32,41,0.5);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #122029;
+  --rt-tab-edge: rgba(18,32,41,0.5);
+  --rt-tab-fg: #122029;
+  --rt-tab-on-bg: #122029;
+  --rt-tab-on-fg: #f5f8f8;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(18,32,41,0.5);
+  --rt-head-bg: transparent;
+  --rt-head-fg: #122029;
+  --rt-head-rule: #122029;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #122029;
+  --rt-meta-edge: rgba(18,32,41,0.5);
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #122029;
+  --rt-inp-edge: rgba(18,32,41,0.3);
+  --rt-radio: #122029;
+  --rt-radio-checked: #d87938;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(18,32,41,0.14);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(18,32,41,0.3);
+  --rt-btn-edge: #122029;
+  --rt-btn-on-bg: #122029;
+  --rt-btn-on-fg: #f5f8f8;
+}
+.rp-theme-ls-schematic .rp-card { border-style: dashed; }
+.rp-theme-ls-schematic .rp-card-head { border-bottom-style: dashed; }
+.rp-theme-ls-schematic .rp-task-row { position: relative; }
+.rp-theme-ls-schematic .rp-task-row::after {
+  content: ''; position: absolute; left: -5px; top: calc(50% - 2px);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: #d87938; pointer-events: none;
+}
+
+/* ── 孤星 · 货运单：表格式横线 + 单号斜纹块 ── */
+.rp-theme-ls-manifest {
+  position: relative;
+  color: #161b1f;
+  --rt-canvas: #f7f6f1;
+  --rt-ink: #161b1f;
+  --rt-ink-dim: rgba(22,27,31,0.5);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #161b1f;
+  --rt-tab-edge: rgba(22,27,31,0.5);
+  --rt-tab-fg: #161b1f;
+  --rt-tab-on-bg: #161b1f;
+  --rt-tab-on-fg: #f7f6f1;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: rgba(22,27,31,0.45);
+  --rt-head-bg: #eeeee8;
+  --rt-head-fg: #161b1f;
+  --rt-head-rule: #161b1f;
+  --rt-meta-bg: #f2f1ea;
+  --rt-meta-fg: #161b1f;
+  --rt-meta-edge: rgba(22,27,31,0.45);
+  --rt-meta-bar: #71818a;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #161b1f;
+  --rt-inp-edge: rgba(22,27,31,0.3);
+  --rt-radio: #161b1f;
+  --rt-radio-checked: #161b1f;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(22,27,31,0.14);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(22,27,31,0.3);
+  --rt-btn-edge: #161b1f;
+  --rt-btn-on-bg: #161b1f;
+  --rt-btn-on-fg: #f7f6f1;
+}
+.rp-theme-ls-manifest .rp-card { box-shadow: inset 0 0 0 1px rgba(22,27,31,0.45), inset 0 2px 0 #161b1f; }
+.rp-theme-ls-manifest .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+.rp-theme-ls-manifest .rp-card-head { position: relative; }
+.rp-theme-ls-manifest .rp-card-head::after {
+  content: ''; position: absolute; right: 12px; top: 6px;
+  width: 44px; height: 8px;
+  background: repeating-linear-gradient(90deg, rgba(22,27,31,0.45) 0 1px, transparent 1px 4px);
+  pointer-events: none;
+}
+
+/* ── 孤星 · 终端（暗）：深蓝底 + 冷白字 + 扫描线 ── */
+.rp-theme-ls-terminal {
+  position: relative;
+  color: #e8e2d3;
+  --rt-canvas: #101923;
+  --rt-ink: #e8e2d3;
+  --rt-ink-dim: rgba(232,226,211,0.55);
+  --rt-title-bg: #0b121a;
+  --rt-title-fg: #e8e2d3;
+  --rt-tab-edge: rgba(232,226,211,0.35);
+  --rt-tab-fg: #e8e2d3;
+  --rt-tab-on-bg: #d87938;
+  --rt-tab-on-fg: #101923;
+  --rt-card-bg: #16212d;
+  --rt-card-edge: #25323f;
+  --rt-head-bg: #0b121a;
+  --rt-head-fg: #e8e2d3;
+  --rt-head-rule: rgba(232,226,211,0.22);
+  --rt-meta-bg: #0b121a;
+  --rt-meta-fg: #e8e2d3;
+  --rt-meta-edge: rgba(232,226,211,0.3);
+  --rt-meta-bar: #d87938;
+  --rt-inp-bg: #1d2a38;
+  --rt-inp-fg: #e8e2d3;
+  --rt-inp-edge: rgba(232,226,211,0.28);
+  --rt-radio: #e8e2d3;
+  --rt-radio-checked: #d87938;
+  --rt-accent: #d87938;
+  --rt-row-rule: rgba(232,226,211,0.12);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(232,226,211,0.2);
+  --rt-btn-edge: rgba(232,226,211,0.35);
+  --rt-btn-on-bg: #d87938;
+  --rt-btn-on-fg: #101923;
+}
+.rp-theme-ls-terminal .rp-card-head { letter-spacing: 2px; }
+.rp-theme-ls-terminal .rp-card-head .rp-reset-sm { border-color: rgba(232,226,211,0.4); }
+.rp-theme-ls-terminal .rp-title-row { position: relative; }
+.rp-theme-ls-terminal .rp-title-row::before {
+  content: '// TERMINAL'; position: absolute; left: 0; top: -10px;
+  font-size: 8px; line-height: 1; letter-spacing: 2.2px; color: #d87938;
+  pointer-events: none;
+}
+.rp-theme-ls-terminal .rp-task-row {
+  background-image: repeating-linear-gradient(180deg, rgba(232,226,211,0.03) 0 1px, transparent 1px 3px);
+}
+
+/* ── P3R · 斜切分割：上下两色 + 明黄细线 ── */
+.rp-theme-p3r-cut {
+  position: relative;
+  color: #0a1f42;
+  --rt-canvas: #f2f6fd;
+  --rt-ink: #0a1f42;
+  --rt-ink-dim: rgba(10,31,66,0.55);
+  --rt-title-bg: linear-gradient(90deg, rgba(18,100,200,0.16) 0 50%, transparent 50%);
+  --rt-title-fg: #0a1f42;
+  --rt-tab-edge: rgba(10,31,66,0.4);
+  --rt-tab-fg: #0a1f42;
+  --rt-tab-on-bg: #071b3a;
+  --rt-tab-on-fg: #f4f6fa;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: rgba(10,31,66,0.16);
+  --rt-head-bg: #071b3a;
+  --rt-head-fg: #f4f6fa;
+  --rt-head-rule: rgba(255,255,255,0.24);
+  --rt-meta-bg: #e9f0fa;
+  --rt-meta-fg: #0a1f42;
+  --rt-meta-edge: rgba(10,31,66,0.2);
+  --rt-meta-bar: #f5d83d;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #0a1f42;
+  --rt-inp-edge: rgba(10,31,66,0.22);
+  --rt-radio: #0a1f42;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #1264c8;
+  --rt-row-rule: rgba(10,31,66,0.12);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(10,31,66,0.2);
+  --rt-btn-edge: rgba(10,31,66,0.3);
+  --rt-btn-on-bg: #1264c8;
+  --rt-btn-on-fg: #ffffff;
+}
+.rp-theme-p3r-cut .rp-card { box-shadow: inset 0 -3px 0 #f5d83d; }
+.rp-theme-p3r-cut .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+.rp-theme-p3r-cut .rp-card-head { letter-spacing: 1.6px; }
+
+/* ── P3R · 夜间霓虹（暗）：深蓝底 + 霓虹边线 ── */
+.rp-theme-p3r-night {
+  position: relative;
+  color: #f4f6fa;
+  --rt-canvas: #071b3a;
+  --rt-ink: #f4f6fa;
+  --rt-ink-dim: rgba(244,246,250,0.62);
+  --rt-title-bg: #04122a;
+  --rt-title-fg: #f4f6fa;
+  --rt-tab-edge: rgba(40,184,242,0.45);
+  --rt-tab-fg: #f4f6fa;
+  --rt-tab-on-bg: #28b8f2;
+  --rt-tab-on-fg: #04122a;
+  --rt-card-bg: #0c2450;
+  --rt-card-edge: rgba(40,184,242,0.5);
+  --rt-head-bg: #04122a;
+  --rt-head-fg: #28b8f2;
+  --rt-head-rule: rgba(40,184,242,0.35);
+  --rt-meta-bg: #04122a;
+  --rt-meta-fg: #f4f6fa;
+  --rt-meta-edge: rgba(40,184,242,0.4);
+  --rt-meta-bar: #f5d83d;
+  --rt-inp-bg: #10294f;
+  --rt-inp-fg: #f4f6fa;
+  --rt-inp-edge: rgba(40,184,242,0.35);
+  --rt-radio: #f4f6fa;
+  --rt-radio-checked: #28b8f2;
+  --rt-accent: #f5d83d;
+  --rt-row-rule: rgba(40,184,242,0.22);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(40,184,242,0.3);
+  --rt-btn-edge: rgba(40,184,242,0.45);
+  --rt-btn-on-bg: #f5d83d;
+  --rt-btn-on-fg: #071b3a;
+}
+.rp-theme-p3r-night .rp-card { box-shadow: inset 0 0 0 1px rgba(40,184,242,0.5), inset 0 -2px 0 rgba(245,216,61,0.45); }
+.rp-theme-p3r-night .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+.rp-theme-p3r-night .rp-title-row { position: relative; }
+.rp-theme-p3r-night .rp-title-row::before {
+  content: 'NIGHT'; position: absolute; right: 0; top: -10px;
+  font-size: 8px; line-height: 1; letter-spacing: 2.6px; color: #f5d83d;
+  pointer-events: none;
+}
+
+/* ── P3R · 索引页：右侧索引条 + 编号列 ── */
+.rp-theme-p3r-index {
+  position: relative;
+  color: #0a1f42;
+  --rt-canvas: #f4f7fc;
+  --rt-ink: #0a1f42;
+  --rt-ink-dim: rgba(10,31,66,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #0a1f42;
+  --rt-tab-edge: rgba(10,31,66,0.35);
+  --rt-tab-fg: #0a1f42;
+  --rt-tab-on-bg: #1264c8;
+  --rt-tab-on-fg: #ffffff;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: rgba(10,31,66,0.14);
+  --rt-head-bg: #eef4fc;
+  --rt-head-fg: #0a1f42;
+  --rt-head-rule: rgba(10,31,66,0.16);
+  --rt-meta-bg: #ffffff;
+  --rt-meta-fg: #0a1f42;
+  --rt-meta-edge: rgba(10,31,66,0.18);
+  --rt-meta-bar: #1264c8;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #0a1f42;
+  --rt-inp-edge: rgba(10,31,66,0.2);
+  --rt-radio: #0a1f42;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #1264c8;
+  --rt-row-rule: rgba(10,31,66,0.1);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(10,31,66,0.18);
+  --rt-btn-edge: rgba(10,31,66,0.28);
+  --rt-btn-on-bg: #1264c8;
+  --rt-btn-on-fg: #ffffff;
+}
+.rp-theme-p3r-index .rp-card { box-shadow: inset -18px 0 0 rgba(18,100,200,0.12), inset 0 0 0 1px rgba(10,31,66,0.14); }
+.rp-theme-p3r-index .rp-card-head { letter-spacing: 1.8px; }
+.rp-theme-p3r-index .rp-task-label { box-shadow: inset 2px 0 0 rgba(18,100,200,0.55); }
+.rp-theme-p3r-index .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+
+/* ── P3R · 传单：明黄大标题 + 深蓝卡片头 ── */
+.rp-theme-p3r-flyer {
+  position: relative;
+  color: #0a1f42;
+  --rt-canvas: #f7f9fd;
+  --rt-ink: #0a1f42;
+  --rt-ink-dim: rgba(10,31,66,0.55);
+  --rt-title-bg: #f5d83d;
+  --rt-title-fg: #071b3a;
+  --rt-tab-edge: rgba(10,31,66,0.35);
+  --rt-tab-fg: #0a1f42;
+  --rt-tab-on-bg: #071b3a;
+  --rt-tab-on-fg: #f4f6fa;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: rgba(10,31,66,0.18);
+  --rt-head-bg: #071b3a;
+  --rt-head-fg: #f5d83d;
+  --rt-head-rule: #f5d83d;
+  --rt-meta-bg: #ffffff;
+  --rt-meta-fg: #0a1f42;
+  --rt-meta-edge: rgba(10,31,66,0.2);
+  --rt-meta-bar: #f5d83d;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #0a1f42;
+  --rt-inp-edge: rgba(10,31,66,0.22);
+  --rt-radio: #0a1f42;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #1264c8;
+  --rt-row-rule: rgba(10,31,66,0.12);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(10,31,66,0.2);
+  --rt-btn-edge: rgba(10,31,66,0.3);
+  --rt-btn-on-bg: #071b3a;
+  --rt-btn-on-fg: #f5d83d;
+}
+.rp-theme-p3r-flyer .rp-card-head { letter-spacing: 2.2px; }
+.rp-theme-p3r-flyer .rp-card { box-shadow: inset 0 0 0 1px rgba(10,31,66,0.18), inset 0 -4px 0 rgba(245,216,61,0.7); }
+.rp-theme-p3r-flyer .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── P3R · 档案袋：牛皮纸底 + 标签条 + 装订孔 ── */
+.rp-theme-p3r-archive {
+  position: relative;
+  color: #2a2118;
+  --rt-canvas: #efe6d6;
+  --rt-ink: #2a2118;
+  --rt-ink-dim: rgba(42,33,24,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #2a2118;
+  --rt-tab-edge: rgba(42,33,24,0.4);
+  --rt-tab-fg: #2a2118;
+  --rt-tab-on-bg: #2a2118;
+  --rt-tab-on-fg: #efe6d6;
+  --rt-card-bg: #f7f0e3;
+  --rt-card-edge: rgba(42,33,24,0.35);
+  --rt-head-bg: #e6d9c2;
+  --rt-head-fg: #2a2118;
+  --rt-head-rule: rgba(42,33,24,0.35);
+  --rt-meta-bg: #f7f0e3;
+  --rt-meta-fg: #2a2118;
+  --rt-meta-edge: rgba(42,33,24,0.35);
+  --rt-meta-bar: #1264c8;
+  --rt-inp-bg: #fffaf0;
+  --rt-inp-fg: #2a2118;
+  --rt-inp-edge: rgba(42,33,24,0.28);
+  --rt-radio: #2a2118;
+  --rt-radio-checked: #1264c8;
+  --rt-accent: #1264c8;
+  --rt-row-rule: rgba(42,33,24,0.14);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(42,33,24,0.28);
+  --rt-btn-edge: rgba(42,33,24,0.38);
+  --rt-btn-on-bg: #2a2118;
+  --rt-btn-on-fg: #efe6d6;
+}
+.rp-theme-p3r-archive .rp-card { box-shadow: inset 0 0 0 1px rgba(42,33,24,0.35), inset 0 6px 0 rgba(18,100,200,0.18); }
+.rp-theme-p3r-archive .rp-card-head { position: relative; letter-spacing: 1.4px; }
+.rp-theme-p3r-archive .rp-card-head::before {
+  content: ''; position: absolute; left: 8px; top: calc(50% - 3px);
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(42,33,24,0.45); pointer-events: none;
+}
+.rp-theme-p3r-archive .rp-task-row { border-bottom: 1px dashed var(--rt-row-rule); }
+
+/* ── 终末地 · 舱单：表头铭牌 + 三色短线 ── */
+.rp-theme-ef-manifest {
+  position: relative;
+  color: #161616;
+  --rt-canvas: #f4f4f2;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22,22,22,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #161616;
+  --rt-tab-edge: #161616;
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #f4f4f2;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: #161616;
+  --rt-head-bg: #161616;
+  --rt-head-fg: #EDEDED;
+  --rt-head-rule: #B8FF3D;
+  --rt-meta-bg: #e4e4e0;
+  --rt-meta-fg: #161616;
+  --rt-meta-edge: #161616;
+  --rt-meta-bar: #B8FF3D;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #C9C9C4;
+  --rt-radio: #161616;
+  --rt-radio-checked: #161616;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: #E4E4E0;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #C9C9C4;
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #EDEDED;
+}
+.rp-theme-ef-manifest .rp-card-head { position: relative; }
+.rp-theme-ef-manifest .rp-card-head::before {
+  content: ''; position: absolute; left: 6px; top: calc(50% - 5px);
+  width: 3px; height: 10px;
+  background: linear-gradient(180deg, #FF00F0 0 33%, #B8FF3D 33% 66%, #00FFA2 66% 100%);
+  pointer-events: none;
+}
+.rp-theme-ef-manifest .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── 终末地 · 终端（暗）：墨底 + lime 边框 + 光标 ── */
+.rp-theme-ef-terminal {
+  position: relative;
+  color: #EDEDED;
+  --rt-canvas: #111111;
+  --rt-ink: #EDEDED;
+  --rt-ink-dim: rgba(237,237,237,0.55);
+  --rt-title-bg: #0B0B0B;
+  --rt-title-fg: #EDEDED;
+  --rt-tab-edge: rgba(184,255,61,0.5);
+  --rt-tab-fg: #EDEDED;
+  --rt-tab-on-bg: #B8FF3D;
+  --rt-tab-on-fg: #111111;
+  --rt-card-bg: #1A1A1A;
+  --rt-card-edge: rgba(184,255,61,0.45);
+  --rt-head-bg: #0B0B0B;
+  --rt-head-fg: #B8FF3D;
+  --rt-head-rule: rgba(184,255,61,0.35);
+  --rt-meta-bg: #0B0B0B;
+  --rt-meta-fg: #EDEDED;
+  --rt-meta-edge: rgba(184,255,61,0.4);
+  --rt-meta-bar: #B8FF3D;
+  --rt-inp-bg: #232323;
+  --rt-inp-fg: #EDEDED;
+  --rt-inp-edge: rgba(184,255,61,0.3);
+  --rt-radio: #EDEDED;
+  --rt-radio-checked: #B8FF3D;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: rgba(237,237,237,0.12);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(237,237,237,0.2);
+  --rt-btn-edge: rgba(184,255,61,0.5);
+  --rt-btn-on-bg: #B8FF3D;
+  --rt-btn-on-fg: #111111;
+}
+.rp-theme-ef-terminal .rp-card { box-shadow: inset 0 0 0 1px rgba(184,255,61,0.45); }
+.rp-theme-ef-terminal .rp-title-row { position: relative; }
+.rp-theme-ef-terminal .rp-title-row::before {
+  content: '>'; position: absolute; left: 0; top: 0;
+  color: #B8FF3D; font-size: 12px; line-height: 1; pointer-events: none;
+}
+.rp-theme-ef-terminal .rp-title-row::after {
+  content: ''; position: absolute; right: 0; top: 2px;
+  width: 7px; height: 12px; background: rgba(184,255,61,0.75);
+  pointer-events: none;
+}
+.rp-theme-ef-terminal .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── 终末地 · 检查表：行首方框 + 细分隔线 ── */
+.rp-theme-ef-checklist {
+  position: relative;
+  color: #161616;
+  --rt-canvas: #f4f4f2;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22,22,22,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #161616;
+  --rt-tab-edge: #161616;
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #f4f4f2;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #D9D9D6;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #161616;
+  --rt-head-rule: #161616;
+  --rt-meta-bg: #ffffff;
+  --rt-meta-fg: #161616;
+  --rt-meta-edge: #D9D9D6;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #D9D9D6;
+  --rt-radio: #161616;
+  --rt-radio-checked: #161616;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: #E4E4E0;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #C9C9C4;
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #EDEDED;
+}
+.rp-theme-ef-checklist .rp-card { border-style: solid; }
+.rp-theme-ef-checklist .rp-task-row { position: relative; border-bottom: 1px solid var(--rt-row-rule); box-shadow: inset 3px 0 0 rgba(22,22,22,0.28); }
+.rp-theme-ef-checklist .rp-task-row::before {
+  content: ''; position: absolute; left: 0; top: calc(50% - 4px);
+  width: 8px; height: 8px;
+  border: 1px solid #161616; background: #ffffff; pointer-events: none;
+}
+.rp-theme-ef-checklist .rp-task-row:last-child { border-bottom: none; }
+
+/* ── 终末地 · 批次卡：大号批次块 + 状态条 ── */
+.rp-theme-ef-batch {
+  position: relative;
+  color: #161616;
+  --rt-canvas: #f4f4f2;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22,22,22,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #161616;
+  --rt-tab-edge: #161616;
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #f4f4f2;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: #161616;
+  --rt-head-bg: #f4f4f2;
+  --rt-head-fg: #161616;
+  --rt-head-rule: #161616;
+  --rt-meta-bg: #161616;
+  --rt-meta-fg: #EDEDED;
+  --rt-meta-edge: #161616;
+  --rt-meta-bar: #B8FF3D;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #C9C9C4;
+  --rt-radio: #161616;
+  --rt-radio-checked: #161616;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: #E4E4E0;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #C9C9C4;
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #EDEDED;
+}
+.rp-theme-ef-batch .rp-card { box-shadow: inset 0 0 0 1px #161616, inset 0 -4px 0 #B8FF3D; }
+.rp-theme-ef-batch .rp-card-head { position: relative; }
+.rp-theme-ef-batch .rp-card-head::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 26px; background: #161616;
+  box-shadow: inset 0 0 0 6px #f4f4f2; pointer-events: none;
+}
+.rp-theme-ef-batch .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── 终末地 · 结算单：双线收口 + 金额右对齐 ── */
+.rp-theme-ef-invoice {
+  position: relative;
+  color: #161616;
+  --rt-canvas: #f5f5f3;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22,22,22,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #161616;
+  --rt-tab-edge: #161616;
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #f5f5f3;
+  --rt-card-bg: #ffffff;
+  --rt-card-edge: #161616;
+  --rt-head-bg: #161616;
+  --rt-head-fg: #EDEDED;
+  --rt-head-rule: #EDEDED;
+  --rt-meta-bg: #ffffff;
+  --rt-meta-fg: #161616;
+  --rt-meta-edge: #161616;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #ffffff;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #C9C9C4;
+  --rt-radio: #161616;
+  --rt-radio-checked: #161616;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: #E4E4E0;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #C9C9C4;
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #EDEDED;
+}
+.rp-theme-ef-invoice .rp-card { box-shadow: inset 0 0 0 1px #161616, inset 0 -3px 0 #161616, inset 0 -5px 0 #ffffff; }
+.rp-theme-ef-invoice .rp-card-head { letter-spacing: 2px; }
+.rp-theme-ef-invoice .rp-task-row { border-bottom: 1px dotted var(--rt-row-rule); }
+.rp-theme-ef-invoice .rp-task-row:last-child { border-bottom: 3px double #161616; }
+
+/* ── 瑞士 · 田字格：四象限细线 ── */
+.rp-theme-swiss-field {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f2efe9;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #111111;
+  --rt-tab-on-fg: #F2EFE9;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: #111111;
+  --rt-radio: #111111;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(17,17,17,0.16);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.35);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #111111;
+  --rt-btn-on-fg: #F2EFE9;
+}
+.rp-wrap.rp-theme-swiss-field .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-theme-swiss-field .rp-card { position: relative; }
+.rp-theme-swiss-field .rp-card::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: 1px; background: rgba(17,17,17,0.35); pointer-events: none;
+}
+.rp-theme-swiss-field .rp-card::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 1px; background: rgba(17,17,17,0.35); pointer-events: none;
+}
+.rp-wrap.rp-theme-swiss-field .rp-card-head { font-weight: 700; letter-spacing: 0.06em; }
+.rp-wrap.rp-theme-swiss-field .rp-task-label { font-weight: 400; }
+
+/* ── 瑞士 · 分栏：顶部墨线 + 栏间细线 ── */
+.rp-theme-swiss-column {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f2efe9;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #111111;
+  --rt-tab-on-fg: #F2EFE9;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(17,17,17,0.35);
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: #111111;
+  --rt-radio: #111111;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(17,17,17,0.16);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.35);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #111111;
+  --rt-btn-on-fg: #F2EFE9;
+}
+.rp-wrap.rp-theme-swiss-column .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-theme-swiss-column .rp-cards-row { position: relative; }
+.rp-theme-swiss-column .rp-card { box-shadow: inset 0 0 0 1px rgba(17,17,17,0.35); }
+.rp-wrap.rp-theme-swiss-column .rp-card-head { font-weight: 700; letter-spacing: 0.08em; box-shadow: inset 0 -1px 0 #111111; }
+.rp-wrap.rp-theme-swiss-column .rp-task-label { font-weight: 400; }
+.rp-theme-swiss-column .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── 瑞士 · 海报：红色标题块 + 大留白 ── */
+.rp-theme-swiss-poster {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f2efe9;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: #DA291C;
+  --rt-title-fg: #F2EFE9;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #111111;
+  --rt-tab-on-fg: #F2EFE9;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(17,17,17,0.35);
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: #111111;
+  --rt-radio: #111111;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(17,17,17,0.16);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.35);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #111111;
+  --rt-btn-on-fg: #F2EFE9;
+}
+.rp-wrap.rp-theme-swiss-poster .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-wrap.rp-theme-swiss-poster .rp-card-head { font-weight: 700; letter-spacing: 0.1em; }
+.rp-wrap.rp-theme-swiss-poster .rp-task-label { font-weight: 400; }
+.rp-theme-swiss-poster .rp-card { box-shadow: inset 0 0 0 1px rgba(17,17,17,0.35); }
+
+/* ── 瑞士 · 表格：横线分行、无竖线 ── */
+.rp-theme-swiss-table {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f2efe9;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #111111;
+  --rt-tab-on-fg: #F2EFE9;
+  --rt-card-bg: transparent;
+  --rt-card-edge: transparent;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: #111111;
+  --rt-radio: #111111;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(17,17,17,0.22);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.35);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #111111;
+  --rt-btn-on-fg: #F2EFE9;
+}
+.rp-wrap.rp-theme-swiss-table .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-theme-swiss-table .rp-card { border: none; box-shadow: inset 0 1px 0 #111111; }
+.rp-theme-swiss-table .rp-card-head { border-bottom: 1px solid #111111; }
+.rp-wrap.rp-theme-swiss-table .rp-card-head { font-weight: 700; letter-spacing: 0.06em; }
+.rp-wrap.rp-theme-swiss-table .rp-task-label { font-weight: 400; }
+.rp-theme-swiss-table .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+
+/* ── 瑞士 · 黑白摄影：灰块 + 图注小字 ── */
+.rp-theme-swiss-mono {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #efece5;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #111111;
+  --rt-tab-on-fg: #EFECE5;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(17,17,17,0.3);
+  --rt-head-bg: rgba(17,17,17,0.06);
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: #111111;
+  --rt-radio: #111111;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(17,17,17,0.14);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.35);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #111111;
+  --rt-btn-on-fg: #EFECE5;
+}
+.rp-wrap.rp-theme-swiss-mono .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-theme-swiss-mono .rp-card { box-shadow: inset 0 0 0 1px rgba(17,17,17,0.3), inset 0 28px 0 rgba(17,17,17,0.05); }
+.rp-wrap.rp-theme-swiss-mono .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-swiss-mono .rp-task-label { font-weight: 400; }
+.rp-theme-swiss-mono .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ── 瑞士 · 反白（暗）：墨底米白 + 红细线 ── */
+.rp-theme-swiss-inverse {
+  position: relative;
+  color: #F2EFE9;
+  --rt-canvas: #111111;
+  --rt-ink: #F2EFE9;
+  --rt-ink-dim: rgba(242,239,233,0.6);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #F2EFE9;
+  --rt-tab-edge: #F2EFE9;
+  --rt-tab-fg: #F2EFE9;
+  --rt-tab-on-bg: #F2EFE9;
+  --rt-tab-on-fg: #111111;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(242,239,233,0.4);
+  --rt-head-bg: transparent;
+  --rt-head-fg: #F2EFE9;
+  --rt-head-rule: rgba(242,239,233,0.7);
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #F2EFE9;
+  --rt-meta-edge: rgba(242,239,233,0.55);
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #F2EFE9;
+  --rt-inp-edge: rgba(242,239,233,0.55);
+  --rt-radio: #F2EFE9;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(242,239,233,0.2);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(242,239,233,0.4);
+  --rt-btn-edge: #F2EFE9;
+  --rt-btn-on-bg: #F2EFE9;
+  --rt-btn-on-fg: #111111;
+}
+.rp-wrap.rp-theme-swiss-inverse .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-theme-swiss-inverse .rp-title-row { position: relative; }
+.rp-theme-swiss-inverse .rp-title-row::after {
+  content: ''; position: absolute; left: 0; bottom: -4px;
+  width: 40px; height: 3px; background: #DA291C; pointer-events: none;
+}
+.rp-theme-swiss-inverse .rp-card { box-shadow: inset 0 0 0 1px rgba(242,239,233,0.4); }
+.rp-wrap.rp-theme-swiss-inverse .rp-card-head { font-weight: 700; letter-spacing: 0.08em; }
+.rp-wrap.rp-theme-swiss-inverse .rp-task-label { font-weight: 400; }
+.rp-theme-swiss-inverse .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+/* ══════════════════════════════════════════════════════════════════
+   风格派套（De Stijl / 新造型主义）
+     粗黑线只能水平 / 垂直，把卡片切成大小不一的矩形；
+     只用红 #D0302A / 黄 #EBC226 / 蓝 #1D3F8C + 黑 + 米白 #f4f1ea + 浅灰。
+     全部平涂：没有渐变、没有阴影、没有纹理、没有圆角。
+     字重只有 400 / 700（用 .rp-wrap. 前缀压过下面的字体基线）。
+     不改布局：粗线与色块都走 inset 阴影或绝对定位伪元素。
+   ══════════════════════════════════════════════════════════════════ */
+/* ── 风格派 · 粗格：四边粗黑框 + 右上红块 + 卡片头粗线 ── */
+.rp-theme-st-grid {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-grid .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-grid .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-grid .rp-task-label { font-weight: 400; }
+.rp-theme-st-grid .rp-card { box-shadow: inset 0 0 0 3px #111111; }
+.rp-theme-st-grid .rp-card-head { box-shadow: inset 0 -4px 0 #111111; }
+.rp-theme-st-grid .rp-card { position: relative; }
+.rp-theme-st-grid .rp-card::after {
+  content: ''; position: absolute; right: 0; top: 0;
+  width: 14px; height: 14px; background: #D0302A; pointer-events: none;
+}
+.rp-theme-st-grid .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+
+/* ── 风格派 · 色块：卡片头左侧黄块 + 右下红块，不套外框 ── */
+.rp-theme-st-block {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-block .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-block .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-block .rp-task-label { font-weight: 400; }
+.rp-theme-st-block .rp-card { position: relative; box-shadow: inset 0 -3px 0 #111111; }
+.rp-theme-st-block .rp-card-head { position: relative; }
+.rp-theme-st-block .rp-card-head::before {
+  content: ''; position: absolute; left: 0; top: calc(50% - 6px);
+  width: 10px; height: 12px; background: #EBC226; pointer-events: none;
+}
+.rp-theme-st-block .rp-card::after {
+  content: ''; position: absolute; right: 0; bottom: 0;
+  width: 18px; height: 18px; background: #D0302A; pointer-events: none;
+}
+.rp-theme-st-block .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+
+
+/* ── 风格派 · 粗线：上下两条粗黑线 + 左缘蓝条 ── */
+.rp-theme-st-rule {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-rule .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-rule .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-rule .rp-task-label { font-weight: 400; }
+.rp-theme-st-rule .rp-card { box-shadow: inset 0 3px 0 #111111, inset 0 -3px 0 #111111; }
+.rp-theme-st-rule .rp-card-head { box-shadow: inset 5px 0 0 #1D3F8C; }
+.rp-theme-st-rule .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+
+/* ── 风格派 · 角块：左上红角 + 右下黄角 + 细黑框 ── */
+.rp-theme-st-corner {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-corner .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-corner .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-corner .rp-task-label { font-weight: 400; }
+.rp-theme-st-corner .rp-card { position: relative; box-shadow: inset 0 0 0 1px #111111; }
+.rp-theme-st-corner .rp-card::before {
+  content: ''; position: absolute; left: 0; top: 0;
+  width: 10px; height: 10px; background: #D0302A; pointer-events: none;
+}
+.rp-theme-st-corner .rp-card::after {
+  content: ''; position: absolute; right: 0; bottom: 0;
+  width: 10px; height: 10px; background: #EBC226; pointer-events: none;
+}
+.rp-theme-st-corner .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+
+
+/* ── 风格派 · 横带：卡片头整宽黄带 + 红短线收口 ── */
+.rp-theme-st-band {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-band .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-band .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-band .rp-task-label { font-weight: 400; }
+.rp-theme-st-band .rp-card-head { background: #EBC226; color: #111111; box-shadow: inset 0 -3px 0 #111111; }
+.rp-theme-st-band .rp-card { position: relative; }
+.rp-theme-st-band .rp-card::before {
+  content: ''; position: absolute; left: 0; bottom: 0;
+  width: 34px; height: 3px; background: #D0302A; pointer-events: none;
+}
+.rp-theme-st-band .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+
+
+/* ── 风格派 · 竖栏：右侧蓝栏 + 竖粗线 ── */
+.rp-theme-st-column {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-column .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-column .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-column .rp-task-label { font-weight: 400; }
+.rp-theme-st-column .rp-card { box-shadow: inset -16px 0 0 #1D3F8C, inset -18px 0 0 #111111; }
+.rp-theme-st-column .rp-card-head { box-shadow: inset 0 -2px 0 #111111; }
+.rp-theme-st-column .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+
+/* ── 风格派 · 方块字母：标题前三色小方块 + 标题下粗线 ── */
+.rp-theme-st-letter {
+  position: relative;
+  color: #111111;
+  --rt-canvas: #f4f1ea;
+  --rt-ink: #111111;
+  --rt-ink-dim: rgba(17,17,17,0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #111111;
+  --rt-tab-edge: #111111;
+  --rt-tab-fg: #111111;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: transparent;
+  --rt-card-edge: #111111;
+  --rt-head-bg: transparent;
+  --rt-head-fg: #111111;
+  --rt-head-rule: #111111;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #111111;
+  --rt-meta-edge: #111111;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #f4f1ea;
+  --rt-inp-fg: #111111;
+  --rt-inp-edge: rgba(17,17,17,0.45);
+  --rt-radio: #111111;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: #D8D4CB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(17,17,17,0.45);
+  --rt-btn-edge: #111111;
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-letter .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-letter .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-letter .rp-task-label { font-weight: 400; }
+.rp-theme-st-letter .rp-title-row { position: relative; }
+.rp-theme-st-letter .rp-title-row::after {
+  content: ''; position: absolute; left: 0; bottom: -4px;
+  width: 100%; height: 4px; background: #111111; pointer-events: none;
+}
+.rp-theme-st-letter .rp-title { position: relative; }
+.rp-theme-st-letter .rp-title::before {
+  content: ''; position: absolute; right: 0; top: 0.18em;
+  width: 8px; height: 8px; background: #1D3F8C;
+  box-shadow: -9px 0 0 #EBC226, -18px 0 0 #D0302A;
+}
+.rp-theme-st-letter .rp-card { box-shadow: inset 0 0 0 1px #111111; }
+.rp-theme-st-letter .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
+
+
+/* ── 风格派 · 反白（暗）：黑底米白粗线 + 三色条 ── */
+.rp-theme-st-inverse {
+  position: relative;
+  color: #f4f1ea;
+  --rt-canvas: #111111;
+  --rt-ink: #f4f1ea;
+  --rt-ink-dim: rgba(244,241,234,0.6);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #f4f1ea;
+  --rt-tab-edge: rgba(244,241,234,0.65);
+  --rt-tab-fg: #f4f1ea;
+  --rt-tab-on-bg: #D0302A;
+  --rt-tab-on-fg: #f4f1ea;
+  --rt-card-bg: #191919;
+  --rt-card-edge: rgba(244,241,234,0.65);
+  --rt-head-bg: #0b0b0b;
+  --rt-head-fg: #f4f1ea;
+  --rt-head-rule: rgba(244,241,234,0.65);
+  --rt-meta-bg: #191919;
+  --rt-meta-fg: #f4f1ea;
+  --rt-meta-edge: rgba(244,241,234,0.65);
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: #232323;
+  --rt-inp-fg: #f4f1ea;
+  --rt-inp-edge: rgba(244,241,234,0.35);
+  --rt-radio: #f4f1ea;
+  --rt-radio-checked: #D0302A;
+  --rt-accent: #D0302A;
+  --rt-row-rule: rgba(244,241,234,0.18);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(244,241,234,0.35);
+  --rt-btn-edge: rgba(244,241,234,0.65);
+  --rt-btn-on-bg: #D0302A;
+  --rt-btn-on-fg: #f4f1ea;
+}
+/* 字重只有 400 / 700（压过下面的字体基线） */
+.rp-wrap.rp-theme-st-inverse .rp-title { font-weight: 700; letter-spacing: -0.01em; }
+.rp-wrap.rp-theme-st-inverse .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
+.rp-wrap.rp-theme-st-inverse .rp-task-label { font-weight: 400; }
+.rp-theme-st-inverse .rp-card { box-shadow: inset 0 0 0 3px #f4f1ea; }
+.rp-theme-st-inverse .rp-card-head { box-shadow: inset 0 -4px 0 #f4f1ea; }
+.rp-theme-st-inverse .rp-card { position: relative; }
+.rp-theme-st-inverse .rp-card::after {
+  content: ''; position: absolute; right: 0; top: 0;
+  width: 12px; height: 12px; background: #D0302A;
+  box-shadow: -12px 0 0 #EBC226, -12px 12px 0 #1D3F8C; pointer-events: none;
+}
+.rp-theme-st-inverse .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   汇报字体基线：全部主题沿用 P3R 那套排印
+     重标题（900 + 负字距）、重卡片头、任务名加粗、数字等宽。
+   只改字重 / 字距 / 数字排法，不动字号与行高（导出尺寸不变）。
+   ══════════════════════════════════════════════════════════════════ */
+.rp-wrap .rp-title { font-weight: 900; }
+.rp-wrap .rp-card-head { font-weight: 900; }
+.rp-wrap .rp-task-label { font-weight: 700; }
+.rp-wrap .rp-inp { font-weight: 800; font-variant-numeric: tabular-nums; }
+/* 信息栏里的输入框（托管天数 / 日期）统一到 P3R 的 900 —— classic 没有自己的主题规则，
+   这里兜住；各 .rp-theme-* 的同名规则也都已经是 900。 */
+.rp-wrap .rp-meta .rp-inp { font-weight: 900; }
+.rp-wrap .rp-meta,
+.rp-wrap .rp-lines,
+.rp-wrap .rp-quick-btn { font-variant-numeric: tabular-nums; }
+
+/* ══════════════════════════════════════════════════════════════════
+   瑞士风格 · 国际主义平面设计（Swiss Style）
+     只有三种颜色：墨 #161616 / 米白 #F2EFE9 / 强调红 #DA291C；全部平涂。
+     字重**只用 400 与 700 两档**（这套风格不做 900）——
+     所以下面的规则都带 `.rp-wrap.` 前缀，特异性高过上面的字体基线。
+     分区只用 1px 细线；红色只做编号与强调。
+     不改布局：没有 padding / margin / 宽高 / 字号，只动颜色、边框、
+     字重、小字距与不占布局的伪元素。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 瑞士 · 网格版式（米白纸面 + 12 栏细线）── */
+.rp-theme-swiss-rule {
+  position: relative;
+  color: #161616;
+  --rt-ink: #161616;
+  --rt-ink-dim: rgba(22, 22, 22, 0.55);
+  --rt-title-bg: transparent;
+  --rt-title-fg: #161616;
+  --rt-tab-edge: #161616;
+  --rt-tab-fg: #161616;
+  --rt-tab-on-bg: #161616;
+  --rt-tab-on-fg: #F2EFE9;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(22, 22, 22, 0.35);
+  --rt-head-bg: transparent;
+  --rt-head-fg: #161616;
+  --rt-head-rule: #161616;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #161616;
+  --rt-meta-edge: #161616;
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #161616;
+  --rt-inp-edge: #161616;
+  --rt-radio: #161616;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(22, 22, 22, 0.16);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(22, 22, 22, 0.35);
+  --rt-btn-edge: #161616;
+  --rt-btn-on-bg: #161616;
+  --rt-btn-on-fg: #F2EFE9;
+}
+/* 标题：粗体 + 紧字距（不改字号）；红色编号 01 绝对定位在标题上方 */
+.rp-wrap.rp-theme-swiss-rule .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-theme-swiss-rule .rp-title-row { position: relative; }
+.rp-theme-swiss-rule .rp-title-row::before {
+  content: '01';
+  position: absolute;
+  left: 0; top: -9px;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  color: #DA291C;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+/* 信息栏：只留一条细线（上下各 1px），不是色块 */
+.rp-theme-swiss-rule .rp-meta {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 -1px 0 #161616;
+}
+.rp-wrap.rp-theme-swiss-rule .rp-meta .rp-inp { font-weight: 700; }
+/* 卡片头：粗体 + 极细线收口 + 红色编号 */
+.rp-wrap.rp-theme-swiss-rule .rp-card-head {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 -1px 0 #161616;
+}
+.rp-theme-swiss-rule .rp-card { box-shadow: inset 0 0 0 1px rgba(22, 22, 22, 0.35); }
+.rp-wrap.rp-theme-swiss-rule .rp-task-label { font-weight: 400; letter-spacing: 0.01em; }
+.rp-theme-swiss-rule .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+.rp-theme-swiss-rule .rp-single-on,
+.rp-theme-swiss-rule .rp-radio-box { border-radius: 0; }
+.rp-theme-swiss-rule .rp-inp { border-radius: 0; }
+
+/* ── 瑞士 · 索引版式（墨底米白，红色仍是唯一强调）── */
+.rp-theme-swiss-index {
+  position: relative;
+  color: #F2EFE9;
+  --rt-ink: #F2EFE9;
+  --rt-ink-dim: rgba(242, 239, 233, 0.6);
+  /* 暗色主题：缩略图用墨底，一眼看出它要配深色画布 */
+  --rt-canvas: #111111;
+  --rt-title-bg: transparent;
+  --rt-title-fg: #F2EFE9;
+  --rt-tab-edge: #F2EFE9;
+  --rt-tab-fg: #F2EFE9;
+  --rt-tab-on-bg: #F2EFE9;
+  --rt-tab-on-fg: #111111;
+  --rt-card-bg: transparent;
+  --rt-card-edge: rgba(242, 239, 233, 0.4);
+  --rt-head-bg: transparent;
+  --rt-head-fg: #F2EFE9;
+  --rt-head-rule: #F2EFE9;
+  --rt-meta-bg: transparent;
+  --rt-meta-fg: #F2EFE9;
+  --rt-meta-edge: rgba(242, 239, 233, 0.55);
+  --rt-meta-bar: transparent;
+  --rt-inp-bg: transparent;
+  --rt-inp-fg: #F2EFE9;
+  --rt-inp-edge: rgba(242, 239, 233, 0.55);
+  --rt-radio: #F2EFE9;
+  --rt-radio-checked: #DA291C;
+  --rt-accent: #DA291C;
+  --rt-row-rule: rgba(242, 239, 233, 0.2);
+  --rt-row-alt: transparent;
+  --rt-img-edge: rgba(242, 239, 233, 0.4);
+  --rt-btn-edge: #F2EFE9;
+  --rt-btn-on-bg: #F2EFE9;
+  --rt-btn-on-fg: #111111;
+}
+.rp-wrap.rp-theme-swiss-index .rp-title { font-weight: 700; letter-spacing: -0.02em; }
+.rp-theme-swiss-index .rp-title-row { position: relative; }
+.rp-theme-swiss-index .rp-title-row::before {
+  content: '01';
+  position: absolute;
+  left: 0; top: -9px;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  color: #DA291C;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.rp-theme-swiss-index .rp-meta {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 -1px 0 rgba(242, 239, 233, 0.6);
+}
+.rp-wrap.rp-theme-swiss-index .rp-meta .rp-inp { font-weight: 700; }
+.rp-wrap.rp-theme-swiss-index .rp-card-head {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 -1px 0 #F2EFE9;
+}
+.rp-theme-swiss-index .rp-card { box-shadow: inset 0 0 0 1px rgba(242, 239, 233, 0.4); }
+.rp-wrap.rp-theme-swiss-index .rp-task-label { font-weight: 400; letter-spacing: 0.01em; }
+.rp-theme-swiss-index .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
+.rp-theme-swiss-index .rp-single-on,
+.rp-theme-swiss-index .rp-radio-box { border-radius: 0; }
+.rp-theme-swiss-index .rp-inp { border-radius: 0; }
 
 </style>
