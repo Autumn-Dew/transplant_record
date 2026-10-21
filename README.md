@@ -2,8 +2,17 @@
 
 一站式代肝（游戏代练）管理工具：**代肝代办 · 代肝记录 · 每日汇报 · 价格一览 · 蓝图记录 · 游戏与数据管理**。
 
-当前版本 **v1.0.43**（上一发布版为 v1.0.42；版本号只在 `package.json`）。Electron + Vue 3 + Vite，
+当前版本 **v1.0.5**（上一发布版为 v1.0.44；版本号只在 `package.json`）。Electron + Vue 3 + Vite，
 纯本地运行（localStorage + `userData/data/*.json` 双通道），不联网。
+
+## 下载安装包
+
+安装包不再进仓库（89MB 的 exe 会让克隆越来越慢），统一放在 **Releases**：
+
+- 最新版：<https://github.com/Autumn-Dew/transplant_record/releases/latest>
+- v1.0.5 直接下载：<https://github.com/Autumn-Dew/transplant_record/releases/download/v1.0.5/Transplant-Record-1.0.5-setup.exe>
+
+`dist_electron/` 已在 `.gitignore` 里，打包产物只作为 Release 附件上传。
 
 ## 快速开始
 
