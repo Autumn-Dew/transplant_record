@@ -10,7 +10,7 @@
 安装包不再进仓库（89MB 的 exe 会让克隆越来越慢），统一放在 **Releases**：
 
 - 最新版：<https://github.com/Autumn-Dew/transplant_record/releases/latest>
-- v1.0.61 下载页：<https://github.com/Autumn-Dew/transplant_record/releases/tag/v1.0.61>（附件名 `Transplant Record 代肝工作终端 1.0.61.exe`）
+- v1.0.61 直接下载：<https://github.com/Autumn-Dew/transplant_record/releases/download/v1.0.61/Transplant-Record-1.0.61-setup.exe>
 
 `dist_electron/` 已在 `.gitignore` 里，打包产物只作为 Release 附件上传。
 
