@@ -22,30 +22,54 @@ function emitChange(event) {
   try { window.dispatchEvent(new CustomEvent(event)) } catch { /* ignore */ }
 }
 
+function persistSnapshot(key, ipcSave, snapshot) {
+  const localOk = writeJSON(key, snapshot)
+  const api = electronApi()
+  const save = api?.[ipcSave]
+  let file
+  if (typeof save === 'function') {
+    try {
+      file = Promise.resolve(save(snapshot))
+        .then(result => result && typeof result === 'object' ? result : { ok: result !== false })
+        .catch(error => ({ ok: false, error: String(error && error.message ? error.message : error) }))
+    } catch (error) {
+      file = Promise.resolve({ ok: false, error: String(error && error.message ? error.message : error) })
+    }
+  } else {
+    file = Promise.resolve({ ok: true, skipped: true })
+  }
+
+  return { ok: localOk, localOk, file }
+}
+
 // ── 数组型仓库 ──
 function createCollectionRepo({ key, ipcLoad, ipcSave, normalize, changeEvent }) {
   const state = ref(normalize(readJSON(key, [])))
-  let hydrated = false
+  let hydratePromise = null
 
   function plain() {
     return clone(state.value) || []
   }
 
   function persist() {
-    writeJSON(key, plain())
-    try { electronApi()?.[ipcSave]?.(plain()) } catch { /* ignore */ }
+    const result = persistSnapshot(key, ipcSave, plain())
     if (changeEvent) emitChange(changeEvent)
+    return result
   }
 
-  // 仅在本地为空时从 Electron 文件补数据（与 v1 行为一致，不覆盖本地修改）
-  async function hydrate() {
-    if (hydrated) return
-    hydrated = true
-    if (Array.isArray(state.value) && state.value.length) return
-    try {
-      const d = await electronApi()?.[ipcLoad]?.()
-      if (Array.isArray(d) && d.length) { state.value = normalize(d); persist() }
-    } catch { /* ignore */ }
+  // 仅在本地为空时从 Electron 文件补数据（与 v1 行为一致，不覆盖本地修改）。
+  // 并发/重复调用共享同一个 Promise：调用方可以 await 它来决定「数据就绪后的初值」。
+  function hydrate() {
+    if (!hydratePromise) {
+      hydratePromise = (async () => {
+        if (Array.isArray(state.value) && state.value.length) return
+        try {
+          const d = await electronApi()?.[ipcLoad]?.()
+          if (Array.isArray(d) && d.length) { state.value = normalize(d); persist() }
+        } catch { /* ignore */ }
+      })()
+    }
+    return hydratePromise
   }
 
   function reload() {
@@ -54,8 +78,8 @@ function createCollectionRepo({ key, ipcLoad, ipcSave, normalize, changeEvent })
 
   function replaceAll(list, { silent = false } = {}) {
     state.value = normalize(list)
-    if (silent) { writeJSON(key, plain()); try { electronApi()?.[ipcSave]?.(plain()) } catch {} ; return }
-    persist()
+    if (silent) return persistSnapshot(key, ipcSave, plain())
+    return persist()
   }
 
   function find(id) {
@@ -91,24 +115,26 @@ function createCollectionRepo({ key, ipcLoad, ipcSave, normalize, changeEvent })
 // ── 对象型仓库（单项数据，如游戏目录、价格表）──
 function createObjectRepo({ key, ipcLoad, ipcSave, normalize, defaultValue }) {
   const state = ref(normalize(readJSON(key, clone(defaultValue()))))
-  let hydrated = false
+  let hydratePromise = null
 
   function plain() { return clone(state.value) }
   function persist() {
-    writeJSON(key, plain())
-    try { electronApi()?.[ipcSave]?.(plain()) } catch { /* ignore */ }
+    return persistSnapshot(key, ipcSave, plain())
   }
-  async function hydrate() {
-    if (hydrated) return
-    hydrated = true
-    // 仅当本地键不存在时才用文件数据补齐（避免用旧文件覆盖用户修改）
-    let localExists = false
-    try { localExists = localStorage.getItem(key) != null } catch { /* ignore */ }
-    if (localExists) return
-    try {
-      const d = await electronApi()?.[ipcLoad]?.()
-      if (d && typeof d === 'object') { state.value = normalize(d); persist() }
-    } catch { /* ignore */ }
+  // 与数组型仓库同一语义：只在「本地没有这个键」时用文件补齐，且并发调用共享同一个 Promise
+  function hydrate() {
+    if (!hydratePromise) {
+      hydratePromise = (async () => {
+        let localExists = false
+        try { localExists = localStorage.getItem(key) != null } catch { /* ignore */ }
+        if (localExists) return
+        try {
+          const d = await electronApi()?.[ipcLoad]?.()
+          if (d && typeof d === 'object') { state.value = normalize(d); persist() }
+        } catch { /* ignore */ }
+      })()
+    }
+    return hydratePromise
   }
   function reload() { state.value = normalize(readJSON(key, clone(defaultValue()))) }
   function replace(next) { state.value = normalize(next); persist() }
@@ -165,7 +191,7 @@ const blueprintGroups = {
   state: ref(normalizeGroupList(readJSON(KEYS.BLUEPRINT_GROUPS, []))),
   save(list) {
     this.state.value = normalizeGroupList(list)
-    writeJSON(KEYS.BLUEPRINT_GROUPS, this.state.value)
+    return { ok: writeJSON(KEYS.BLUEPRINT_GROUPS, this.state.value) }
   },
   reload() { this.state.value = normalizeGroupList(readJSON(KEYS.BLUEPRINT_GROUPS, [])) },
 }
@@ -183,3 +209,72 @@ export const completionsRepo = completions
 export const gamesRepo = games
 export const blueprintsRepo = blueprints
 export const blueprintGroupsRepo = blueprintGroups
+
+/**
+ * 启动时统一从 Electron 文件补齐数据（`main.js` 在挂载之后调用）。
+ *
+ * 之前是各页面在 `onMounted` 里自己 hydrate，于是「谁忘了写谁就没有数据」：
+ * 代肝代办拿不到游戏目录、新增记录拿不到服务/蓝图、日报拿不到托管项目。
+ * 现在补齐只发生在这一个地方；各 repo 的 hydrate 幂等且共享同一个 Promise，
+ * 重复调用不会多读文件。
+ *
+ * `blueprintGroups` 没有文件通道（只存 localStorage），不参与。
+ */
+export function hydrateAll() {
+  return Promise.all([
+    projects.hydrate(),
+    completions.hydrate(),
+    games.hydrate(),
+    blueprints.hydrate(),
+  ])
+}
+
+/**
+ * 业务快照提交 seam：项目与执行记录必须作为一个逻辑单位更新。
+ *
+ * localStorage 两边都成功后才发布响应式状态与变更事件；任一写入失败会恢复旧值，
+ * 避免出现「项目进度已变但记录缺失」或相反的半提交状态。
+ * Electron 文件写入仍是异步 adapter，但结果通过 durable Promise 统一汇总给调用方。
+ */
+export function commitBusinessSnapshot({ projects: nextProjects, completions: nextCompletions }) {
+  const beforeProjects = projects.plain()
+  const beforeCompletions = completions.plain()
+  const normalizedProjects = normalizeProjects(nextProjects)
+  const normalizedCompletions = normalizeCompletions(nextCompletions)
+
+  const projectsOk = writeJSON(KEYS.ACCOUNTS, normalizedProjects)
+  const completionsOk = projectsOk && writeJSON(KEYS.COMPLETIONS, normalizedCompletions)
+  if (!projectsOk || !completionsOk) {
+    writeJSON(KEYS.ACCOUNTS, beforeProjects)
+    writeJSON(KEYS.COMPLETIONS, beforeCompletions)
+    return { ok: false, reason: 'local-persist-failed', durable: Promise.resolve({ ok: false, skipped: true }) }
+  }
+
+  projects.state.value = normalizedProjects
+  completions.state.value = normalizedCompletions
+  emitChange('tr-accounts-changed')
+  emitChange('tr-completions-changed')
+
+  const api = electronApi()
+  const saveFile = (name, value) => {
+    const save = api?.[name]
+    if (typeof save !== 'function') return Promise.resolve({ ok: true, skipped: true })
+    try {
+      return Promise.resolve(save(clone(value)))
+        .then(result => result && typeof result === 'object' ? result : { ok: result !== false })
+        .catch(error => ({ ok: false, error: String(error && error.message ? error.message : error) }))
+    } catch (error) {
+      return Promise.resolve({ ok: false, error: String(error && error.message ? error.message : error) })
+    }
+  }
+  const durable = Promise.all([
+    saveFile('saveRecords', normalizedProjects),
+    saveFile('saveCompletions', normalizedCompletions),
+  ]).then(([projectFile, completionFile]) => ({
+    ok: projectFile.ok !== false && completionFile.ok !== false,
+    projectFile,
+    completionFile,
+  }))
+
+  return { ok: true, durable }
+}

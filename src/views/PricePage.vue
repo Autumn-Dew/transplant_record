@@ -25,7 +25,7 @@
         <span class="tl-entry-btn" :class="{ active: !isEf }" @click="setTheme('classic')" title="原版价格表">原版</span>
         <span class="tl-entry-btn" :class="{ active: isEf }" @click="setTheme('endfield')" title="终末地风格：工单卡片 / 三色条 / 宽体数字">终末地</span>
       </span>
-      <label class="rc-global-btn" style="cursor:pointer">
+      <label class="rc-global-btn" style="cursor:pointer" title="选择画布背景图（会压缩后保存，重启仍在）">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         <span>背景</span>
         <input type="file" accept="image/*" hidden @change="onBgFile">
@@ -56,7 +56,7 @@
           </div>
           <!-- 原版：每个分类一块表格 -->
           <template v-if="!isEf">
-            <div v-for="cat in filteredCats" :key="cat._cid" class="pr-cat">
+            <div v-for="cat in filteredCats" :key="cat.name" class="pr-cat">
               <div class="pr-cat-head">
                 <span class="pr-cat-name">{{ cat.name }}</span>
                 <span class="pr-cat-badge">{{ cat.mode === 'preset' ? '预设' : '自定义' }}</span>
@@ -87,7 +87,7 @@
           <div class="pr-ef-cards" v-else-if="isEf">
             <div
               v-for="(cat, ci) in filteredCats"
-              :key="cat._cid"
+              :key="cat.name"
               class="pr-ef-card"
               :class="{ wide: ci === 0 }"
               :style="{ '--pr-ef-nm-w': cardNameWidths[ci] ? cardNameWidths[ci] + 'px' : '22%' }"
@@ -134,30 +134,32 @@ import { gamesRepo } from '@/data/repos.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
 import SelectBox from '@/components/SelectBox.vue'
 import { readShopForGame, readShopHidden } from '@/data/shop-info.js'
-import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
+import { readPriceTheme, writePriceTheme } from '@/data/price-theme.js'
+import { readPriceBg, writePriceBg, fileToBgDataUrl } from '@/data/price-bg.js'
+import { APP_SIGN } from '@/data/app-info.js'
+import { usePageEnter } from '@/composables/usePageEnter.js'
+import { copyPngBlob, downloadBlob, timestampName } from '@/utils/clipboard.js'
 
-// 个人标签：价格表画布右下角的署名（导出图里也保留）
-const SIGNATURE = '秋の露'
+// 个人标签：价格表画布右下角的署名（导出图里也保留）。唯一来源是 data/app-info.js 的 APP_SIGN
+const SIGNATURE = APP_SIGN
 
 // ── 画布外观：原版（默认）/ 终末地风格 ──
 // 与每日汇报同一套思路：外观独立持久化，不动任何业务数据（价格仍在 tr-prices 里）。
-const PRICE_THEMES = ['classic', 'endfield']
-function normalizePriceTheme(v) {
-  const raw = String(v == null ? '' : v).replace(/^"|"$/g, '').trim()
-  return PRICE_THEMES.includes(raw) ? raw : 'classic'
-}
-const priceTheme = ref(normalizePriceTheme(readJSON(KEYS.PRICE_THEME, null)))
+// 读写全部经过 data/price-theme.js，组件不再直接碰存储键。
+const priceTheme = ref(readPriceTheme())
 const isEf = computed(() => priceTheme.value === 'endfield')
 function setTheme(id) {
-  priceTheme.value = normalizePriceTheme(id)
-  try { writeJSON(KEYS.PRICE_THEME, priceTheme.value) } catch { /* 存储失败不影响当前会话 */ }
+  priceTheme.value = writePriceTheme(id)
 }
 
 const { getGame } = usePrices()
-const game = ref('endfield')
+// 当前游戏：留空，由 watch(gameOptions) 在数据就绪后选中第一个可用游戏（不再硬编码某个游戏 id）
+const game = ref('')
 const mode = ref('preset')
 const wrapRef = ref(null)
-const bgUrl = ref(null)
+// 画布背景图：压缩后存 dataURL（`tr-price-bg`），重启后仍在；清除即写空串。
+// 压缩规则见 data/price-bg.js（最长边 1600px / JPEG 0.78 / 上限 2MB）。
+const bgUrl = ref(readPriceBg() || null)
 const shopList = ref([])
 // 店铺信息是否在价格表里隐藏（「数据管理」里的开关）
 const shopHidden = ref(readShopHidden())
@@ -177,22 +179,27 @@ function loadShopInfo() {
   } catch { /* ignore */ }
 }
 onMounted(() => {
-  gamesRepo.hydrate()
-  // 当前游戏若已不在游戏列表里，回退到第一个可用游戏
-  const opts = gameOptions.value.filter(o => o.value && o.value !== 'all')
-  if (opts.length && !opts.some(o => o.value === game.value)) game.value = opts[0].value
+  // 数据补齐统一在 src/main.js 的 hydrateAll() 里做
   loadShopInfo()
 })
 // 切换游戏时加载该游戏的店铺信息
 watch(game, loadShopInfo)
 
-const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
+// 游戏目录可能在挂载后才补齐：数据到了再校正当前游戏（否则会停在硬编码的默认值上）
+watch(gameOptions, (opts) => {
+  const usable = opts.filter(o => o.value && o.value !== 'all')
+  if (usable.length && !usable.some(o => o.value === game.value)) game.value = usable[0].value
+  loadShopInfo()
+}, { immediate: true })
 
-let cid = 0
+// 入场动画（统一节奏见 composables/usePageEnter）
+const { entered } = usePageEnter()
+
+// 只做筛选，绝不往共享单例（usePrices 的 prices）里写字段：
+// 之前给每个分类注入 _cid 当 :key，等于在 computed 内部修改全局状态（computed 必须纯净）。
+// 分类名经 dedupeCats 保证唯一，可以直接作为 key。
 const filteredCats = computed(() => {
   const cats = getGame(game.value).categories || []
-  cats.forEach(c => { if (c._cid === undefined) c._cid = ++cid })
   return mode.value === 'all' ? cats : cats.filter(c => c.mode === mode.value)
 })
 
@@ -227,39 +234,43 @@ function measureNameColumn() {
 onMounted(() => nextTick(measureNameColumn))
 watch([filteredCats, isEf, game, mode], () => nextTick(measureNameColumn), { deep: true })
 
-function onBgFile(e) {
+async function onBgFile(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  if (bgUrl.value) URL.revokeObjectURL(bgUrl.value)
-  bgUrl.value = URL.createObjectURL(file)
+  const dataUrl = await fileToBgDataUrl(file)
+  if (!dataUrl) {
+    alert('这张图片没法用作背景（格式不支持或压缩失败）')
+    return
+  }
+  const saved = writePriceBg(dataUrl)
+  if (!saved) {
+    alert('图片压缩后仍然太大，换一张小一些的图吧（上限约 2MB）')
+    return
+  }
+  bgUrl.value = saved
+  e.target.value = ''
 }
 function clearBg() {
-  if (bgUrl.value) URL.revokeObjectURL(bgUrl.value)
+  writePriceBg('')
   bgUrl.value = null
 }
-onUnmounted(() => { if (bgUrl.value) URL.revokeObjectURL(bgUrl.value) })
 
 // toClipboard=true：只写系统剪贴板（与每日汇报「复制到剪切板」同款）
 async function exportImage(toClipboard = false) {
   if (!wrapRef.value) return
-  const now = new Date()
-  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+  const ts = timestampName()
   try {
     const canvas = await html2canvas(wrapRef.value, { backgroundColor: isEf.value ? '#f4f4f2' : '#ffffff', scale: 2 })
     const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
     if (!blob) return
     if (toClipboard) {
-      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]) } catch (e) { console.error(e) }
+      await copyPngBlob(blob)
       return
     }
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `价格一览_${game.value}_${ts}.png`
-    a.click()
-    URL.revokeObjectURL(url)
-    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]) } catch {}
-  } catch {}
+    downloadBlob(blob, `价格一览_${game.value}_${ts}.png`)
+    // 下载的同时也放一份到剪贴板，方便直接粘贴到聊天窗口
+    await copyPngBlob(blob)
+  } catch { /* 导出失败不影响页面 */ }
 }
 </script>
 

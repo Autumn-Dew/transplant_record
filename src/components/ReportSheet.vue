@@ -1,8 +1,8 @@
 <template>
   <div class="rp-sheet" @paste="onPaste">
     <div class="local-toolbar">
-      <button class="rc-global-btn" @click="exportImage(false)">导出图片</button>
-      <button class="rc-global-btn" @click="exportImage(true)">复制到剪切板</button>
+      <button class="rc-global-btn" @click="exportImage(false)">{{ templateText('btnExport', '导出图片') }}</button>
+      <button class="rc-global-btn" @click="exportImage(true)">{{ templateText('btnCopy', '复制到剪切板') }}</button>
       <button
         class="rc-global-btn rp-confirm-btn"
         data-sfx-overcharge
@@ -11,44 +11,60 @@
         :title="confirmBtnTitle"
         @click="handleConfirm"
       >{{ confirmBtnText }}</button>
-      <button class="rc-global-btn" @click="shareImage">分享</button>
-      <button class="rc-global-btn" @click="resetAll">重置</button>
+      <button class="rc-global-btn" @click="shareImage">{{ templateText('btnShare', '分享') }}</button>
+      <button class="rc-global-btn" @click="resetAll">{{ templateText('btnReset', '重置') }}</button>
       <label class="rc-global-btn" style="cursor:pointer">
-        <span>+ 图片</span>
+        <span>{{ templateText('btnAddImage', '+ 图片') }}</span>
         <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
       </label>
-      <!-- 汇报外观：点击后从右侧滑出侧边弹窗（版式与「项目详情」窗口一致），
+      <!-- 日报模板面板：改的是当前草稿，"存为全局预设"才写回目录配置 -->
+    <ReportTemplatePanel
+      v-if="templatePanelOpen"
+      :draft="currentTpl"
+      :fields="REPORT_TEXT_FIELDS"
+      :save-style="saveGlobalStyle"
+      :save-title="saveGlobalTitle"
+      :save-label="templateText('btnSaveGlobal', '存为全局预设')"
+      @close="templatePanelOpen = false"
+      @reset="resetTemplate"
+      @save-global="saveTemplateAsGlobal"
+    />
+
+    <!-- 汇报外观：点击后从右侧滑出侧边弹窗（版式与「项目详情」窗口一致），
            主题与背景两个选择互相独立，也都与应用主题无关 -->
       <span class="rp-look-btn">
         <button
           class="rc-global-btn"
           title="每日汇报的主题与背景（与当前应用主题无关，可自由组合）"
           @click="stylePanelOpen = true"
-        >外观 · {{ reportTheme.label }} / {{ reportBg.label }}</button>
+        >{{ templateText('btnAppearance', '外观') }} · {{ reportTheme.label }} / {{ reportBg.label }}</button>
       </span>
+      <button class="rc-global-btn" title="编辑日报模板（临时修改，可存为全局预设）" @click="templatePanelOpen = true">{{ templateText('btnTemplate', '模板') }}</button>
       <div class="toolbar-spacer"></div>
       <!-- 当前选中托管项目的备注（显示在控件右侧，过长省略、悬停看全文） -->
       <span class="rp-note" v-if="selectedTask && selectedTask.note" :title="selectedTask.note">
         备注：{{ selectedTask.note }}
       </span>
-      <span class="rp-hint">Ctrl+V 粘贴截图</span>
+      <span class="rp-hint">{{ templateText('hintPaste', 'Ctrl+V 粘贴截图') }}</span>
     </div>
 
     <div class="rp-body">
       <div class="rp-wrap" ref="wrapRef" :class="`rp-theme-${reportTheme.id}`" :style="{ background: reportBg.bg }">
         <!-- Title -->
         <div class="rp-title-row">
-          <div class="rp-title" contenteditable @input="dirty = true" ref="titleRef">秋の露的每日汇报</div>
+          <div class="rp-title" contenteditable ref="titleRef">{{ APP_SIGN }}的每日汇报</div>
           <div class="rp-no-export rp-author-box">
-            <span class="rp-author-label">汇报人</span>
-            <button class="rp-author-btn" :class="{ active: activeAuthor === '秋の露' }" @click="setAuthor('秋の露')">秋の露</button>
-            <button class="rp-author-btn" :class="{ active: activeAuthor === '小野' }" @click="setAuthor('小野')">小野</button>
+            <span class="rp-author-label">{{ templateText('authorLabel', '汇报人') }}</span>
+            <span class="rp-author-name">{{ currentAuthor }}</span>
           </div>
-          <div class="rp-game-tabs">
-            <button :class="{ active: reportGame === 'ak', 'rp-no-export': reportGame !== 'ak' }" @click="switchGame('ak')">明日方舟</button>
-            <button :class="{ active: reportGame === 'endfield', 'rp-no-export': reportGame !== 'endfield' }" @click="switchGame('endfield')">终末地</button>
-            <button :class="{ active: reportGame === 'nte', 'rp-no-export': reportGame !== 'nte' }" @click="switchGame('nte')">异环</button>
-          </div>
+        <div class="rp-game-tabs">
+          <button
+            v-for="g in reportGames"
+            :key="g.id"
+            :class="{ active: reportGame === g.id, 'rp-no-export': reportGame !== g.id }"
+            @click="switchGame(g.id)"
+          >{{ g.name }}</button>
+        </div>
         </div>
 
         <!-- Hosting period -->
@@ -56,176 +72,94 @@
           <span class="rp-no-export" v-if="hostingOptions.length">
             <SelectBox v-model="selectedTaskId" :options="hostingOptions" placeholder="选择托管项目" width="300px" @change="applyTask" />
           </span>
-          <span>托管：第</span><input type="number" v-model.number="curDay" class="rp-inp rp-num" min="1" />
+          <span>{{ templateText('metaPrefix', '托管：第') }}</span><input type="number" v-model.number="curDay" class="rp-inp rp-num" min="1" />
           <span>/</span><input type="number" v-model.number="totalDays" class="rp-inp rp-num" min="1" />
-          <span>天（</span><input type="date" v-model="dateFrom" class="rp-inp rp-date-sm" />
+          <span>{{ templateText('metaDaysSuffix', '天（') }}</span><input type="date" v-model="dateFrom" class="rp-inp rp-date-sm" />
           <span>—</span><input type="date" v-model="dateTo" class="rp-inp rp-date-sm" />
-          <span>）</span>
+          <span>{{ templateText('metaClose', '）') }}</span>
         </div>
 
         <!-- AK -->
-        <div class="rp-cards-row" v-if="reportGame === 'ak'">
+        <!-- 任务卡片：所有游戏共用一套结构；AK / EF / 异环各自多几行专属字段 -->
+        <div class="rp-cards-row">
           <div class="rp-card rp-half">
-            <div class="rp-card-head">日常</div>
+            <div class="rp-card-head">{{ templateText('cardDaily', '日常') }}</div>
             <div class="rp-card-body">
               <div class="rp-tasks">
-                <div v-for="t in dailyTasks" :key="t.label" class="rp-task-row rp-task-grid">
+                <div v-for="(t, i) in currentRows.daily" :key="'d-' + i" class="rp-task-row rp-task-grid">
                   <span class="rp-task-label">{{ t.label }}</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                  <input v-if="t.extra !== undefined" v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
+                  <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                  <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                  <input v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
+                  <button class="rp-task-del rp-no-export" @click="removeTaskRow('daily', i)" title="删除这一项（只影响当前这份日报；想让以后都生效，去「模板」里存为全局预设）">×</button>
                 </div>
-                <div class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">理智剩余</span>
-                  <input type="number" v-model.number="sanityLeft" class="rp-inp" min="0" style="width:60px" />
-                  <span></span><span></span>
-                </div>
-                <div class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">线索传递</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_clue_extra'" v-model="clueExtra" value="好友位已送完" /><span class="rp-radio-box"></span>好友位已送完</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_clue_extra'" v-model="clueExtra" value="" /><span class="rp-radio-box"></span>无</label>
-                  <span></span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="rp-card rp-half">
-            <div class="rp-card-head">周常</div>
-            <div class="rp-card-body">
-              <div class="rp-tasks">
-                <div v-for="t in weeklyTasks" :key="t.label" class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">{{ t.label }}</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                  <input v-if="t.extra !== undefined" v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Endfield -->
-        <div class="rp-cards-row" v-if="reportGame === 'endfield'">
-          <div class="rp-card rp-half">
-            <div class="rp-card-head">日常</div>
-            <div class="rp-card-body">
-              <div class="rp-tasks">
-                <div v-for="t in efDailyTasks" :key="t.label" class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">{{ t.label }}</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_ef_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_ef_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                  <input v-if="t.extra !== undefined" v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                </div>
-                <div class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">理智剩余</span>
-                  <input type="number" v-model.number="efSanityLeft" class="rp-inp" min="0" style="width:60px" />
-                  <span></span><span></span>
-                </div>
-                <div class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">线索传递</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_ef_clue'" v-model="efClueExtra" value="好友位已送完" /><span class="rp-radio-box"></span>好友位已送完</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_ef_clue'" v-model="efClueExtra" value="" /><span class="rp-radio-box"></span>无</label>
-                  <span></span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="rp-card rp-half">
-            <div class="rp-card-head">周常</div>
-            <div class="rp-card-body">
-              <div class="rp-tasks">
-                <div v-for="t in efWeeklyTasks" :key="t.label" class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">{{ t.label }}</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_efw_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_efw_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                  <input v-if="t.extra !== undefined" v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- NTE -->
-        <div v-if="reportGame === 'nte'">
-          <div class="rp-cards-row">
-            <div class="rp-card rp-half">
-              <div class="rp-card-head">日常</div>
-              <div class="rp-card-body">
-                <div class="rp-tasks">
-                  <div v-for="t in nteDailyA" :key="t.label" class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ t.label }}</span>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_nte_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_nte_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                    <input v-if="t.extra !== undefined" v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                  </div>
-                  <div v-for="t in nteDailyB" :key="t.label" class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ t.label }}</span>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_nte_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_nte_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                    <input v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                  </div>
+                <!-- AK / 终末地：理智剩余 + 线索传递 -->
+                <template v-if="reportGame === 'ak' || reportGame === 'endfield'">
                   <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">本性像素剩余</span>
-                    <input type="number" v-model.number="ntePixelLeft" class="rp-inp" min="0" style="width:60px" />
+                    <span class="rp-task-label">{{ templateText('rowSanity', '理智剩余') }}</span>
+                    <input v-if="reportGame === 'ak'" type="number" v-model.number="sanityLeft" class="rp-inp" min="0" style="width:60px" />
+                    <input v-else type="number" v-model.number="efSanityLeft" class="rp-inp" min="0" style="width:60px" />
                     <span></span><span></span>
                   </div>
+                  <div class="rp-task-row rp-task-grid">
+                    <span class="rp-task-label">{{ templateText('rowClue', '线索传递') }}</span>
+                    <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="好友位已送完" /><span class="rp-radio-box"></span>好友位已送完</label>
+                    <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="" /><span class="rp-radio-box"></span>无</label>
+                    <span></span>
+                  </div>
+                </template>
+
+                <!-- 异环：本性像素剩余 -->
+                <div class="rp-task-row rp-task-grid" v-if="reportGame === 'nte'">
+                  <span class="rp-task-label">{{ templateText('rowPixel', '本性像素剩余') }}</span>
+                  <input type="number" v-model.number="ntePixelLeft" class="rp-inp" min="0" style="width:60px" />
+                  <span></span><span></span>
                 </div>
+
+                <button class="rp-add-row rp-no-export" @click="addTaskRow('daily')">{{ templateText('btnAddTask', '+ 添加任务') }}</button>
               </div>
             </div>
-            <div class="rp-card rp-half">
-              <div class="rp-card-head">周常</div>
-              <div class="rp-card-body">
-                <div class="rp-tasks">
-                  <div v-for="t in nteWeeklyTasks" :key="t.label" class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ t.label }}</span>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_ntew_' + t.label" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_ntew_' + t.label" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                    <input v-if="t.extra !== undefined" v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                  </div>
+          </div>
+
+          <div class="rp-card rp-half">
+            <div class="rp-card-head">{{ templateText('cardWeekly', '周常') }}</div>
+            <div class="rp-card-body">
+              <div class="rp-tasks">
+                <div v-for="(t, i) in currentRows.weekly" :key="'w-' + i" class="rp-task-row rp-task-grid">
+                  <span class="rp-task-label">{{ t.label }}</span>
+                  <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                  <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                  <input v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
+                  <button class="rp-task-del rp-no-export" @click="removeTaskRow('weekly', i)" title="删除这一项（只影响当前这份日报；想让以后都生效，去「模板」里存为全局预设）">×</button>
+                </div>
+
+                <!-- 异环：送礼 + 都市体力剩余 -->
+                <template v-if="reportGame === 'nte'">
                   <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">送礼</span>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_nte_gift'" v-model="nteGiftDone" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_nte_gift'" v-model="nteGiftDone" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    <span class="rp-task-label">{{ templateText('rowGift', '送礼') }}</span>
+                    <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                    <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="false" /><span class="rp-radio-box"></span>未完成</label>
                     <input v-model="nteGiftNote" class="rp-inp rp-extra" placeholder="备注" />
                   </div>
                   <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">都市体力剩余</span>
+                    <span class="rp-task-label">{{ templateText('rowStamina', '都市体力剩余') }}</span>
                     <input type="number" v-model.number="nteStaminaLeft" class="rp-inp" min="0" style="width:60px" />
                     <span></span><span></span>
                   </div>
-                </div>
+                </template>
+
+                <button class="rp-add-row rp-no-export" @click="addTaskRow('weekly')">{{ templateText('btnAddWeekly', '+ 添加周常') }}</button>
               </div>
             </div>
           </div>
         </div>
 
+
         <!-- 今日获取资源 -->
         <div class="rp-card rp-res-card">
-          <div class="rp-card-head">今日获取资源</div>
+          <div class="rp-card-head">{{ templateText('cardResources', '今日获取资源') }}</div>
           <div class="rp-card-body">
-            <!-- 已停用预选项：今日获取资源 -->
-            <template v-if="false">
-            <div class="rp-no-export rp-quick-bar" v-if="reportGame === 'nte'">
-              <span class="rp-quick-label">快捷添加：</span>
-              <button v-for="m in nteQuickMats" :key="m" class="rp-quick-btn" @click="appendMatRes(m)">{{ m }}</button>
-              <span class="rp-quick-label rp-quick-group-label">培养素材：</span>
-              <button v-for="m in nteEvoMats" :key="m" class="rp-quick-btn" style="background:rgba(183,131,255,0.15)" @click="appendMatRes(m)">{{ m }}</button>
-            </div>
-            <div class="rp-no-export rp-quick-bar" v-else>
-              <template v-if="reportGame === 'ak'">
-                <template v-for="g in quickMats" :key="g.name">
-                  <span class="rp-quick-label rp-quick-group-label">{{ g.name }}：</span>
-                  <button v-for="m in g.items" :key="m" class="rp-quick-btn" :style="{ background: g.tier === 1 ? 'rgba(159,159,159,0.15)' : g.tier === 2 ? 'rgba(227,227,36,0.15)' : g.tier === 3 ? 'rgba(0,179,252,0.15)' : 'rgba(208,191,208,0.2)' }" @click="appendMatRes(m)">{{ m }}</button>
-                </template>
-              </template>
-              <template v-else>
-                <template v-for="g in efQuickMats" :key="g.name">
-                  <span class="rp-quick-label rp-quick-group-label">{{ g.name }}：</span>
-                  <button v-for="m in g.items" :key="m.name" class="rp-quick-btn" :style="{ background: m.tier === 1 ? 'rgba(182,182,182,0.15)' : m.tier === 2 ? 'rgba(182,219,70,0.15)' : m.tier === 3 ? 'rgba(52,197,255,0.15)' : m.tier === 4 ? 'rgba(183,131,255,0.15)' : m.tier === 5 ? 'rgba(255,207,0,0.18)' : 'rgba(255,115,0,0.15)' }" @click="appendMatRes(m.name)">{{ m.name }}</button>
-                </template>
-              </template>
-            </div>
-            </template>
             <div class="rp-tasks">
               <div v-for="(r, i) in resources" :key="i" class="rp-task-row">
                 <input v-model="r.label" class="rp-inp rp-label-inp" placeholder="资源名" />
@@ -235,39 +169,16 @@
                 <input v-model="r.note" class="rp-inp rp-extra" placeholder="备注" />
                 <button class="rp-row-del rp-no-export" @click="resources.splice(i, 1)" title="删除这一项（可以删到一项都不剩，导出时整块隐藏）">×</button>
               </div>
-              <button class="rp-add-row rp-no-export" @click="resources.push({ label: '', before: '', after: '', note: '' })">+ 添加资源</button>
+              <button class="rp-add-row rp-no-export" @click="resources.push({ label: '', before: '', after: '', note: '' })">{{ templateText('btnAddResource', '+ 添加资源') }}</button>
             </div>
           </div>
         </div>
 
         <!-- 明日计划 -->
         <div class="rp-card">
-          <div class="rp-card-head">明日计划</div>
+          <div class="rp-card-head">{{ templateText('cardPlan', '明日计划') }}</div>
           <div class="rp-card-body">
-            <!-- 已停用预选项：明日计划 -->
-            <template v-if="false">
-            <div class="rp-no-export rp-quick-bar" v-if="reportGame === 'nte'">
-              <span class="rp-quick-label">快捷：</span>
-              <button v-for="q in nteQuickPlans" :key="q" class="rp-quick-btn" @click="appendPlan(q)">{{ q }}</button>
-              <span class="rp-quick-label rp-quick-group-label">培养素材：</span>
-              <button v-for="m in nteEvoMats" :key="m" class="rp-quick-btn" style="background:rgba(183,131,255,0.15)" @click="appendPlan('刷取' + m)">{{ m }}</button>
-            </div>
-            <div class="rp-no-export rp-quick-bar" v-else-if="reportGame === 'endfield'">
-              <template v-for="g in efQuickMats" :key="g.name">
-                <span class="rp-quick-label rp-quick-group-label">{{ g.name }}：</span>
-                <button v-for="m in g.items" :key="m.name" class="rp-quick-btn" :style="{ background: m.tier === 1 ? 'rgba(182,182,182,0.15)' : m.tier === 2 ? 'rgba(182,219,70,0.15)' : m.tier === 3 ? 'rgba(52,197,255,0.15)' : m.tier === 4 ? 'rgba(183,131,255,0.15)' : m.tier === 5 ? 'rgba(255,207,0,0.18)' : 'rgba(255,115,0,0.15)' }" @click="appendPlan('刷取' + m.name)">{{ m.name }}</button>
-              </template>
-            </div>
-            <div class="rp-no-export rp-quick-bar" v-else>
-              <span class="rp-quick-label">日常：</span><button v-for="q in quickPlans" :key="q" class="rp-quick-btn" @click="appendPlan(q)">{{ q }}</button>
-              <span class="rp-quick-label">材料：</span>
-              <template v-for="g in quickMats" :key="g.name">
-                <span class="rp-quick-label rp-quick-group-label">{{ g.name }}：</span>
-                <button v-for="m in g.items" :key="m" class="rp-quick-btn" :style="{ background: g.tier === 1 ? 'rgba(159,159,159,0.15)' : g.tier === 2 ? 'rgba(227,227,36,0.15)' : g.tier === 3 ? 'rgba(0,179,252,0.15)' : 'rgba(208,191,208,0.2)' }" @click="appendPlan('刷取' + m)">{{ m }}</button>
-              </template>
-            </div>
-            </template>
-            <div class="rp-lines" contenteditable @input="dirty = true" @keydown.enter="onPlanEnter" ref="planRef">
+            <div class="rp-lines" contenteditable @keydown.enter="onPlanEnter" ref="planRef">
               <div></div>
             </div>
           </div>
@@ -275,20 +186,9 @@
 
         <!-- 备注 -->
         <div class="rp-card">
-          <div class="rp-card-head">备注</div>
+          <div class="rp-card-head">{{ templateText('cardNote', '备注') }}</div>
           <div class="rp-card-body">
-            <!-- 已停用预选项：备注 -->
-            <template v-if="false">
-            <div class="rp-no-export rp-quick-bar" v-if="reportGame === 'nte'">
-              <span class="rp-quick-label">快捷：</span>
-              <button v-for="n in nteQuickNotes" :key="n" class="rp-quick-btn" @click="appendNote(n)">{{ n }}</button>
-            </div>
-            <div class="rp-no-export rp-quick-bar" v-else>
-              <span class="rp-quick-label">快捷：</span>
-              <button v-for="n in quickNotes" :key="n" class="rp-quick-btn" @click="appendNote(n)">{{ n }}</button>
-            </div>
-            </template>
-            <div class="rp-lines" contenteditable @input="dirty = true" ref="noteRef">
+            <div class="rp-lines" contenteditable ref="noteRef">
               <div></div>
             </div>
           </div>
@@ -296,7 +196,7 @@
 
         <!-- 截图 -->
         <div class="rp-card" v-if="images.length">
-          <div class="rp-card-head">截图</div>
+          <div class="rp-card-head">{{ templateText('cardShots', '截图') }}</div>
           <div class="rp-card-body">
             <div class="rp-images">
               <div v-for="(img, i) in images" :key="i" class="rp-img-wrap">
@@ -327,59 +227,63 @@
 
         <div class="detail-grid">
           <p class="detail-section">内容主题 · 决定标题行 / 卡片 / 信息栏的样式</p>
-          <p class="rp-look-tip">「浅」= 深色字配浅底；「暗」= 浅墨字，建议配深色画布背景。</p>
+          <p class="rp-look-tip">「浅 / 暗」表示内容面板倾向；每套主题都有独立承载面，可与任意画布背景组合。</p>
           <div class="rp-look-wrap">
-            <div v-for="g in REPORT_THEME_GROUPS" :key="g.id" class="rp-look-group">
-              <div class="rp-look-group-label">{{ g.label }}</div>
-              <div class="rp-look-row">
-                <button
-                  v-for="t in g.items"
-                  :key="t.id"
-                  class="rp-theme-card"
-                  :class="{ active: reportThemeId === t.id }"
-                  :title="`${t.label} · ${t.hint}`"
-                  @click="setReportTheme(t.id)"
-                >
-                  <!-- 缩略图用与画布同一套主题变量渲染，能看出标题 / 信息栏 / 卡片头的实际外观 -->
-                  <span class="rp-theme-thumb" :class="`rp-theme-${t.id}`">
-                    <span class="rtt-title"></span>
-                    <span class="rtt-meta"></span>
-                    <span class="rtt-card">
-                      <span class="rtt-head"></span>
-                      <span class="rtt-body"></span>
-                    </span>
+            <div class="rp-look-row">
+              <button
+                v-for="t in REPORT_THEMES"
+                :key="t.id"
+                class="rp-theme-card"
+                :class="{ active: reportThemeId === t.id }"
+                :title="`${t.label} · ${t.hint}`"
+                @click="setReportTheme(t.id)"
+              >
+                <!-- 缩略图用与画布同一套主题变量渲染，能看出标题 / 信息栏 / 卡片头的实际外观 -->
+                <span class="rp-theme-thumb" :class="`rp-theme-${t.id}`">
+                  <span class="rtt-title"></span>
+                  <span class="rtt-meta"></span>
+                  <span class="rtt-card">
+                    <span class="rtt-head"></span>
+                    <span class="rtt-body"></span>
                   </span>
-                  <span class="rp-opt-row">
-                    <span class="rp-opt-name">{{ t.label }}</span>
-                    <span class="rp-opt-tone" :class="`tone-${t.tone}`" :title="t.tone === 'dark' ? '暗色主题：浅墨文字，建议配深色背景' : '浅色主题：深色字配浅底'">{{ t.tone === 'dark' ? '暗' : '浅' }}</span>
-                  </span>
-                </button>
-              </div>
+                </span>
+                <span class="rp-opt-row">
+                  <span class="rp-opt-name">{{ t.label }}</span>
+                  <span class="rp-opt-tone" :class="`tone-${t.tone}`" :title="t.tone === 'dark' ? '暗色内容面板：自带深色承载面' : '浅色内容面板：自带浅色承载面'">{{ t.tone === 'dark' ? '暗' : '浅' }}</span>
+                </span>
+              </button>
             </div>
           </div>
 
           <p class="detail-section">画布背景 · 只决定底层，不改内容样式</p>
           <div class="rp-look-wrap">
-            <div v-for="g in REPORT_BG_GROUPS" :key="g.id" class="rp-look-group">
-              <div class="rp-look-group-label">{{ g.label }}</div>
-              <div class="rp-look-row">
-                <button
-                  v-for="b in g.items"
-                  :key="b.id"
-                  class="rp-bg-card"
-                  :class="{ active: reportBgId === b.id }"
-                  :title="`${b.label} · ${b.hint}`"
-                  @click="setReportBg(b.id)"
-                >
-                  <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
-                  <span class="rp-opt-row">
-                    <span class="rp-opt-name">{{ b.label }}</span>
-                    <span class="rp-opt-tone" :class="`tone-${bgTone(b)}`" :title="bgTone(b) === 'dark' ? '深色画布：配「暗」主题不会出现浅墨字压在浅底上' : '浅色画布'">{{ bgTone(b) === 'dark' ? '深' : '浅' }}</span>
-                  </span>
-                </button>
-              </div>
+            <div class="rp-look-row">
+              <button
+                v-for="b in REPORT_BACKGROUNDS"
+                :key="b.id"
+                class="rp-bg-card"
+                :class="{ active: reportBgId === b.id }"
+                :title="`${b.label} · ${b.hint}`"
+                @click="setReportBg(b.id)"
+              >
+                <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
+                <span class="rp-opt-row">
+                  <span class="rp-opt-name">{{ b.label }}</span>
+                  <span class="rp-opt-tone" :class="`tone-${bgTone(b)}`" :title="bgTone(b) === 'dark' ? '深色画布：配「暗」主题不会出现浅墨字压在浅底上' : '浅色画布'">{{ bgTone(b) === 'dark' ? '深' : '浅' }}</span>
+                </span>
+              </button>
             </div>
           </div>
+        </div>
+
+        <!-- 汇报外观下面 · 右侧独立按钮：经典简报 + 纯白底（原本是列表里的两张首卡） -->
+        <div class="rp-look-foot">
+          <button
+            class="rp-classic-btn"
+            :class="{ active: isClassicLook }"
+            :title="`${CLASSIC_REPORT_THEME.label} · ${CLASSIC_REPORT_THEME.hint}；背景 ${CLASSIC_REPORT_BG.label}`"
+            @click="applyClassicLook"
+          >经典外观</button>
         </div>
       </div>
     </div>
@@ -387,35 +291,51 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
-import html2canvas from 'html2canvas'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import SelectBox from '@/components/SelectBox.vue'
+import ReportTemplatePanel from '@/components/ReportTemplatePanel.vue'
 import { maskAccount, getDisplayName } from '@/composables/useMask'
-import { fmtDate as toDateStr, addMonth, isYmd } from '@/utils/date'
+import { fmtDate as toDateStr, addMonth, isYmd, todayLocal, gameNow } from '@/utils/date'
 import { completeTaskById, localToday } from '@/utils/taskComplete'
 import { hostProgress, isHosting, isClosed } from '@/domain/project.js'
-import { projectsRepo } from '@/data/repos.js'
+import { projectsRepo, gamesRepo } from '@/data/repos.js'
+import { findGame, gameKeyOf, gameNameOf, usableGames } from '@/domain/games.js'
+import { reportPresetFor } from '@/domain/report-presets.js'
+import { readReportDrafts, writeReportDrafts, clearReportDraft } from '@/data/report-draft.js'
+import { REPORT_TEXT_FIELDS } from '@/domain/report-template.js'
+import { updateGame } from '@/services/gameService.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
-import { REPORT_BG_GROUPS, readReportBg, writeReportBg, findReportBg, bgTone } from '@/data/report-backgrounds.js'
-import { REPORT_THEME_GROUPS, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
+import { REPORT_BACKGROUNDS, CLASSIC_REPORT_BG, readReportBg, writeReportBg, findReportBg, bgTone } from '@/data/report-backgrounds.js'
+import { REPORT_THEMES, CLASSIC_REPORT_THEME, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
+import { APP_SIGN } from '@/data/app-info.js'
+import { usePageEnter } from '@/composables/usePageEnter.js'
+import { useReportExport } from '@/composables/useReportExport.js'
 
 const emit = defineEmits(['update:label'])
 
 // 本页唯一标识：隔离各页 radio 的 name（避免多页同名互斥）
 const uid = 'rs' + Math.random().toString(36).slice(2, 9)
 
-const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
+// 入场动画（统一节奏见 composables/usePageEnter）
+const { entered } = usePageEnter()
 
 const wrapRef = ref(null)
 const titleRef = ref(null)
 const planRef = ref(null)
 const noteRef = ref(null)
 const images = ref([])
-const reportGame = ref('ak')
-const activeAuthor = ref('秋の露')
-const dirty = ref(false)
+// 当前日报页签对应的游戏 id；真正的取值由下方的 reportGames watch 校正
+const reportGame = ref('')
+
+// 汇报人是「每游戏一个固定值」，在「数据管理 → 游戏与服务 → 日报预设 → 汇报人」里改；
+// 没配就用主署名 APP_SIGN。日报页只展示，不再提供切换按钮。
+const currentAuthor = computed(() => {
+  const author = presetOf(reportGame.value).author
+  return (author && String(author).trim()) || APP_SIGN
+})
+// 标题跟着汇报人走（切换游戏 / 改了配置都会同步）
+watch(currentAuthor, (name) => setTitle(name + '的每日汇报'), { immediate: true })
 
 // ── 汇报外观：主题（内容皮肤）与背景（画布底层）各自独立持久化，互不改写 ──
 const reportBgId = ref(readReportBg())
@@ -429,6 +349,15 @@ function setReportBg(id) {
 function setReportTheme(id) {
   reportThemeId.value = writeReportTheme(id)
 }
+/* 经典外观：主题与背景各是一张卡片列表，经典简报 + 纯白底从列表里拿出去单放，
+   这一颗按钮就是「一键回到最初的样子」。 */
+const isClassicLook = computed(() =>
+  reportThemeId.value === CLASSIC_REPORT_THEME.id && reportBgId.value === CLASSIC_REPORT_BG.id,
+)
+function applyClassicLook() {
+  setReportTheme(CLASSIC_REPORT_THEME.id)
+  setReportBg(CLASSIC_REPORT_BG.id)
+}
 
 const today = new Date()
 function fmtDate(d) {
@@ -437,7 +366,8 @@ function fmtDate(d) {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
-const todayStr = fmtDate(today)
+// 「今天」跟随设置里的每日刷新时间（默认 00:00），而不是自然日 0 点
+const todayStr = todayLocal()
 const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate())
 const nextMonthStr = fmtDate(nextMonth)
 
@@ -461,7 +391,7 @@ function calcDays() {
   const to = new Date(ty, tm - 1, td)
   // 天数含首尾（08-01 → 08-30 = 30 天），与托管天数口径统一
   totalDays.value = Math.round((to - from) / (1000 * 60 * 60 * 24)) + 1
-  const now = new Date()
+  const now = gameNow()
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const diff = Math.round((todayDate - from) / (1000 * 60 * 60 * 24)) + 1
   curDay.value = Math.max(1, Math.min(diff, totalDays.value))
@@ -502,23 +432,27 @@ function loadHostingTasks(today = localToday()) {
     r.lastConfirmDate !== today
   ))
 }
-// 游戏映射：库里的 game 既可能存名字（终末地），也可能存 id（endfield）——
-// 两种都要认，否则真实数据里「选中项目后游戏页不切换 → 任务与资源不跟着变」。
-const GAME_NAME_TO_KEY = { '终末地': 'endfield', '明日方舟': 'ak', '异环': 'nte' }
-const GAME_KEY_TO_NAME = { endfield: '终末地', ak: '明日方舟', nte: '异环' }
-const GAME_ORDER = ['endfield', 'ak', 'nte']
+// 游戏识别一律走「游戏与服务」目录：记录上的 game 既可能是游戏名（老数据），也可能是 id。
+// 以前写死三游戏的映射表，导致自建游戏的记录匹配不到、日报页签也永远不会出现。
+const reportGames = computed(() => usableGames(gamesRepo.state.value))
 function gameKeyOfRecord(t) {
-  const g = String((t && t.game) || '').trim()
-  if (GAME_NAME_TO_KEY[g]) return GAME_NAME_TO_KEY[g]
-  if (GAME_KEY_TO_NAME[g]) return g
-  return 'endfield'
+  const all = gamesRepo.state.value
+  return gameKeyOf(all, (t && t.game) || '') || usableGames(all)[0]?.id || ''
 }
 function gameNameOfRecord(t) {
-  return GAME_KEY_TO_NAME[gameKeyOfRecord(t)] || String((t && t.game) || '终末地')
+  return gameNameOf(gamesRepo.state.value, (t && t.game) || '')
 }
+// 页签始终指向一个真实存在的游戏（被停用 / 归档 / 删除后自动切到第一个）
+watch(reportGames, (list) => {
+  if (!list.length) return
+  if (!list.some(g => g.id === reportGame.value)) reportGame.value = list[0].id
+}, { immediate: true })
 
 const hostingOptions = computed(() => {
-  const rank = (t) => { const i = GAME_ORDER.indexOf(gameKeyOfRecord(t)); return i < 0 ? 999 : i }
+  const rank = (t) => {
+    const g = findGame(gamesRepo.state.value, (t && t.game) || '')
+    return g ? (Number(g.order) || 0) : 999
+  }
   return [...hostingTasks.value]
     .sort((a, b) => rank(a) - rank(b))
     .map(t => {
@@ -619,42 +553,146 @@ function applyTask() {
 }
 let programmaticDate = false
 
-const dailyTasks = reactive([
-  { label: '每日任务', done: true, extra: '' },
-  { label: '基建收菜', done: true, extra: '' },
-  { label: '信用商店', done: true, extra: '' },
-  { label: '公开招募', done: true, extra: '无高资' },
-])
-const weeklyTasks = reactive([
-  { label: '每周任务', done: true, extra: '' },
-  { label: '剿灭作战', done: true, extra: '' },
-])
-const efDailyTasks = reactive([
-  { label: '每日任务', done: true, extra: '' },
-  { label: '基建收菜', done: true, extra: '' },
-  { label: '物资调度', done: true, extra: '' },
-  { label: '信用商店', done: true, extra: '' },
-  { label: '送货', done: true, extra: '' },
-])
-const efWeeklyTasks = reactive([{ label: '周常任务', done: true, extra: '' }])
-const nteDailyA = reactive([
-  { label: '每日活跃', done: true, extra: '' },
-  { label: '环期任务', done: true, extra: '' },
-  { label: '咖啡店', done: true, extra: '' },
-  { label: '许愿树', done: true, extra: '' },
-  { label: '喷泉池', done: true, extra: '' },
-  { label: '占卜', done: true, extra: '' },
-])
-const nteDailyB = reactive([
-  { label: '送礼', done: true, extra: '未刷新' },
-  { label: '棉花', done: true, extra: '未刷新' },
-])
-const nteWeeklyTasks = reactive([{ label: '周常', done: true, extra: '' }])
+// ── 任务行（按游戏缓存）──
+// 内容来自「数据管理 → 游戏与服务 → 日报预设」（见 domain/report-presets.js）：
+// 内置三游戏没配过就回落到各自预设，自建游戏没配就是空卡片。
+// 勾选状态与备注按游戏分别保存，切走再切回来不会丢。
+// ══════════ 模板草稿（日报页的临时修改）══════════
+// 两层状态：
+//   · 全局预设 —— 「数据管理 → 游戏与服务 → 日报预设」（game.report），所有时候生效；
+//   · 临时草稿 —— 这里的 drafts，落盘到 tr-report-draft，只影响当前这份日报，
+//     直到点「恢复默认」清掉，或点「存为全局预设」写回配置。
+const DEFAULT_EXTRA = { '公开招募': '无高资', '送礼': '未刷新', '棉花': '未刷新' }
+const drafts = reactive(readReportDrafts())
 
-const nteQuickPlans = ['打突破材料', '打养成材料', '打经验书', '打甲硬币', '打弧盘材料', '刷空幕', '大世界锄地', '打周本', '打爪爪大案', '打轨外之境']
-const nteQuickMats = ['方斯', '环石', '甲硬币']
-const nteEvoMats = ['苹果核', '螺旋乐', '液态梦', '冷甜点', '戏剧芯', '小心鸽子', '扑克茶会', '惊喜派对', '印章', '裙袂', '时钟', '水月色拨片', '上膛骑士火花塞', '倾诉花种', '黑之书', '海之泪', '护巢残片', '斑斓的票根']
-const nteQuickNotes = ['更新', '今天打晚了', '刷材料', '锄大地', '等体力恢复', '等都市活力刷新', '等快递刷新', '等玛门刷新', '等棉花刷新', '剩下的明天打']
+function presetOf(gameId) {
+  return reportPresetFor(gameId, findGame(gamesRepo.state.value, gameId))
+}
+
+// 草稿：没有就用全局预设初始化（文案 / 任务项 / 资源项三份都来自预设）
+function draftFor(gameId) {
+  if (!gameId) return { text: {}, daily: [], weekly: [], resources: [] }
+  if (!drafts[gameId]) {
+    const p = presetOf(gameId)
+    drafts[gameId] = {
+      text: { ...p.text },
+      daily: [...p.daily],
+      weekly: [...p.weekly],
+      resources: [...p.resources],
+    }
+  }
+  return drafts[gameId]
+}
+
+const currentTpl = computed(() => draftFor(reportGame.value))
+const tplText = computed(() => currentTpl.value.text || {})
+
+// 草稿落盘（300ms 防抖，避免每敲一个字就写一次）
+let draftTimer = null
+function flushDraft() {
+  if (draftTimer) { clearTimeout(draftTimer); draftTimer = null }
+  writeReportDrafts(drafts)
+}
+function scheduleDraftSave() {
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(() => { draftTimer = null; writeReportDrafts(drafts) }, 300)
+}
+
+// ── 任务行：由草稿的 daily/weekly 生成，勾选状态按游戏缓存 ──
+const rowsByGame = reactive({})
+
+function buildRows(labels, kind, prev) {
+  return labels.map(label => {
+    const old = prev && prev[kind] ? prev[kind].find(r => r.label === label) : null
+    return old ? old : { label, done: true, extra: DEFAULT_EXTRA[label] || '' }
+  })
+}
+
+function syncRows(gameId) {
+  if (!gameId) return
+  const tpl = draftFor(gameId)
+  const prev = rowsByGame[gameId]
+  rowsByGame[gameId] = {
+    daily: buildRows(tpl.daily || [], 'daily', prev),
+    weekly: buildRows(tpl.weekly || [], 'weekly', prev),
+  }
+}
+
+function rowsFor(gameId) {
+  if (!rowsByGame[gameId]) syncRows(gameId)
+  return rowsByGame[gameId] || { daily: [], weekly: [] }
+}
+
+const currentRows = computed(() => rowsFor(reportGame.value))
+
+// 草稿变了（模板面板 / 正文增删）→ 重建行（同名任务的勾选保留）并落盘
+watch(drafts, () => {
+  syncRows(reportGame.value)
+  scheduleDraftSave()
+}, { deep: true })
+
+// 全局预设被改过（在「数据管理」里编辑）→ 没有草稿的游戏跟着变
+watch(() => gamesRepo.state.value, () => {
+  if (!drafts[reportGame.value]) syncRows(reportGame.value)
+}, { deep: true })
+watch(reportGame, (id) => { if (id && !rowsByGame[id]) syncRows(id) })
+
+// ── 增删任务项：只改草稿（临时）──
+function setTplList(kind, labels) {
+  currentTpl.value[kind] = (Array.isArray(labels) ? labels : []).map(s => String(s == null ? '' : s).trim()).filter(Boolean)
+}
+function addTaskRow(kind) {
+  const list = currentTpl.value[kind] || []
+  setTplList(kind, [...list, kind === 'daily' ? '新任务' : '新周常'])
+}
+function removeTaskRow(kind, index) {
+  const list = [...(currentTpl.value[kind] || [])]
+  list.splice(index, 1)
+  setTplList(kind, list)
+}
+function setTplText(key, value) {
+  if (!currentTpl.value.text) currentTpl.value.text = {}
+  currentTpl.value.text[key] = value
+}
+
+// ── 模板面板 ──
+const templatePanelOpen = ref(false)
+
+// 「存为全局预设」：把当前草稿写回该游戏的 game.report（四次确认）
+const saveGlobalCfm = useConfirmClick()
+const saveGlobalStyle = computed(() => saveGlobalCfm.styleOf('save-global'))
+const saveGlobalTitle = computed(() => saveGlobalCfm.titleOf('save-global', '存为全局预设'))
+function saveTemplateAsGlobal() {
+  if (!saveGlobalCfm.trigger('save-global')) return
+  const game = findGame(gamesRepo.state.value, reportGame.value)
+  if (!game) return
+  const tpl = currentTpl.value
+  const preset = presetOf(game.id)
+  updateGame(game.id, {
+    report: {
+      daily: [...(tpl.daily || [])],
+      weekly: [...(tpl.weekly || [])],
+      resources: [...(tpl.resources || [])],
+      author: preset.author,            // 汇报人不在模板面板里改，保持原值
+      text: { ...(tpl.text || {}) },
+    },
+  })
+}
+
+// 「恢复默认」：清掉该游戏的草稿，回到全局预设
+function resetTemplate() {
+  const id = reportGame.value
+  if (!id) return
+  clearReportDraft(id)
+  delete drafts[id]
+  rowsByGame[id] = undefined
+  delete rowsByGame[id]
+  syncRows(id)
+}
+function templateText(key, fallback = '') {
+  const v = tplText.value[key]
+  return v == null ? fallback : v
+}
 
 const resources = reactive([
   { label: '龙门币', before: '', after: '', note: '' },
@@ -673,10 +711,9 @@ function commitRoll() {
 }
 
 // ── 今日获取资源：默认项按游戏重建，并回填该项目上次记录的「变更后」 ──
-function defaultResourceLabels(game) {
-  if (game === 'endfield') return ['嵌晶玉', '武库配额']
-  if (game === 'nte') return ['方斯', '环石']
-  return ['龙门币', '合成玉']
+function defaultResourceLabels(gameId) {
+  const game = findGame(gamesRepo.state.value, gameId)
+  return reportPresetFor(gameId, game).resources
 }
 function resetResourcesForGame(game, roll = {}) {
   resources.splice(0, resources.length)
@@ -720,74 +757,21 @@ watch(resources, () => {
   }, 300)
 }, { deep: true })
 
-const quickPlans = ['刷1-7搓玉', '刷红票本', '刷芯片本', '刷技能书本', '刷龙门币本', '打活动EX关', '打剿灭作战', '推主线']
-const quickMats = [
-  { name: '基础材料', tier: 1, items: ['固源岩', '装置', '异铁', '酮凝集', '糖'] },
-  { name: '中级材料', tier: 2, items: ['固源岩组', '全新装置', '异铁组', '酮凝集组', '糖组', '聚酸酯', '聚酸酯组'] },
-  { name: '高级材料', tier: 3, items: ['研磨石', 'RMA70-12', '轻锰矿', '扭转醇', '凝胶', '炽合金', '晶体元件', '切削液', '半自然溶剂', '化合切削液', '转质盐组', '环烃聚质'] },
-  { name: '稀有材料', tier: 4, items: ['白马醇', '三水锰矿', '改量装置', '酮阵列', '聚酸酯块', '异铁块', '糖聚块', 'RMA70-24'] },
-]
-const efQuickMats = [
-  { name: '珍贵材料', items: [
-    { tier: 5, name: '协议纹石' }, { tier: 5, name: '红矛叶' }, { tier: 5, name: '塔罗斯菌' }, { tier: 5, name: '血菌' },
-    { tier: 5, name: '受蚀玉化叶' }, { tier: 5, name: '岩天使叶' }, { tier: 5, name: '星门菌' }, { tier: 5, name: '武陵石' }, { tier: 5, name: '燎石' },
-    { tier: 4, name: '至晶多齿叶' }, { tier: 4, name: '中红柱状菌' }, { tier: 4, name: '重黯石' }, { tier: 4, name: '纯晶多齿叶' },
-    { tier: 4, name: '重红柱状菌' }, { tier: 4, name: '中黯石' }, { tier: 4, name: '轻黯石' }, { tier: 4, name: '晶化多齿叶' }, { tier: 4, name: '轻红柱状菌' },
-  ] },
-  { name: '培养素材', items: [
-    { tier: 5, name: '红矛叶根茎' }, { tier: 5, name: '塔罗斯菌块' }, { tier: 5, name: '协议纹石子簇' }, { tier: 5, name: '武陵精锻助剂' },
-    { tier: 5, name: '血菌块' }, { tier: 5, name: '星门菌块' }, { tier: 5, name: '受蚀玉化叶根茎' }, { tier: 5, name: '岩天使叶根茎' },
-    { tier: 5, name: '燎石子簇' }, { tier: 5, name: '武陵石子簇' }, { tier: 5, name: '冷却脂' },
-    { tier: 5, name: '超距辉映管' }, { tier: 5, name: 'D96钢样品四' }, { tier: 5, name: '快子遴捡晶格' },
-    { tier: 5, name: '象限拟合液' }, { tier: 5, name: '三相纳米片' }, { tier: 5, name: '存续的痕迹' }, { tier: 5, name: '高级认知载体' },
-    { tier: 4, name: '重红柱状菌块' }, { tier: 4, name: '至晶多齿叶根茎' }, { tier: 4, name: '重黯石子簇' },
-    { tier: 4, name: '轻红柱状菌块' }, { tier: 4, name: '中红柱状菌块' }, { tier: 4, name: '晶化多齿叶根茎' }, { tier: 4, name: '纯晶多齿叶根茎' },
-    { tier: 4, name: '轻黯石子簇' }, { tier: 4, name: '中黯石子簇' }, { tier: 4, name: '重型强固模具' }, { tier: 4, name: '武器检查套组' },
-    { tier: 4, name: '协议棱柱组' }, { tier: 4, name: '协议圆盘组' }, { tier: 4, name: '初级认知载体' },
-    { tier: 3, name: '强固模具' }, { tier: 3, name: '武器检查装置' }, { tier: 3, name: '协议棱柱' }, { tier: 3, name: '协议圆盘' },
-    { tier: 3, name: '高级作战记录' },
-    { tier: 2, name: '武器检查单元' }, { tier: 2, name: '中级作战记录' },
-    { tier: 1, name: '初级作战记录' },
-  ] },
-  { name: '功能道具', items: [
-    { tier: 5, name: '武陵调度券' }, { tier: 5, name: '谷地调度券' }, { tier: 4, name: '高级航天建材' }, { tier: 3, name: '基础航天建材' },
-  ] },
-  { name: '珍贵物品', items: [
-    { tier: 6, name: '武库配额' }, { tier: 6, name: '嵌晶玉' }, { tier: 6, name: '衍质源石' }, { tier: 6, name: '折金票' },
-  ] },
-]
-const quickNotes = ['今日打晚了', '刷材料', '搓玉中', '活动期间', '推主线进度', '练度不足需提练度', '等理智恢复', '模拟悖论没打过']
 
-function appendMatRes(mat) {
-  resources.push({ label: mat, before: '', after: '', note: '' })
+function switchGame(gameId) {
+  // 标题与汇报人由 watch(currentAuthor) 自动跟进
+  reportGame.value = gameId
 }
-function appendPlan(text) {
-  const el = planRef.value
-  if (!el) return
-  const last = el.lastElementChild
-  if (last && !last.textContent.trim()) last.textContent = text
-  else { const div = document.createElement('div'); div.textContent = text; el.appendChild(div) }
-  dirty.value = true
-}
-function appendNote(text) {
-  const el = noteRef.value
-  if (!el) return
-  const last = el.lastElementChild
-  if (last && !last.textContent.trim()) last.textContent = text
-  else { const div = document.createElement('div'); div.textContent = text; el.appendChild(div) }
-  dirty.value = true
-}
-function setAuthor(name) {
-  activeAuthor.value = name
-  setTitle(name + '的每日汇报')
-}
-function switchGame(game) {
-  reportGame.value = game
-  if (game === 'nte') setAuthor('小野')
-}
+// 「线索传递」两个游戏各存一份状态，模板里用同一个可写 computed 绑定
+const clueValue = computed({
+  get: () => (reportGame.value === 'ak' ? clueExtra.value : efClueExtra.value),
+  set: (v) => {
+    if (reportGame.value === 'ak') clueExtra.value = v
+    else efClueExtra.value = v
+  },
+})
 function setTitle(text) {
   if (titleRef.value) titleRef.value.textContent = text
-  dirty.value = true
 }
 function resetPlan() {
   if (planRef.value) planRef.value.innerHTML = '<div></div>'
@@ -809,26 +793,17 @@ function resetAll() {
   nteStaminaLeft.value = ''
   nteGiftDone.value = true
   nteGiftNote.value = '未刷新'
-  nteDailyA.forEach(t => { t.done = true; t.extra = '' })
-  nteDailyB.forEach(t => { t.done = true; t.extra = '未刷新' })
-  nteWeeklyTasks.forEach(t => { t.done = true; t.extra = '' })
-  dailyTasks.forEach(t => { t.done = true; t.extra = t.label === '公开招募' ? '无高资' : '' })
-  weeklyTasks.forEach(t => { t.done = true; t.extra = '' })
-  efDailyTasks.forEach(t => { t.done = true; t.extra = '' })
-  efWeeklyTasks.forEach(t => { t.done = true; t.extra = '' })
+  resetTemplate()
+  currentRows.value.daily.forEach(t => { t.done = true; t.extra = DEFAULT_EXTRA[t.label] || '' })
+  currentRows.value.weekly.forEach(t => { t.done = true; t.extra = DEFAULT_EXTRA[t.label] || '' })
   resources.splice(0, resources.length)
-  if (reportGame.value === 'endfield') {
-    resources.push({ label: '嵌晶玉', before: '', after: '', note: '' }, { label: '武库配额', before: '', after: '', note: '' })
-  } else if (reportGame.value === 'nte') {
-    resources.push({ label: '方斯', before: '', after: '', note: '' }, { label: '环石', before: '', after: '', note: '' })
-  } else {
-    resources.push({ label: '龙门币', before: '', after: '', note: '' }, { label: '合成玉', before: '', after: '', note: '' })
-  }
+  defaultResourceLabels(reportGame.value).forEach(label => {
+    resources.push({ label, before: '', after: '', note: '' })
+  })
   resetPlan()
   if (noteRef.value) noteRef.value.innerHTML = '<div></div>'
   images.value.forEach(u => URL.revokeObjectURL(u))
   images.value = []
-  dirty.value = false
 }
 
 function onPaste(e) {
@@ -848,171 +823,33 @@ function onImgFiles(e) {
   e.target.value = ''
 }
 
-function fillEmpty() {
-  for (const r of resources) {
-    if (!r.label) r.label = '—'
-    if (!r.before) r.before = '无'
-    if (!r.after) r.after = '无'
-  }
-}
 // 「日常」是否全部为「未完成/无」（用于导出时隐藏周常与托管信息）
 const dailyAllUndone = computed(() => {
-  if (reportGame.value === 'ak') return dailyTasks.every(t => !t.done) && !clueExtra.value
-  if (reportGame.value === 'endfield') return efDailyTasks.every(t => !t.done) && !efClueExtra.value
-  return [...nteDailyA, ...nteDailyB].every(t => !t.done)
+  const rows = currentRows.value.daily
+  if (rows.some(t => t.done)) return false
+  // AK / EF 的「线索传递」也算日常的一部分；NTE 没有这一行
+  if (reportGame.value === 'ak') return !clueExtra.value
+  if (reportGame.value === 'endfield') return !efClueExtra.value
+  return true
 })
 
-function restoreEmpty() {
-  for (const r of resources) {
-    if (r.label === '—') r.label = ''
-    if (r.before === '无') r.before = ''
-    if (r.after === '无') r.after = ''
-  }
-  const planEl = planRef.value
-  if (planEl && planEl.textContent.trim() === '无') planEl.innerHTML = '<div></div>'
-}
-
-// 导出时原生控件会被替换成 span —— html2canvas 不会按浏览器的方式绘制控件文字。
-// ⚠ 替代元素必须沿用原控件的**计算样式**（文字色 / 底色 / 边框色 / 字体）。
-//   如果写死「白底 + 继承父级颜色」，深色信息栏主题（科研档案 / 工业仪器 /
-//   斜切海报 / 都市拼贴）里输入框本是「浅底深字」，导出后会变成白底 + 父级的
-//   浅色文字，托管天数 / 日期几乎与底色同色，导出图里读不出来。
-function fieldStyle(el, extra) {
-  const cs = getComputedStyle(el)
-  const bg = cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)'
-    ? cs.backgroundColor
-    : 'transparent'
-  return [
-    'display:inline-block',
-    'vertical-align:middle',
-    `font-family:${cs.fontFamily}`,
-    `font-size:${cs.fontSize}`,
-    `font-weight:${cs.fontWeight}`,
-    `font-style:${cs.fontStyle}`,
-    'line-height:1.4',
-    `color:${cs.color}`,
-    `background:${bg}`,
-    `border:1px solid ${cs.borderTopColor}`,
-    'padding:2px 6px',
-  ].join(';') + ';' + extra
-}
-
-function prepareExport() {
-  fillEmpty()
-  const swaps = []
-  // 「日常」全部未完成/无 → 导出时不显示「周常」卡片与「托管」信息
-  if (dailyAllUndone.value) {
-    for (const h of wrapRef.value.querySelectorAll('.rp-card-head')) {
-      const txt = h.textContent.replace(/\s+/g, '')
-      if (txt.startsWith('日常') || txt.startsWith('周常')) {
-        const card = h.closest('.rp-card')
-        if (card) { card.style.display = 'none'; swaps.push({ parent: card.parentNode, old: card, current: card, wasHidden: true }) }
-      }
-    }
-    const meta = wrapRef.value.querySelector('.rp-meta')
-    if (meta) { meta.style.display = 'none'; swaps.push({ parent: meta.parentNode, old: meta, current: meta, wasHidden: true }) }
-  }
-  const hiddens = wrapRef.value.querySelectorAll('.rp-no-export')
-  hiddens.forEach(el => { el.style.display = 'none' })
-  if (noteRef.value && !noteRef.value.textContent.trim()) {
-    const card = noteRef.value.closest('.rp-card')
-    if (card) { card.style.display = 'none'; swaps.push({ parent: card.parentNode, old: card, current: card, wasHidden: true }) }
-  }
-  if (planRef.value && !planRef.value.textContent.trim()) {
-    const card = planRef.value.closest('.rp-card')
-    if (card) { card.style.display = 'none'; swaps.push({ parent: card.parentNode, old: card, current: card, wasHidden: true }) }
-  }
-  // 「今日获取资源」一项都不剩时，整块（连标题）不导出
-  if (!resources.length) {
-    const card = wrapRef.value.querySelector('.rp-res-card')
-    if (card) { card.style.display = 'none'; swaps.push({ parent: card.parentNode, old: card, current: card, wasHidden: true }) }
-  }
-  wrapRef.value.querySelectorAll('select').forEach(sel => {
-    const span = document.createElement('span')
-    span.textContent = sel.options[sel.selectedIndex]?.text || ''
-    span.style.cssText = fieldStyle(sel, '')
-    sel.parentNode.replaceChild(span, sel)
-    swaps.push({ parent: span.parentNode, old: sel, current: span })
-  })
-  wrapRef.value.querySelectorAll('input:not([type="radio"]):not([type="checkbox"])').forEach(inp => {
-    if (!inp.value) { inp.style.display = 'none'; swaps.push({ parent: inp.parentNode, old: inp, current: inp, wasHidden: true }); return }
-    const span = document.createElement('span')
-    span.textContent = inp.value
-    let extra = 'min-width:40px;'
-    if (inp.classList.contains('rp-num')) extra += 'width:52px;text-align:center;'
-    if (inp.classList.contains('rp-res-inp')) extra += 'width:100px;'
-    if (inp.classList.contains('rp-extra')) extra += 'width:70px;'
-    if (inp.classList.contains('rp-date-sm')) extra += 'width:115px;'
-    if (inp.classList.contains('rp-label-inp')) extra += 'width:90px;'
-    span.style.cssText = fieldStyle(inp, extra)
-    inp.parentNode.replaceChild(span, inp)
-    swaps.push({ parent: span.parentNode, old: inp, current: span })
-  })
-  return () => {
-    swaps.forEach(s => { if (s.wasHidden) s.old.style.display = ''; else s.parent.replaceChild(s.old, s.current) })
-    hiddens.forEach(el => { el.style.display = '' })
-    restoreEmpty()
-  }
-}
-
-async function renderImage() {
-  // 背景由画布自身 CSS 承担；backgroundColor 只作为边缘兜底，取当前背景的底色
-  return html2canvas(wrapRef.value, { backgroundColor: reportBg.value.base, scale: 3 })
-}
-
-async function exportImage(toClipboard) {
-  if (!wrapRef.value) return
-  const undo = prepareExport()
-  const now = new Date()
-  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
-  let ok = false
-  try {
-    const canvas = await renderImage()
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
-    if (!blob) return
-    if (toClipboard) {
-      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]) } catch (e) { console.error(e) }
-    } else {
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `每日汇报_${ts}.png`; a.click()
-      URL.revokeObjectURL(url)
-      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]) } catch {}
-    }
-    ok = true
-  } catch (e) { console.error(e) } finally {
-    // 先还原导出时的临时填充（fillEmpty 产生「无」等），再保存「变更后」
-    undo()
-    if (ok) commitRoll()
-  }
-}
-
-async function shareImage() {
-  if (!wrapRef.value) return
-  const undo = prepareExport()
-  let ok = false
-  try {
-    const canvas = await renderImage()
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
-    if (!blob) return
-    const file = new File([blob], '每日汇报.png', { type: 'image/png' })
-    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] })
-    else {
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a'); a.href = url; a.download = '每日汇报.png'; a.click()
-      URL.revokeObjectURL(url)
-    }
-    ok = true
-  } catch (e) { console.error(e) } finally {
-    undo()
-    // 分享导出也要落一次资源记录（以前只有「导出图片 / 复制到剪贴板」会写）
-    if (ok) commitRoll()
-  }
-}
 
 // 托管项目列表是 computed，删掉项目后这里会自动更新；refreshHosting 只刷新「今天」，
 // 让跨天后昨天已确认的项目重新回到列表里（ReportPage 切回本页时会调用）。
+// 设置里改了「每日刷新时间」也走同一条路：换成新的游戏日重新算一遍。
 function refreshHosting() { todayRef.value = localToday() }
+onMounted(() => window.addEventListener('tr-daily-reset-changed', refreshHosting))
+
+// 导出流程（空字段填充 / 控件替换 / html2canvas / 下载与剪贴板）统一在
+// composables/useReportExport.js；组件只提供画布引用、资源行与「日常是否全未完成」。
+const { exportImage, shareImage } = useReportExport({
+  wrapRef, noteRef, planRef,
+  resources,
+  dailyAllUndone,
+  backgroundBase: () => reportBg.value.base,
+  onExported: () => commitRoll(),
+})
+onUnmounted(() => window.removeEventListener('tr-daily-reset-changed', refreshHosting))
 defineExpose({ refreshHosting })
 </script>
 
@@ -1020,6 +857,17 @@ defineExpose({ refreshHosting })
 .rp-sheet { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-primary); color: var(--text-primary); }
 .rp-sheet .rp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
+.rp-task-row { position: relative; }
+.rp-task-del {
+  position: absolute; right: -16px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; line-height: 1; padding: 0;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; opacity: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-easing-ease);
+}
+.rp-task-row:hover .rp-task-del { opacity: 1; }
+.rp-task-del:hover { background: #d00; border-color: #d00; color: #fff; }
 .rp-hint { font-size: 11px; opacity: 0.4; font-family: var(--font-mono); }
 
 /* ── 汇报外观：工具栏按钮 + 侧边弹窗（版式与项目详情窗口一致） ── */
@@ -1039,18 +887,23 @@ defineExpose({ refreshHosting })
 .modal-mask .edit-popup.rp-look::-webkit-scrollbar { display: none !important; width: 0 !important; }
 /* detail-grid 是两列展布，外观区要整行铺开 */
 .rp-look-wrap { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0; }
-/* 分组横排：组名在左、卡片在右；组与组之间一条细线，读起来是「分组清单」 */
-.rp-look-group {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 2px 0 4px;
-  border-bottom: 1px solid var(--rule-soft, rgba(0, 0, 0, 0.12));
+/* 主题与背景都是一条平铺带（不再按风格系列分组）：卡片直接四列换行。 */
+.rp-look-row { display: flex; gap: 6px; flex-wrap: wrap; }
+/* 汇报外观下面 · 右侧「经典外观」：经典简报 + 纯白底，一个按钮同时定下两件事 */
+.rp-look-foot { display: flex; justify-content: flex-end; padding-top: 6px; }
+.rp-classic-btn {
+  padding: 4px 12px; min-height: 26px;
+  border: 1px solid var(--border-color);
+  background: none; color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.2px;
+  cursor: pointer;
+  transition: background-color var(--motion-duration-fast, 120ms) ease, color var(--motion-duration-fast, 120ms) ease;
 }
-.rp-look-group:last-child { border-bottom: none; padding-bottom: 0; }
-.rp-look-group-label {
-  width: 44px; flex-shrink: 0; padding-top: 6px;
-  font-size: 10px; font-family: var(--font-mono); letter-spacing: 1.2px; opacity: 0.55;
+.rp-classic-btn:hover { background: var(--text-primary); color: var(--bg-primary); }
+.rp-classic-btn.active {
+  background: var(--state-bg, var(--accent)); color: var(--state-fg, var(--accent-ink));
+  border-color: var(--state-border, var(--accent));
 }
-.rp-look-row { flex: 1; min-width: 0; display: flex; gap: 6px; flex-wrap: wrap; }
 /* 一行四张：十二套主题 / 十三套背景都能在两屏内看完（说明文字在 title 提示里） */
 .rp-look-row > .rp-theme-card,
 .rp-look-row > .rp-bg-card { flex: 0 0 calc((100% - 18px) / 4); min-width: 0; }
@@ -1188,10 +1041,7 @@ defineExpose({ refreshHosting })
 .rp-game-tabs button.active { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); border-color: var(--rt-tab-on-bg); }
 .rp-author-box { display: flex; align-items: center; gap: 0; margin-left: 16px; }
 .rp-author-label { font-size: 10px; color: var(--rt-ink-dim); font-family: var(--font-mono); margin-right: 6px; }
-.rp-author-btn { font-size: 12px; padding: 4px 14px; border: 1px solid var(--rt-tab-edge); background: none; cursor: pointer; font-family: inherit; margin-left: -1px; color: var(--rt-tab-fg); }
-.rp-author-btn:first-child { margin-left: 0; }
-.rp-author-btn:hover { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); }
-.rp-author-btn.active { background: var(--rt-tab-on-bg); color: var(--rt-tab-on-fg); border-color: var(--rt-tab-on-bg); }
+.rp-author-name { font-size: 12px; padding: 4px 14px; border: 1px solid var(--rt-tab-edge); font-family: inherit; color: var(--rt-tab-fg); }
 .rp-card { border: 1px solid var(--rt-card-edge); background: var(--rt-card-bg); margin-bottom: 10px; }
 .rp-cards-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .rp-cards-row .rp-card { margin-bottom: 0; }
@@ -1434,36 +1284,38 @@ defineExpose({ refreshHosting })
 .rp-theme-ls-gauge .rp-task-label { font-weight: 600; }
 
 /* ── C1. P3R · 斜切海报 ─────────────────────────────────────────────
-   整宽斜切色带 + 明黄收口 + 高对比 —— 最直接的平面海报冲击。
-   明黄只做收口与选中，不铺成大面积底色。 */
+   整条深色标题带被一道斜切折成三级明度，末端用琥珀收口。
+   琥珀只出现在「收口线 / 数字 / 角标」三处 —— 铺成大面积会盖住蓝白对比。
+   斜切一律用线性渐变画（html2canvas 对 clip-path 不可靠）。 */
 .rp-theme-p3r-poster {
   color: #0a1f42;
   --rt-ink: #0a1f42;
   --rt-ink-dim: rgba(10, 31, 66, 0.5);
   --rt-title-bg: linear-gradient(102deg,
-    #071b3a 0 66%,
-    #1264c8 66% 88%,
-    #28b8f2 88% 100%);
+    #071b3a 0 58%,
+    #0f3a7a 58% 82%,
+    #28b8f2 82% 92%,
+    #FFB01F 92% 100%);
   --rt-title-fg: #f4f6fa;
   --rt-tab-edge: rgba(244, 246, 250, 0.45);
   --rt-tab-fg: #f4f6fa;
-  --rt-tab-on-bg: #f5d83d;
+  --rt-tab-on-bg: #FFB01F;
   --rt-tab-on-fg: #071b3a;
-  --rt-card-bg: rgba(255, 255, 255, 0.92);
+  --rt-card-bg: rgba(255, 255, 255, 0.94);
   --rt-card-edge: transparent;
   --rt-head-bg: #1264c8;
   --rt-head-fg: #ffffff;
-  --rt-head-rule: #f5d83d;
+  --rt-head-rule: #FFB01F;
   --rt-meta-bg: #071b3a;
   --rt-meta-fg: #f4f6fa;
   --rt-meta-edge: #071b3a;
-  --rt-meta-bar: #f5d83d;
+  --rt-meta-bar: #FFB01F;
   --rt-inp-bg: #f4f6fa;
   --rt-inp-fg: #071b3a;
   --rt-inp-edge: #28b8f2;
   --rt-radio: #1264c8;
   --rt-radio-checked: #1264c8;
-  --rt-accent: #f5d83d;
+  --rt-accent: #FFB01F;
   --rt-row-rule: rgba(10, 31, 66, 0.1);
   --rt-row-alt: rgba(40, 184, 242, 0.07);
   --rt-img-edge: rgba(18, 100, 200, 0.4);
@@ -1471,8 +1323,10 @@ defineExpose({ refreshHosting })
   --rt-btn-on-bg: #071b3a;
   --rt-btn-on-fg: #f4f6fa;
 }
-/* 明黄收口线（inset，不增加高度） */
-.rp-theme-p3r-poster .rp-title-row { box-shadow: inset 0 -5px 0 #f5d83d; }
+/* 标题行：琥珀收口 + 一条深色投影线，让色带看起来是「贴上去的纸」 */
+.rp-theme-p3r-poster .rp-title-row {
+  box-shadow: inset 0 -5px 0 #FFB01F, inset 0 -6px 0 rgba(7, 27, 58, 0.4);
+}
 .rp-theme-p3r-poster .rp-title { font-weight: 900; letter-spacing: -0.4px; }
 /* 深色标题带上的「汇报人」标签要用浅色，否则读不出来 */
 .rp-theme-p3r-poster .rp-title-row .rp-author-label { color: rgba(244, 246, 250, 0.66); }
@@ -1483,7 +1337,7 @@ defineExpose({ refreshHosting })
 .rp-theme-p3r-poster .rp-card-head {
   font-weight: 900;
   letter-spacing: 1.4px;
-  box-shadow: inset 0 -4px 0 #f5d83d;
+  box-shadow: inset 0 -4px 0 #FFB01F;
 }
 .rp-theme-p3r-poster .rp-card-head .rp-reset-sm { border-color: rgba(255, 255, 255, 0.5); }
 .rp-theme-p3r-poster .rp-task-label { font-weight: 700; }
@@ -1530,7 +1384,7 @@ defineExpose({ refreshHosting })
   position: absolute;
   right: 0; top: -12px;
   width: 12px; height: 12px;
-  border-radius: 50%;
+  border-radius: 0;
   background: radial-gradient(circle at 70% 50%,
     transparent 0 42%,
     rgba(40, 184, 242, 0.75) 43% 100%);
@@ -1543,29 +1397,28 @@ defineExpose({ refreshHosting })
 .rp-theme-p3r-lunar .rp-task-label { font-weight: 500; }
 
 /* ── C3. P3R · 都市拼贴 ─────────────────────────────────────────────
-   错位矩形 + 模块拼贴 + 局部反色 —— 用直线分区做都市平面设计，
-   刻意不用圆形轨迹，也避免和斜切海报一样整条蓝色标题块。 */
+   留白 + 错位小色块：标题不带底色，只用左缘一条深蓝块与底部细线定位；
+   色块全部落在角上与行尾，像贴上去的标签。与「斜切海报」的整条深色带
+   刻意走反方向 —— 两套不再只差一个黄色。 */
 .rp-theme-p3r-tiles {
   color: #0a1f42;
   --rt-ink: #0a1f42;
   --rt-ink-dim: rgba(10, 31, 66, 0.5);
-  --rt-title-bg: linear-gradient(90deg,
-    #071b3a 0 62%,
-    #1264c8 62% 100%);
-  --rt-title-fg: #f4f6fa;
-  --rt-tab-edge: rgba(244, 246, 250, 0.45);
-  --rt-tab-fg: #f4f6fa;
-  --rt-tab-on-bg: #f5d83d;
-  --rt-tab-on-fg: #071b3a;
+  --rt-title-bg: transparent;
+  --rt-title-fg: #0a1f42;
+  --rt-tab-edge: rgba(10, 31, 66, 0.32);
+  --rt-tab-fg: #0a1f42;
+  --rt-tab-on-bg: #0a1f42;
+  --rt-tab-on-fg: #f4f6fa;
   --rt-card-bg: #ffffff;
   --rt-card-edge: rgba(10, 31, 66, 0.16);
-  --rt-head-bg: #0a1f42;
-  --rt-head-fg: #f4f6fa;
-  --rt-head-rule: #28b8f2;
-  --rt-meta-bg: #1264c8;
-  --rt-meta-fg: #f4f6fa;
-  --rt-meta-edge: transparent;
-  --rt-meta-bar: #f5d83d;
+  --rt-head-bg: #eef3fb;
+  --rt-head-fg: #0a1f42;
+  --rt-head-rule: #1264c8;
+  --rt-meta-bg: #f1f6fd;
+  --rt-meta-fg: #0a1f42;
+  --rt-meta-edge: rgba(10, 31, 66, 0.16);
+  --rt-meta-bar: #FFB01F;
   --rt-inp-bg: #ffffff;
   --rt-inp-fg: #0a1f42;
   --rt-inp-edge: #28b8f2;
@@ -1579,26 +1432,28 @@ defineExpose({ refreshHosting })
   --rt-btn-on-bg: #0a1f42;
   --rt-btn-on-fg: #f4f6fa;
 }
-/* 标题行：底部青线收口；深色带上的「汇报人」转浅色 */
-.rp-theme-p3r-tiles .rp-title-row { box-shadow: inset 0 -3px 0 #28b8f2; }
+/* 标题行：左缘深蓝块 + 底部细线，不铺底色 */
+.rp-theme-p3r-tiles .rp-title-row {
+  box-shadow: inset 8px 0 0 #0a1f42, inset 0 -1px 0 rgba(10, 31, 66, 0.2);
+}
 .rp-theme-p3r-tiles .rp-title { font-weight: 900; letter-spacing: 0.6px; }
-.rp-theme-p3r-tiles .rp-title-row .rp-author-label { color: rgba(244, 246, 250, 0.66); }
-.rp-theme-p3r-tiles .rp-meta .rp-inp { font-weight: 900; }
-/* 卡片：右上角明黄角块 + 左侧青条，像拼贴上去的一块标记 */
+.rp-theme-p3r-tiles .rp-meta .rp-inp { font-weight: 900; font-variant-numeric: tabular-nums; }
+/* 卡片：右上角琥珀小方块（贴纸感）+ 卡片头浅蓝面、左缘蓝条与蓝底线 */
 .rp-theme-p3r-tiles .rp-card { position: relative; }
 .rp-theme-p3r-tiles .rp-card::after {
   content: '';
   position: absolute;
   right: 0; top: 0;
   width: 14px; height: 14px;
-  background: #f5d83d;
+  background: #FFB01F;
   pointer-events: none;
 }
 .rp-theme-p3r-tiles .rp-card-head {
-  box-shadow: inset 3px 0 0 #28b8f2;
+  font-weight: 800;
   letter-spacing: 1.6px;
+  box-shadow: inset 3px 0 0 #1264c8, inset 0 -2px 0 #1264c8;
 }
-.rp-theme-p3r-tiles .rp-card-head .rp-reset-sm { border-color: rgba(244, 246, 250, 0.45); }
+.rp-theme-p3r-tiles .rp-card-head .rp-reset-sm { border-color: rgba(10, 31, 66, 0.35); }
 .rp-theme-p3r-tiles .rp-task-label { font-weight: 600; }
 
 /* ── D1. 终末地 · 台账 ─────────────────────────────────────────────
@@ -1875,17 +1730,17 @@ defineExpose({ refreshHosting })
   pointer-events: none;
 }
 
-/* 斜切海报：卡片右上角的明黄斜线角标 */
+/* 斜切海报：卡片右上角的实心琥珀角标（三角用渐变画，导出可靠） */
 .rp-theme-p3r-poster .rp-card { position: relative; }
 .rp-theme-p3r-poster .rp-card::after {
   content: '';
   position: absolute;
   right: 0; top: 0;
-  width: 20px; height: 20px;
+  width: 22px; height: 22px;
   background: linear-gradient(225deg,
-    transparent 0 44%,
-    #F5D83D 44% 56%,
-    transparent 56%);
+    #FFB01F 0 50%,
+    rgba(255, 176, 31, 0.28) 50% 62%,
+    transparent 62%);
   pointer-events: none;
 }
 
@@ -2041,7 +1896,7 @@ defineExpose({ refreshHosting })
 .rp-theme-ls-schematic .rp-task-row { position: relative; }
 .rp-theme-ls-schematic .rp-task-row::after {
   content: ''; position: absolute; left: -5px; top: calc(50% - 2px);
-  width: 4px; height: 4px; border-radius: 50%;
+  width: 4px; height: 4px; border-radius: 0;
   background: #d87938; pointer-events: none;
 }
 
@@ -2137,211 +1992,44 @@ defineExpose({ refreshHosting })
   background-image: repeating-linear-gradient(180deg, rgba(232,226,211,0.03) 0 1px, transparent 1px 3px);
 }
 
-/* ── P3R · 斜切分割：上下两色 + 明黄细线 ── */
+/* ── P3R · 夜间数据：深海军蓝承载面 + 青色刻度 + 琥珀只标关键数字 ──
+   深色主题自带完整承载面，配任意画布背景都能读；
+   与终末地「夜班」（石墨黑 + lime）的区别是这里的蓝底与青色数据刻度。
+   不再沿用「斜切分割」的蓝白硬切 —— 那套和「斜切海报」几乎同构。 */
 .rp-theme-p3r-cut {
   position: relative;
-  color: #0a1f42;
-  --rt-canvas: #f2f6fd;
-  --rt-ink: #0a1f42;
-  --rt-ink-dim: rgba(10,31,66,0.55);
-  --rt-title-bg: linear-gradient(90deg, rgba(18,100,200,0.16) 0 50%, transparent 50%);
-  --rt-title-fg: #0a1f42;
-  --rt-tab-edge: rgba(10,31,66,0.4);
-  --rt-tab-fg: #0a1f42;
-  --rt-tab-on-bg: #071b3a;
-  --rt-tab-on-fg: #f4f6fa;
-  --rt-card-bg: #ffffff;
-  --rt-card-edge: rgba(10,31,66,0.16);
-  --rt-head-bg: #071b3a;
-  --rt-head-fg: #f4f6fa;
-  --rt-head-rule: rgba(255,255,255,0.24);
-  --rt-meta-bg: #e9f0fa;
-  --rt-meta-fg: #0a1f42;
-  --rt-meta-edge: rgba(10,31,66,0.2);
-  --rt-meta-bar: #f5d83d;
-  --rt-inp-bg: #ffffff;
-  --rt-inp-fg: #0a1f42;
-  --rt-inp-edge: rgba(10,31,66,0.22);
-  --rt-radio: #0a1f42;
-  --rt-radio-checked: #1264c8;
-  --rt-accent: #1264c8;
-  --rt-row-rule: rgba(10,31,66,0.12);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(10,31,66,0.2);
-  --rt-btn-edge: rgba(10,31,66,0.3);
-  --rt-btn-on-bg: #1264c8;
-  --rt-btn-on-fg: #ffffff;
-}
-.rp-theme-p3r-cut .rp-card { box-shadow: inset 0 -3px 0 #f5d83d; }
-.rp-theme-p3r-cut .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-.rp-theme-p3r-cut .rp-card-head { letter-spacing: 1.6px; }
-
-/* ── P3R · 夜间霓虹（暗）：深蓝底 + 霓虹边线 ── */
-.rp-theme-p3r-night {
-  position: relative;
-  color: #f4f6fa;
-  --rt-canvas: #071b3a;
-  --rt-ink: #f4f6fa;
-  --rt-ink-dim: rgba(244,246,250,0.62);
-  --rt-title-bg: #04122a;
+  color: #e8f1fb;
+  --rt-canvas: #06162c;
+  --rt-ink: #e8f1fb;
+  --rt-ink-dim: rgba(232,241,251,0.6);
+  --rt-title-bg: linear-gradient(90deg, #071b3a 0 66%, #0f3a7a 66% 100%);
   --rt-title-fg: #f4f6fa;
-  --rt-tab-edge: rgba(40,184,242,0.45);
-  --rt-tab-fg: #f4f6fa;
+  --rt-tab-edge: rgba(232,241,251,0.45);
+  --rt-tab-fg: #e8f1fb;
   --rt-tab-on-bg: #28b8f2;
-  --rt-tab-on-fg: #04122a;
-  --rt-card-bg: #0c2450;
-  --rt-card-edge: rgba(40,184,242,0.5);
-  --rt-head-bg: #04122a;
-  --rt-head-fg: #28b8f2;
-  --rt-head-rule: rgba(40,184,242,0.35);
-  --rt-meta-bg: #04122a;
-  --rt-meta-fg: #f4f6fa;
-  --rt-meta-edge: rgba(40,184,242,0.4);
-  --rt-meta-bar: #f5d83d;
-  --rt-inp-bg: #10294f;
-  --rt-inp-fg: #f4f6fa;
-  --rt-inp-edge: rgba(40,184,242,0.35);
-  --rt-radio: #f4f6fa;
-  --rt-radio-checked: #28b8f2;
-  --rt-accent: #f5d83d;
-  --rt-row-rule: rgba(40,184,242,0.22);
-  --rt-row-alt: transparent;
+  --rt-tab-on-fg: #06162c;
+  --rt-card-bg: #0b2242;
+  --rt-card-edge: rgba(40,184,242,0.3);
+  --rt-head-bg: #0f2c56;
+  --rt-head-fg: #e8f1fb;
+  --rt-head-rule: #28b8f2;
+  --rt-meta-bg: #071e3c;
+  --rt-meta-fg: #e8f1fb;
+  --rt-meta-edge: rgba(40,184,242,0.3);
+  --rt-meta-bar: #FFB01F;
+  --rt-inp-bg: #0a1c33;
+  --rt-inp-fg: #e8f1fb;
+  --rt-inp-edge: rgba(40,184,242,0.4);
+  --rt-radio: #28b8f2;
+  --rt-radio-checked: #FFB01F;
+  --rt-accent: #FFB01F;
+  --rt-row-rule: rgba(40,184,242,0.16);
+  --rt-row-alt: rgba(40,184,242,0.05);
   --rt-img-edge: rgba(40,184,242,0.3);
-  --rt-btn-edge: rgba(40,184,242,0.45);
-  --rt-btn-on-bg: #f5d83d;
-  --rt-btn-on-fg: #071b3a;
+  --rt-btn-edge: rgba(232,241,251,0.4);
+  --rt-btn-on-bg: #28b8f2;
+  --rt-btn-on-fg: #06162c;
 }
-.rp-theme-p3r-night .rp-card { box-shadow: inset 0 0 0 1px rgba(40,184,242,0.5), inset 0 -2px 0 rgba(245,216,61,0.45); }
-.rp-theme-p3r-night .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-.rp-theme-p3r-night .rp-title-row { position: relative; }
-.rp-theme-p3r-night .rp-title-row::before {
-  content: 'NIGHT'; position: absolute; right: 0; top: -10px;
-  font-size: 8px; line-height: 1; letter-spacing: 2.6px; color: #f5d83d;
-  pointer-events: none;
-}
-
-/* ── P3R · 索引页：右侧索引条 + 编号列 ── */
-.rp-theme-p3r-index {
-  position: relative;
-  color: #0a1f42;
-  --rt-canvas: #f4f7fc;
-  --rt-ink: #0a1f42;
-  --rt-ink-dim: rgba(10,31,66,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #0a1f42;
-  --rt-tab-edge: rgba(10,31,66,0.35);
-  --rt-tab-fg: #0a1f42;
-  --rt-tab-on-bg: #1264c8;
-  --rt-tab-on-fg: #ffffff;
-  --rt-card-bg: #ffffff;
-  --rt-card-edge: rgba(10,31,66,0.14);
-  --rt-head-bg: #eef4fc;
-  --rt-head-fg: #0a1f42;
-  --rt-head-rule: rgba(10,31,66,0.16);
-  --rt-meta-bg: #ffffff;
-  --rt-meta-fg: #0a1f42;
-  --rt-meta-edge: rgba(10,31,66,0.18);
-  --rt-meta-bar: #1264c8;
-  --rt-inp-bg: #ffffff;
-  --rt-inp-fg: #0a1f42;
-  --rt-inp-edge: rgba(10,31,66,0.2);
-  --rt-radio: #0a1f42;
-  --rt-radio-checked: #1264c8;
-  --rt-accent: #1264c8;
-  --rt-row-rule: rgba(10,31,66,0.1);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(10,31,66,0.18);
-  --rt-btn-edge: rgba(10,31,66,0.28);
-  --rt-btn-on-bg: #1264c8;
-  --rt-btn-on-fg: #ffffff;
-}
-.rp-theme-p3r-index .rp-card { box-shadow: inset -18px 0 0 rgba(18,100,200,0.12), inset 0 0 0 1px rgba(10,31,66,0.14); }
-.rp-theme-p3r-index .rp-card-head { letter-spacing: 1.8px; }
-.rp-theme-p3r-index .rp-task-label { box-shadow: inset 2px 0 0 rgba(18,100,200,0.55); }
-.rp-theme-p3r-index .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
-
-/* ── P3R · 传单：明黄大标题 + 深蓝卡片头 ── */
-.rp-theme-p3r-flyer {
-  position: relative;
-  color: #0a1f42;
-  --rt-canvas: #f7f9fd;
-  --rt-ink: #0a1f42;
-  --rt-ink-dim: rgba(10,31,66,0.55);
-  --rt-title-bg: #f5d83d;
-  --rt-title-fg: #071b3a;
-  --rt-tab-edge: rgba(10,31,66,0.35);
-  --rt-tab-fg: #0a1f42;
-  --rt-tab-on-bg: #071b3a;
-  --rt-tab-on-fg: #f4f6fa;
-  --rt-card-bg: #ffffff;
-  --rt-card-edge: rgba(10,31,66,0.18);
-  --rt-head-bg: #071b3a;
-  --rt-head-fg: #f5d83d;
-  --rt-head-rule: #f5d83d;
-  --rt-meta-bg: #ffffff;
-  --rt-meta-fg: #0a1f42;
-  --rt-meta-edge: rgba(10,31,66,0.2);
-  --rt-meta-bar: #f5d83d;
-  --rt-inp-bg: #ffffff;
-  --rt-inp-fg: #0a1f42;
-  --rt-inp-edge: rgba(10,31,66,0.22);
-  --rt-radio: #0a1f42;
-  --rt-radio-checked: #1264c8;
-  --rt-accent: #1264c8;
-  --rt-row-rule: rgba(10,31,66,0.12);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(10,31,66,0.2);
-  --rt-btn-edge: rgba(10,31,66,0.3);
-  --rt-btn-on-bg: #071b3a;
-  --rt-btn-on-fg: #f5d83d;
-}
-.rp-theme-p3r-flyer .rp-card-head { letter-spacing: 2.2px; }
-.rp-theme-p3r-flyer .rp-card { box-shadow: inset 0 0 0 1px rgba(10,31,66,0.18), inset 0 -4px 0 rgba(245,216,61,0.7); }
-.rp-theme-p3r-flyer .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
-/* ── P3R · 档案袋：牛皮纸底 + 标签条 + 装订孔 ── */
-.rp-theme-p3r-archive {
-  position: relative;
-  color: #2a2118;
-  --rt-canvas: #efe6d6;
-  --rt-ink: #2a2118;
-  --rt-ink-dim: rgba(42,33,24,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #2a2118;
-  --rt-tab-edge: rgba(42,33,24,0.4);
-  --rt-tab-fg: #2a2118;
-  --rt-tab-on-bg: #2a2118;
-  --rt-tab-on-fg: #efe6d6;
-  --rt-card-bg: #f7f0e3;
-  --rt-card-edge: rgba(42,33,24,0.35);
-  --rt-head-bg: #e6d9c2;
-  --rt-head-fg: #2a2118;
-  --rt-head-rule: rgba(42,33,24,0.35);
-  --rt-meta-bg: #f7f0e3;
-  --rt-meta-fg: #2a2118;
-  --rt-meta-edge: rgba(42,33,24,0.35);
-  --rt-meta-bar: #1264c8;
-  --rt-inp-bg: #fffaf0;
-  --rt-inp-fg: #2a2118;
-  --rt-inp-edge: rgba(42,33,24,0.28);
-  --rt-radio: #2a2118;
-  --rt-radio-checked: #1264c8;
-  --rt-accent: #1264c8;
-  --rt-row-rule: rgba(42,33,24,0.14);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(42,33,24,0.28);
-  --rt-btn-edge: rgba(42,33,24,0.38);
-  --rt-btn-on-bg: #2a2118;
-  --rt-btn-on-fg: #efe6d6;
-}
-.rp-theme-p3r-archive .rp-card { box-shadow: inset 0 0 0 1px rgba(42,33,24,0.35), inset 0 6px 0 rgba(18,100,200,0.18); }
-.rp-theme-p3r-archive .rp-card-head { position: relative; letter-spacing: 1.4px; }
-.rp-theme-p3r-archive .rp-card-head::before {
-  content: ''; position: absolute; left: 8px; top: calc(50% - 3px);
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgba(42,33,24,0.45); pointer-events: none;
-}
-.rp-theme-p3r-archive .rp-task-row { border-bottom: 1px dashed var(--rt-row-rule); }
 
 /* ── 终末地 · 舱单：表头铭牌 + 三色短线 ── */
 .rp-theme-ef-manifest {
@@ -2385,183 +2073,6 @@ defineExpose({ refreshHosting })
   background: linear-gradient(180deg, #FF00F0 0 33%, #B8FF3D 33% 66%, #00FFA2 66% 100%);
   pointer-events: none;
 }
-.rp-theme-ef-manifest .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
-/* ── 终末地 · 终端（暗）：墨底 + lime 边框 + 光标 ── */
-.rp-theme-ef-terminal {
-  position: relative;
-  color: #EDEDED;
-  --rt-canvas: #111111;
-  --rt-ink: #EDEDED;
-  --rt-ink-dim: rgba(237,237,237,0.55);
-  --rt-title-bg: #0B0B0B;
-  --rt-title-fg: #EDEDED;
-  --rt-tab-edge: rgba(184,255,61,0.5);
-  --rt-tab-fg: #EDEDED;
-  --rt-tab-on-bg: #B8FF3D;
-  --rt-tab-on-fg: #111111;
-  --rt-card-bg: #1A1A1A;
-  --rt-card-edge: rgba(184,255,61,0.45);
-  --rt-head-bg: #0B0B0B;
-  --rt-head-fg: #B8FF3D;
-  --rt-head-rule: rgba(184,255,61,0.35);
-  --rt-meta-bg: #0B0B0B;
-  --rt-meta-fg: #EDEDED;
-  --rt-meta-edge: rgba(184,255,61,0.4);
-  --rt-meta-bar: #B8FF3D;
-  --rt-inp-bg: #232323;
-  --rt-inp-fg: #EDEDED;
-  --rt-inp-edge: rgba(184,255,61,0.3);
-  --rt-radio: #EDEDED;
-  --rt-radio-checked: #B8FF3D;
-  --rt-accent: #B8FF3D;
-  --rt-row-rule: rgba(237,237,237,0.12);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(237,237,237,0.2);
-  --rt-btn-edge: rgba(184,255,61,0.5);
-  --rt-btn-on-bg: #B8FF3D;
-  --rt-btn-on-fg: #111111;
-}
-.rp-theme-ef-terminal .rp-card { box-shadow: inset 0 0 0 1px rgba(184,255,61,0.45); }
-.rp-theme-ef-terminal .rp-title-row { position: relative; }
-.rp-theme-ef-terminal .rp-title-row::before {
-  content: '>'; position: absolute; left: 0; top: 0;
-  color: #B8FF3D; font-size: 12px; line-height: 1; pointer-events: none;
-}
-.rp-theme-ef-terminal .rp-title-row::after {
-  content: ''; position: absolute; right: 0; top: 2px;
-  width: 7px; height: 12px; background: rgba(184,255,61,0.75);
-  pointer-events: none;
-}
-.rp-theme-ef-terminal .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
-/* ── 终末地 · 检查表：行首方框 + 细分隔线 ── */
-.rp-theme-ef-checklist {
-  position: relative;
-  color: #161616;
-  --rt-canvas: #f4f4f2;
-  --rt-ink: #161616;
-  --rt-ink-dim: rgba(22,22,22,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #161616;
-  --rt-tab-edge: #161616;
-  --rt-tab-fg: #161616;
-  --rt-tab-on-bg: #161616;
-  --rt-tab-on-fg: #f4f4f2;
-  --rt-card-bg: transparent;
-  --rt-card-edge: #D9D9D6;
-  --rt-head-bg: transparent;
-  --rt-head-fg: #161616;
-  --rt-head-rule: #161616;
-  --rt-meta-bg: #ffffff;
-  --rt-meta-fg: #161616;
-  --rt-meta-edge: #D9D9D6;
-  --rt-meta-bar: transparent;
-  --rt-inp-bg: #ffffff;
-  --rt-inp-fg: #161616;
-  --rt-inp-edge: #D9D9D6;
-  --rt-radio: #161616;
-  --rt-radio-checked: #161616;
-  --rt-accent: #B8FF3D;
-  --rt-row-rule: #E4E4E0;
-  --rt-row-alt: transparent;
-  --rt-img-edge: #C9C9C4;
-  --rt-btn-edge: #161616;
-  --rt-btn-on-bg: #161616;
-  --rt-btn-on-fg: #EDEDED;
-}
-.rp-theme-ef-checklist .rp-card { border-style: solid; }
-.rp-theme-ef-checklist .rp-task-row { position: relative; border-bottom: 1px solid var(--rt-row-rule); box-shadow: inset 3px 0 0 rgba(22,22,22,0.28); }
-.rp-theme-ef-checklist .rp-task-row::before {
-  content: ''; position: absolute; left: 0; top: calc(50% - 4px);
-  width: 8px; height: 8px;
-  border: 1px solid #161616; background: #ffffff; pointer-events: none;
-}
-.rp-theme-ef-checklist .rp-task-row:last-child { border-bottom: none; }
-
-/* ── 终末地 · 批次卡：大号批次块 + 状态条 ── */
-.rp-theme-ef-batch {
-  position: relative;
-  color: #161616;
-  --rt-canvas: #f4f4f2;
-  --rt-ink: #161616;
-  --rt-ink-dim: rgba(22,22,22,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #161616;
-  --rt-tab-edge: #161616;
-  --rt-tab-fg: #161616;
-  --rt-tab-on-bg: #161616;
-  --rt-tab-on-fg: #f4f4f2;
-  --rt-card-bg: #ffffff;
-  --rt-card-edge: #161616;
-  --rt-head-bg: #f4f4f2;
-  --rt-head-fg: #161616;
-  --rt-head-rule: #161616;
-  --rt-meta-bg: #161616;
-  --rt-meta-fg: #EDEDED;
-  --rt-meta-edge: #161616;
-  --rt-meta-bar: #B8FF3D;
-  --rt-inp-bg: #ffffff;
-  --rt-inp-fg: #161616;
-  --rt-inp-edge: #C9C9C4;
-  --rt-radio: #161616;
-  --rt-radio-checked: #161616;
-  --rt-accent: #B8FF3D;
-  --rt-row-rule: #E4E4E0;
-  --rt-row-alt: transparent;
-  --rt-img-edge: #C9C9C4;
-  --rt-btn-edge: #161616;
-  --rt-btn-on-bg: #161616;
-  --rt-btn-on-fg: #EDEDED;
-}
-.rp-theme-ef-batch .rp-card { box-shadow: inset 0 0 0 1px #161616, inset 0 -4px 0 #B8FF3D; }
-.rp-theme-ef-batch .rp-card-head { position: relative; }
-.rp-theme-ef-batch .rp-card-head::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-  width: 26px; background: #161616;
-  box-shadow: inset 0 0 0 6px #f4f4f2; pointer-events: none;
-}
-.rp-theme-ef-batch .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
-/* ── 终末地 · 结算单：双线收口 + 金额右对齐 ── */
-.rp-theme-ef-invoice {
-  position: relative;
-  color: #161616;
-  --rt-canvas: #f5f5f3;
-  --rt-ink: #161616;
-  --rt-ink-dim: rgba(22,22,22,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #161616;
-  --rt-tab-edge: #161616;
-  --rt-tab-fg: #161616;
-  --rt-tab-on-bg: #161616;
-  --rt-tab-on-fg: #f5f5f3;
-  --rt-card-bg: #ffffff;
-  --rt-card-edge: #161616;
-  --rt-head-bg: #161616;
-  --rt-head-fg: #EDEDED;
-  --rt-head-rule: #EDEDED;
-  --rt-meta-bg: #ffffff;
-  --rt-meta-fg: #161616;
-  --rt-meta-edge: #161616;
-  --rt-meta-bar: transparent;
-  --rt-inp-bg: #ffffff;
-  --rt-inp-fg: #161616;
-  --rt-inp-edge: #C9C9C4;
-  --rt-radio: #161616;
-  --rt-radio-checked: #161616;
-  --rt-accent: #B8FF3D;
-  --rt-row-rule: #E4E4E0;
-  --rt-row-alt: transparent;
-  --rt-img-edge: #C9C9C4;
-  --rt-btn-edge: #161616;
-  --rt-btn-on-bg: #161616;
-  --rt-btn-on-fg: #EDEDED;
-}
-.rp-theme-ef-invoice .rp-card { box-shadow: inset 0 0 0 1px #161616, inset 0 -3px 0 #161616, inset 0 -5px 0 #ffffff; }
-.rp-theme-ef-invoice .rp-card-head { letter-spacing: 2px; }
-.rp-theme-ef-invoice .rp-task-row { border-bottom: 1px dotted var(--rt-row-rule); }
-.rp-theme-ef-invoice .rp-task-row:last-child { border-bottom: 3px double #161616; }
 
 /* ── 瑞士 · 田字格：四象限细线 ── */
 .rp-theme-swiss-field {
@@ -2598,18 +2109,31 @@ defineExpose({ refreshHosting })
   --rt-btn-on-bg: #111111;
   --rt-btn-on-fg: #F2EFE9;
 }
+/* 田字格：不再用穿过卡片的十字线（那会把正文切开），改成「四角十字 + 顶边红点」 */
 .rp-wrap.rp-theme-swiss-field .rp-title { font-weight: 700; letter-spacing: -0.02em; }
-.rp-theme-swiss-field .rp-card { position: relative; }
-.rp-theme-swiss-field .rp-card::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 50%;
-  height: 1px; background: rgba(17,17,17,0.35); pointer-events: none;
-}
-.rp-theme-swiss-field .rp-card::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
-  width: 1px; background: rgba(17,17,17,0.35); pointer-events: none;
-}
 .rp-wrap.rp-theme-swiss-field .rp-card-head { font-weight: 700; letter-spacing: 0.06em; }
 .rp-wrap.rp-theme-swiss-field .rp-task-label { font-weight: 400; }
+.rp-theme-swiss-field .rp-card { position: relative; }
+/* 右上角小十字：两条 1px 线，落在这个角上，不经过任何文字 */
+.rp-theme-swiss-field .rp-card::before {
+  content: '';
+  position: absolute;
+  right: 10px; bottom: 10px;
+  width: 11px; height: 11px;
+  background:
+    linear-gradient(180deg, rgba(17, 17, 17, 0.55) 0 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.55) 0 1px, transparent 1px);
+  pointer-events: none;
+}
+/* 标题行中央的红色「格心」 */
+.rp-theme-swiss-field .rp-title-row::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 5px); bottom: -1px;
+  width: 10px; height: 3px;
+  background: #DA291C;
+  pointer-events: none;
+}
 
 /* ── 瑞士 · 分栏：顶部墨线 + 栏间细线 ── */
 .rp-theme-swiss-column {
@@ -2646,181 +2170,6 @@ defineExpose({ refreshHosting })
   --rt-btn-on-bg: #111111;
   --rt-btn-on-fg: #F2EFE9;
 }
-.rp-wrap.rp-theme-swiss-column .rp-title { font-weight: 700; letter-spacing: -0.02em; }
-.rp-theme-swiss-column .rp-cards-row { position: relative; }
-.rp-theme-swiss-column .rp-card { box-shadow: inset 0 0 0 1px rgba(17,17,17,0.35); }
-.rp-wrap.rp-theme-swiss-column .rp-card-head { font-weight: 700; letter-spacing: 0.08em; box-shadow: inset 0 -1px 0 #111111; }
-.rp-wrap.rp-theme-swiss-column .rp-task-label { font-weight: 400; }
-.rp-theme-swiss-column .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
-/* ── 瑞士 · 海报：红色标题块 + 大留白 ── */
-.rp-theme-swiss-poster {
-  position: relative;
-  color: #111111;
-  --rt-canvas: #f2efe9;
-  --rt-ink: #111111;
-  --rt-ink-dim: rgba(17,17,17,0.55);
-  --rt-title-bg: #DA291C;
-  --rt-title-fg: #F2EFE9;
-  --rt-tab-edge: #111111;
-  --rt-tab-fg: #111111;
-  --rt-tab-on-bg: #111111;
-  --rt-tab-on-fg: #F2EFE9;
-  --rt-card-bg: transparent;
-  --rt-card-edge: rgba(17,17,17,0.35);
-  --rt-head-bg: transparent;
-  --rt-head-fg: #111111;
-  --rt-head-rule: #111111;
-  --rt-meta-bg: transparent;
-  --rt-meta-fg: #111111;
-  --rt-meta-edge: #111111;
-  --rt-meta-bar: transparent;
-  --rt-inp-bg: transparent;
-  --rt-inp-fg: #111111;
-  --rt-inp-edge: #111111;
-  --rt-radio: #111111;
-  --rt-radio-checked: #DA291C;
-  --rt-accent: #DA291C;
-  --rt-row-rule: rgba(17,17,17,0.16);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(17,17,17,0.35);
-  --rt-btn-edge: #111111;
-  --rt-btn-on-bg: #111111;
-  --rt-btn-on-fg: #F2EFE9;
-}
-.rp-wrap.rp-theme-swiss-poster .rp-title { font-weight: 700; letter-spacing: -0.02em; }
-.rp-wrap.rp-theme-swiss-poster .rp-card-head { font-weight: 700; letter-spacing: 0.1em; }
-.rp-wrap.rp-theme-swiss-poster .rp-task-label { font-weight: 400; }
-.rp-theme-swiss-poster .rp-card { box-shadow: inset 0 0 0 1px rgba(17,17,17,0.35); }
-
-/* ── 瑞士 · 表格：横线分行、无竖线 ── */
-.rp-theme-swiss-table {
-  position: relative;
-  color: #111111;
-  --rt-canvas: #f2efe9;
-  --rt-ink: #111111;
-  --rt-ink-dim: rgba(17,17,17,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #111111;
-  --rt-tab-edge: #111111;
-  --rt-tab-fg: #111111;
-  --rt-tab-on-bg: #111111;
-  --rt-tab-on-fg: #F2EFE9;
-  --rt-card-bg: transparent;
-  --rt-card-edge: transparent;
-  --rt-head-bg: transparent;
-  --rt-head-fg: #111111;
-  --rt-head-rule: #111111;
-  --rt-meta-bg: transparent;
-  --rt-meta-fg: #111111;
-  --rt-meta-edge: #111111;
-  --rt-meta-bar: transparent;
-  --rt-inp-bg: transparent;
-  --rt-inp-fg: #111111;
-  --rt-inp-edge: #111111;
-  --rt-radio: #111111;
-  --rt-radio-checked: #DA291C;
-  --rt-accent: #DA291C;
-  --rt-row-rule: rgba(17,17,17,0.22);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(17,17,17,0.35);
-  --rt-btn-edge: #111111;
-  --rt-btn-on-bg: #111111;
-  --rt-btn-on-fg: #F2EFE9;
-}
-.rp-wrap.rp-theme-swiss-table .rp-title { font-weight: 700; letter-spacing: -0.02em; }
-.rp-theme-swiss-table .rp-card { border: none; box-shadow: inset 0 1px 0 #111111; }
-.rp-theme-swiss-table .rp-card-head { border-bottom: 1px solid #111111; }
-.rp-wrap.rp-theme-swiss-table .rp-card-head { font-weight: 700; letter-spacing: 0.06em; }
-.rp-wrap.rp-theme-swiss-table .rp-task-label { font-weight: 400; }
-.rp-theme-swiss-table .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
-
-/* ── 瑞士 · 黑白摄影：灰块 + 图注小字 ── */
-.rp-theme-swiss-mono {
-  position: relative;
-  color: #111111;
-  --rt-canvas: #efece5;
-  --rt-ink: #111111;
-  --rt-ink-dim: rgba(17,17,17,0.55);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #111111;
-  --rt-tab-edge: #111111;
-  --rt-tab-fg: #111111;
-  --rt-tab-on-bg: #111111;
-  --rt-tab-on-fg: #EFECE5;
-  --rt-card-bg: transparent;
-  --rt-card-edge: rgba(17,17,17,0.3);
-  --rt-head-bg: rgba(17,17,17,0.06);
-  --rt-head-fg: #111111;
-  --rt-head-rule: #111111;
-  --rt-meta-bg: transparent;
-  --rt-meta-fg: #111111;
-  --rt-meta-edge: #111111;
-  --rt-meta-bar: transparent;
-  --rt-inp-bg: transparent;
-  --rt-inp-fg: #111111;
-  --rt-inp-edge: #111111;
-  --rt-radio: #111111;
-  --rt-radio-checked: #DA291C;
-  --rt-accent: #DA291C;
-  --rt-row-rule: rgba(17,17,17,0.14);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(17,17,17,0.35);
-  --rt-btn-edge: #111111;
-  --rt-btn-on-bg: #111111;
-  --rt-btn-on-fg: #EFECE5;
-}
-.rp-wrap.rp-theme-swiss-mono .rp-title { font-weight: 700; letter-spacing: -0.01em; }
-.rp-theme-swiss-mono .rp-card { box-shadow: inset 0 0 0 1px rgba(17,17,17,0.3), inset 0 28px 0 rgba(17,17,17,0.05); }
-.rp-wrap.rp-theme-swiss-mono .rp-card-head { font-weight: 700; letter-spacing: 0.04em; }
-.rp-wrap.rp-theme-swiss-mono .rp-task-label { font-weight: 400; }
-.rp-theme-swiss-mono .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
-/* ── 瑞士 · 反白（暗）：墨底米白 + 红细线 ── */
-.rp-theme-swiss-inverse {
-  position: relative;
-  color: #F2EFE9;
-  --rt-canvas: #111111;
-  --rt-ink: #F2EFE9;
-  --rt-ink-dim: rgba(242,239,233,0.6);
-  --rt-title-bg: transparent;
-  --rt-title-fg: #F2EFE9;
-  --rt-tab-edge: #F2EFE9;
-  --rt-tab-fg: #F2EFE9;
-  --rt-tab-on-bg: #F2EFE9;
-  --rt-tab-on-fg: #111111;
-  --rt-card-bg: transparent;
-  --rt-card-edge: rgba(242,239,233,0.4);
-  --rt-head-bg: transparent;
-  --rt-head-fg: #F2EFE9;
-  --rt-head-rule: rgba(242,239,233,0.7);
-  --rt-meta-bg: transparent;
-  --rt-meta-fg: #F2EFE9;
-  --rt-meta-edge: rgba(242,239,233,0.55);
-  --rt-meta-bar: transparent;
-  --rt-inp-bg: transparent;
-  --rt-inp-fg: #F2EFE9;
-  --rt-inp-edge: rgba(242,239,233,0.55);
-  --rt-radio: #F2EFE9;
-  --rt-radio-checked: #DA291C;
-  --rt-accent: #DA291C;
-  --rt-row-rule: rgba(242,239,233,0.2);
-  --rt-row-alt: transparent;
-  --rt-img-edge: rgba(242,239,233,0.4);
-  --rt-btn-edge: #F2EFE9;
-  --rt-btn-on-bg: #F2EFE9;
-  --rt-btn-on-fg: #111111;
-}
-.rp-wrap.rp-theme-swiss-inverse .rp-title { font-weight: 700; letter-spacing: -0.02em; }
-.rp-theme-swiss-inverse .rp-title-row { position: relative; }
-.rp-theme-swiss-inverse .rp-title-row::after {
-  content: ''; position: absolute; left: 0; bottom: -4px;
-  width: 40px; height: 3px; background: #DA291C; pointer-events: none;
-}
-.rp-theme-swiss-inverse .rp-card { box-shadow: inset 0 0 0 1px rgba(242,239,233,0.4); }
-.rp-wrap.rp-theme-swiss-inverse .rp-card-head { font-weight: 700; letter-spacing: 0.08em; }
-.rp-wrap.rp-theme-swiss-inverse .rp-task-label { font-weight: 400; }
-.rp-theme-swiss-inverse .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
 
 /* ══════════════════════════════════════════════════════════════════
    风格派套（De Stijl / 新造型主义）
@@ -2878,7 +2227,6 @@ defineExpose({ refreshHosting })
 }
 .rp-theme-st-grid .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
 
-
 /* ── 风格派 · 色块：卡片头左侧黄块 + 右下红块，不套外框 ── */
 .rp-theme-st-block {
   position: relative;
@@ -2930,7 +2278,6 @@ defineExpose({ refreshHosting })
 }
 .rp-theme-st-block .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
 
-
 /* ── 风格派 · 粗线：上下两条粗黑线 + 左缘蓝条 ── */
 .rp-theme-st-rule {
   position: relative;
@@ -2973,7 +2320,6 @@ defineExpose({ refreshHosting })
 .rp-theme-st-rule .rp-card { box-shadow: inset 0 3px 0 #111111, inset 0 -3px 0 #111111; }
 .rp-theme-st-rule .rp-card-head { box-shadow: inset 5px 0 0 #1D3F8C; }
 .rp-theme-st-rule .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
 
 /* ── 风格派 · 角块：左上红角 + 右下黄角 + 细黑框 ── */
 .rp-theme-st-corner {
@@ -3025,7 +2371,6 @@ defineExpose({ refreshHosting })
 }
 .rp-theme-st-corner .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
 
-
 /* ── 风格派 · 横带：卡片头整宽黄带 + 红短线收口 ── */
 .rp-theme-st-band {
   position: relative;
@@ -3073,7 +2418,6 @@ defineExpose({ refreshHosting })
 }
 .rp-theme-st-band .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
 
-
 /* ── 风格派 · 竖栏：右侧蓝栏 + 竖粗线 ── */
 .rp-theme-st-column {
   position: relative;
@@ -3116,7 +2460,6 @@ defineExpose({ refreshHosting })
 .rp-theme-st-column .rp-card { box-shadow: inset -16px 0 0 #1D3F8C, inset -18px 0 0 #111111; }
 .rp-theme-st-column .rp-card-head { box-shadow: inset 0 -2px 0 #111111; }
 .rp-theme-st-column .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
 
 /* ── 风格派 · 方块字母：标题前三色小方块 + 标题下粗线 ── */
 .rp-theme-st-letter {
@@ -3171,7 +2514,6 @@ defineExpose({ refreshHosting })
 .rp-theme-st-letter .rp-card { box-shadow: inset 0 0 0 1px #111111; }
 .rp-theme-st-letter .rp-task-row { border-bottom: 1px solid var(--rt-row-rule); }
 
-
 /* ── 风格派 · 反白（暗）：黑底米白粗线 + 三色条 ── */
 .rp-theme-st-inverse {
   position: relative;
@@ -3220,7 +2562,6 @@ defineExpose({ refreshHosting })
   box-shadow: -12px 0 0 #EBC226, -12px 12px 0 #1D3F8C; pointer-events: none;
 }
 .rp-theme-st-inverse .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-
 
 /* ══════════════════════════════════════════════════════════════════
    汇报字体基线：全部主题沿用 P3R 那套排印
@@ -3310,7 +2651,13 @@ defineExpose({ refreshHosting })
   letter-spacing: 0.08em;
   box-shadow: inset 0 -1px 0 #161616;
 }
-.rp-theme-swiss-rule .rp-card { box-shadow: inset 0 0 0 1px rgba(22, 22, 22, 0.35); }
+/* 卡片：极淡的 12 栏竖线（0.05 的 1px，压在文字后面也不糊）+ 1px 轮廓 */
+.rp-theme-swiss-rule .rp-card {
+  background-image: repeating-linear-gradient(90deg,
+    rgba(22, 22, 22, 0.05) 0 1px,
+    transparent 1px 8.3333%);
+  box-shadow: inset 0 0 0 1px rgba(22, 22, 22, 0.35);
+}
 .rp-wrap.rp-theme-swiss-rule .rp-task-label { font-weight: 400; letter-spacing: 0.01em; }
 .rp-theme-swiss-rule .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
 .rp-theme-swiss-rule .rp-single-on,
@@ -3373,16 +2720,147 @@ defineExpose({ refreshHosting })
   box-shadow: inset 0 -1px 0 rgba(242, 239, 233, 0.6);
 }
 .rp-wrap.rp-theme-swiss-index .rp-meta .rp-inp { font-weight: 700; }
+/* 索引版式：卡片头右对齐（索引页的标题都靠右），右下角一枚红色页码块 */
 .rp-wrap.rp-theme-swiss-index .rp-card-head {
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
+  text-align: right;
   box-shadow: inset 0 -1px 0 #F2EFE9;
 }
-.rp-theme-swiss-index .rp-card { box-shadow: inset 0 0 0 1px rgba(242, 239, 233, 0.4); }
+.rp-theme-swiss-index .rp-card { position: relative; }
+.rp-theme-swiss-index .rp-card::after {
+  content: '';
+  position: absolute;
+  right: 8px; bottom: 8px;
+  width: 10px; height: 10px;
+  background: rgba(218, 41, 28, 0.9);
+  pointer-events: none;
+}
 .rp-wrap.rp-theme-swiss-index .rp-task-label { font-weight: 400; letter-spacing: 0.01em; }
 .rp-theme-swiss-index .rp-task-row { box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
 .rp-theme-swiss-index .rp-single-on,
 .rp-theme-swiss-index .rp-radio-box { border-radius: 0; }
 .rp-theme-swiss-index .rp-inp { border-radius: 0; }
 
+/* ══════════════════════════════════════════════════════════════════
+   可读性与风格强化（保留每族前三套原样）
+   暗色主题自己提供完整承载面，因而与任意画布背景组合都可阅读；
+   浅色主题用固定中性色承载正文，装饰只落在线条、铭牌和编号上。
+   所有规则仍不改变汇报的盒模型与导出尺寸。
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 孤星：规格 / 日志 / 制图 / 单证 / 终端 */
+.rp-theme-ls-spec .rp-title-row,
+.rp-theme-ls-schematic .rp-title-row,
+.rp-theme-ls-manifest .rp-title-row { box-shadow: inset 0 -2px 0 #101923, inset 0 -4px 0 #d87938; }
+.rp-theme-ls-spec .rp-meta { background: #f7f4ec; box-shadow: inset 5px 0 0 #d87938, inset 0 0 0 1px #101923; }
+.rp-theme-ls-spec .rp-card-head { background: #101923; color: #e8e2d3; box-shadow: inset 0 -3px 0 #d87938; }
+.rp-theme-ls-log .rp-title-row { background: #101923; color: #e8e2d3; box-shadow: inset 0 -3px 0 #d87938; }
+.rp-theme-ls-log .rp-title-row .rp-title,
+.rp-theme-ls-log .rp-title-row .rp-author-label { color: #e8e2d3; }
+.rp-theme-ls-log .rp-meta { background: #efe9dc; box-shadow: inset 18px 0 0 #101923, inset 22px 0 0 #d87938; }
+.rp-theme-ls-log .rp-task-row { background: rgba(255,255,255,0.72); box-shadow: inset 28px 0 0 rgba(16,25,35,0.08), inset 0 -1px 0 rgba(20,27,34,0.2); }
+.rp-theme-ls-schematic .rp-card { background: #f8fafb; border-color: #2b6cb0; box-shadow: inset 0 0 0 1px rgba(43,108,176,0.18); }
+.rp-theme-ls-schematic .rp-card-head { background: #eaf2f8; color: #102d45; border-bottom-color: #2b6cb0; }
+.rp-theme-ls-schematic .rp-task-row { box-shadow: inset 0 -1px 0 rgba(43,108,176,0.24); }
+.rp-theme-ls-manifest .rp-meta { background: #eef0eb; box-shadow: inset 5px 0 0 #d87938, inset 0 -1px 0 #161b1f; }
+.rp-theme-ls-manifest .rp-card-head { background: #161b1f; color: #f2efe6; letter-spacing: 0.14em; box-shadow: inset 0 -3px 0 #d87938; }
+.rp-theme-ls-manifest .rp-task-row { background: rgba(255,255,255,0.76); box-shadow: inset 0 -1px 0 rgba(22,27,31,0.28); }
+.rp-theme-ls-terminal { background: #0b121a; box-shadow: inset 0 0 0 2px #26384a; }
+.rp-theme-ls-terminal .rp-title-row { background: #101923; box-shadow: inset 0 -2px 0 #d87938; }
+.rp-theme-ls-terminal .rp-meta,
+.rp-theme-ls-terminal .rp-card { background: #111d29; }
+.rp-theme-ls-terminal .rp-card-head { background: #172737; color: #f0eadc; box-shadow: inset 4px 0 0 #d87938; }
+.rp-theme-ls-terminal .rp-task-row { background: rgba(255,255,255,0.025); box-shadow: inset 0 -1px 0 rgba(232,226,211,0.18); }
+.rp-theme-ls-terminal .rp-inp { background: #0b121a; color: #f0eadc; }
+.rp-theme-ls-terminal::after {
+  content: 'SYS / ONLINE'; position: absolute; right: 28px; top: 8px;
+  color: #d87938; font-family: var(--font-mono); font-size: 8px;
+  line-height: 1; letter-spacing: 0.14em; pointer-events: none;
+}
+
+/* P3R：夜间数据 —— 青色刻度线 + 等宽数字（刻度是这套主题唯一的装饰） */
+.rp-theme-p3r-cut .rp-title-row {
+  box-shadow: inset 0 -3px 0 #28b8f2, inset 0 -4px 0 rgba(255, 176, 31, 0.5);
+}
+.rp-theme-p3r-cut .rp-title { letter-spacing: 0.08em; }
+.rp-theme-p3r-cut .rp-title-row .rp-author-label { color: rgba(232, 241, 251, 0.6); }
+.rp-theme-p3r-cut .rp-title-row::after {
+  content: '';
+  position: absolute;
+  right: 0; bottom: -8px;
+  width: 72px; height: 3px;
+  background: repeating-linear-gradient(90deg,
+    rgba(40, 184, 242, 0.7) 0 1px,
+    transparent 1px 6px);
+  pointer-events: none;
+}
+.rp-theme-p3r-cut .rp-meta { font-family: var(--font-mono); letter-spacing: 0.04em; }
+.rp-theme-p3r-cut .rp-meta .rp-inp { font-weight: 700; font-variant-numeric: tabular-nums; }
+.rp-theme-p3r-cut .rp-card-head {
+  letter-spacing: 0.14em;
+  box-shadow: inset 0 -2px 0 rgba(40, 184, 242, 0.55);
+}
+.rp-theme-p3r-cut .rp-card-head .rp-reset-sm { border-color: rgba(232, 241, 251, 0.4); }
+.rp-theme-p3r-cut .rp-task-label { font-weight: 400; }
+.rp-theme-p3r-cut .rp-task-row { font-variant-numeric: tabular-nums; }
+
+/* 终末地：舱单 / 终端 / 巡检 / 批次 / 结算 */
+.rp-theme-ef-manifest .rp-title-row { box-shadow: inset 0 -3px 0 #161616, inset 0 -6px 0 #b8ff3d; }
+.rp-theme-ef-manifest .rp-meta { background: #161616; color: #ededed; box-shadow: inset 5px 0 0 #b8ff3d; }
+.rp-theme-ef-manifest .rp-card { background: #fff; border-color: #161616; }
+.rp-theme-ef-manifest .rp-card-head { background: #161616; color: #ededed; letter-spacing: 0.14em; box-shadow: inset 4px 0 0 #b8ff3d; }
+
+/* 瑞士：所有文字落在米白或墨黑实色上，红色只做索引与编号。
+   浅色三套共用米白承载面，墨底那套（索引版式）自带深色面 —— 这样同一族里
+   深浅两套都能直接配任意画布背景。 */
+.rp-theme-swiss-rule,
+.rp-theme-swiss-field,
+.rp-theme-swiss-column { background: #f2efe9; color: #161616; }
+.rp-theme-swiss-index { background: #111111; color: #F2EFE9; }
+
+/* 网格版式：标题左缘红块；卡片带极淡的 12 栏竖线（不压字） */
+.rp-theme-swiss-rule .rp-title-row { box-shadow: inset 12px 0 0 #DA291C, inset 0 -1px 0 #161616; }
+.rp-theme-swiss-field .rp-title-row { box-shadow: inset 0 -1px 0 #161616; }
+.rp-theme-swiss-field .rp-card { background: #f2efe9; box-shadow: inset 0 0 0 1px #161616; }
+.rp-theme-swiss-column .rp-title-row { box-shadow: inset 33.333% 0 0 rgba(218,41,28,0.08), inset 0 -1px 0 #161616; }
+.rp-theme-swiss-column .rp-card { background: #f2efe9; box-shadow: inset 33.333% 0 0 rgba(22,22,22,0.035), inset 0 0 0 1px #161616; }
+
+/* 索引版式：卡片左缘一条红色索引条 + 编号右对齐（墨底上的索引页） */
+.rp-theme-swiss-index .rp-card {
+  background: #181818;
+  background-image: linear-gradient(90deg, rgba(218,41,28,0.85) 0 5px, transparent 5px);
+  box-shadow: inset 0 0 0 1px rgba(242,239,233,0.4);
+}
+
+/* 风格派：固定米白承载正文，原色只做大结构，避免压住字段。 */
+.rp-theme-st-grid,
+.rp-theme-st-block,
+.rp-theme-st-rule,
+.rp-theme-st-corner,
+.rp-theme-st-band,
+.rp-theme-st-column,
+.rp-theme-st-letter { background: #f4f1ea; color: #111; }
+.rp-theme-st-grid .rp-title-row { box-shadow: inset 0 -4px 0 #111, inset 30px 0 0 #d0302a; }
+.rp-theme-st-grid .rp-card { background: #f4f1ea; box-shadow: inset 0 0 0 3px #111; }
+.rp-theme-st-block .rp-title-row { background: #ebc226; box-shadow: inset 34px 0 0 #d0302a, inset 0 -4px 0 #111; }
+.rp-theme-st-block .rp-card { background: #f4f1ea; box-shadow: inset 12px 0 0 #ebc226, inset 0 -3px 0 #111; }
+.rp-theme-st-rule .rp-title-row { box-shadow: inset 6px 0 0 #1d3f8c, inset 0 4px 0 #111, inset 0 -4px 0 #111; }
+.rp-theme-st-rule .rp-card { background: #f4f1ea; box-shadow: inset 0 3px 0 #111, inset 0 -3px 0 #111; }
+.rp-theme-st-corner .rp-title-row { box-shadow: inset 28px 0 0 #d0302a, inset -28px 0 0 #ebc226, inset 0 -2px 0 #111; }
+.rp-theme-st-corner .rp-card { background: #f4f1ea; box-shadow: inset 0 0 0 1px #111; }
+.rp-theme-st-band .rp-title-row { background: #ebc226; box-shadow: inset 0 -4px 0 #111; }
+.rp-theme-st-band .rp-card { background: #f4f1ea; box-shadow: inset 0 -3px 0 #111; }
+.rp-theme-st-column .rp-title-row { box-shadow: inset -34px 0 0 #1d3f8c, inset -38px 0 0 #111, inset 0 -2px 0 #111; }
+.rp-theme-st-column .rp-card { background: #f4f1ea; box-shadow: inset -16px 0 0 #1d3f8c, inset -19px 0 0 #111; }
+.rp-theme-st-letter .rp-title-row { box-shadow: inset 0 -4px 0 #111; }
+.rp-theme-st-letter .rp-card { background: #f4f1ea; box-shadow: inset 0 0 0 1px #111; }
+.rp-theme-st-inverse { background: #111; color: #f4f1ea; box-shadow: inset 0 0 0 4px #f4f1ea; }
+.rp-theme-st-inverse .rp-title-row { background: #111; box-shadow: inset 0 -4px 0 #f4f1ea, inset 32px 0 0 #d0302a; }
+.rp-theme-st-inverse .rp-meta,
+.rp-theme-st-inverse .rp-card { background: #191919; border-color: #f4f1ea; }
+.rp-theme-st-inverse .rp-card-head { background: #111; color: #f4f1ea; box-shadow: inset 4px 0 0 #ebc226; }
+.rp-theme-st-inverse .rp-inp { background: #222; color: #f4f1ea; }
+
 </style>
+

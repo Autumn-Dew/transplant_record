@@ -2,7 +2,7 @@
 
 一站式代肝（游戏代练）管理工具：**代肝代办 · 代肝记录 · 每日汇报 · 价格一览 · 蓝图记录 · 游戏与数据管理**。
 
-当前版本 **v1.0.5**（上一发布版为 v1.0.44；版本号只在 `package.json`）。Electron + Vue 3 + Vite，
+当前版本 **v1.0.61**（上一发布版为 v1.0.5；版本号只在 `package.json`）。Electron + Vue 3 + Vite，
 纯本地运行（localStorage + `userData/data/*.json` 双通道），不联网。
 
 ## 下载安装包
@@ -10,7 +10,7 @@
 安装包不再进仓库（89MB 的 exe 会让克隆越来越慢），统一放在 **Releases**：
 
 - 最新版：<https://github.com/Autumn-Dew/transplant_record/releases/latest>
-- v1.0.5 直接下载：<https://github.com/Autumn-Dew/transplant_record/releases/download/v1.0.5/Transplant-Record-1.0.5-setup.exe>
+- v1.0.61 下载页：<https://github.com/Autumn-Dew/transplant_record/releases/tag/v1.0.61>（附件名 `Transplant Record 代肝工作终端 1.0.61.exe`）
 
 `dist_electron/` 已在 `.gitignore` 里，打包产物只作为 Release 附件上传。
 
@@ -28,6 +28,7 @@ npm run pack     # 打包 Windows 安装程序（electron-builder）
 ```bash
 npm test         # node --test：domain 纯函数 / 业务服务 / 数据迁移 / 1.0.42 升级兼容 / UI 结构约束
 npm run ui:smoke # Electron 冒烟：8 个页面渲染 + 关键交互的 DOM 断言 + 全流程截图（失败退出码非 0）
+npm run ipc:smoke # IPC 端到端：加载真实 main.js，断言「渲染层保存 → userData/data/*.json」真的写出
 ```
 
 ## 目录结构

@@ -22,13 +22,19 @@
 | `tr-games` | **游戏与服务项目目录**（新增） | v2 |
 | `tr-schema-version` | 已执行迁移的数据版本（新增） | v2 |
 | `tr-backup-accounts` / `tr-backup-completions` | 迁移前原始数据备份（新增） | v2 |
-| `tr-report-layout-active` | **返图排版**（当前生效：预设 / 画布 / 字体 / 模块三态与画布归属 / 字段三态 / 导出倍率） | v1 |
-| `tr-report-layouts` | **返图「我的模板」**（保存的排版快照） | v1 |
-| `tr-price-layout-active` | **价格表排版**（当前生效的预设与参数） | v1 |
-| `tr-price-layouts` | **价格表「我的模板」** | v1 |
-> `tr-report-layout-active` 中的每个模块可带 `x / y / w`（画布外工作区的摆放盒）。
-> 它们属于**排版数据**，与业务数据（项目 / 执行记录 / 价格 / 游戏）完全分离：
-> 拖动画布外模块、切换预设都不会改写任何业务数据；移回画布时坐标被保留以便再次移出时回到原位。
+| `tr-shop-hidden` | 价格表里是否隐藏店铺信息（新增） | v2 |
+| `tr-daily-reset` | 每日刷新时间（`'HH:mm'`，默认 `00:00`，新增） | v2 |
+| `tr-sound-enabled` | 界面音效总开关（`'false'` = 静音，新增） | v2 |
+| `tr-report-theme` | **日报主题皮肤**（41 套，独立于应用主题） | v1 |
+| `tr-report-bg` | **日报背景**（与日报主题、应用主题三方互不覆盖） | v1 |
+| `tr-report-draft` | **日报临时草稿**（模板文案 / 任务项 / 资源项，按游戏分开存） | v2 |
+| `tr-price-theme` | **价格画布外观**（`classic` 原版 / `endfield` 终末地风格） | v1 |
+> 三个「外观」键（`tr-report-theme` / `tr-report-bg` / `tr-price-theme`）只描述画布长什么样，
+> 与业务数据（项目 / 执行记录 / 价格 / 游戏）完全分离：切换主题、背景、画布外观都不会
+> 改写任何业务数据，也不需要重新录入。
+> 早期版本的 `tr-report-layout-*` / `tr-price-layout-*`（排版预设与我的模板）**已下线**，
+> 代码不再读写这些键，相关模块（`usePriceLayout` / `useReportLayout` / `report-layouts.js` /
+> `price-layouts.js`）已从代码库移除。
 
 ### 1.2 Electron 持久化文件（`userData/data/`）
 
@@ -120,8 +126,18 @@ v2 新增：`schemaVersion` `projectId` `plannedDate` `completedDate` `result` `
 
 ```js
 [{ id, name, short, icon, order, enabled, archived,
-   services: [{ id, name, price, unit, note, enabled, order }] }]
+   services: [{ id, name, price, unit, note, enabled, order }],
+   report: { daily: [], weekly: [], resources: [], author: '', text: {} } }]
 ```
+
+* `report` 是**日报预设（全局）**（v2 新增）：每日汇报里该游戏默认出现的日常任务项 /
+  周常任务项 / 今日获取资源的默认标签 / 默认汇报人 / 模板文案（`text`，键见
+  `domain/report-template.js`）。
+* 空数组 = 没配置 → 回落到 `domain/report-presets.js` 里的内置预设
+  （只有终末地 / 明日方舟 / 异环有预设，老数据因此与改造前完全一致）；
+  配了非空列表则以目录为准，可以在「数据管理」里改。
+* **日报页的编辑不写这里**：它改的是 `tr-report-draft` 里的临时草稿，
+  点「存为全局预设」才会把草稿写回 `game.report`，「恢复默认」清掉草稿。
 
 * `id` 同时是价格表 key（`prices[id]`），新增游戏后价格表 / 筛选 / 统计自动获得该游戏。
 * 内置 `endfield` / `ak` / `nte` 三个默认游戏，仅用于兼容既有数据，不构成固定列表。
@@ -141,11 +157,11 @@ v2 新增：`schemaVersion` `projectId` `plannedDate` `completedDate` `result` `
 
 ## 6. 已知遗留（后续阶段处理）
 
-* `tr-report-roll`（返图「变更前/后」回填）仍由 ReportSheet 直接读写 localStorage（Phase 5）。
-* 返图排版与价格表排版**已落地**（见 1.1 的 `tr-*-layout-active` / `tr-*-layouts`），
-  预设 / 三态 / 参数 / 我的模板均已可用；尚未实现的是**元素级自由拖动**（画布内）。
-* `plugins/daigan-diary`（旧版插件）与 `boosting-diary/*`（集成补丁说明）未被任何代码引用，
-  属历史遗留，将在 Phase 7 统一清理。
+* `tr-report-roll`（返图「变更前/后」回填）由 `ReportSheet.vue` 经 `data/storage.js` 读写，
+  没有独立 repository（备份 / 恢复会随其它 `tr-` 键一起处理）。
+* 日报写死三个游戏（AK / EF / NTE）；在「游戏与服务」里新增的游戏不会出现在日报页签。
+* `tr-*-layout-*` 排版系统已下线并整体移除（见 1.1）。
+* 历史遗留的 `plugins/daigan-diary`、`boosting-diary/*` 与未使用的 `xlsx` 依赖已清理。
 
 ## 7. 补充规则（Phase 2 / 3）
 

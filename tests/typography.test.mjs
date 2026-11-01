@@ -15,8 +15,8 @@ test('字体分工：--font-ui 是正文字体栈，--font-mono 是等宽字体�
   assert.match(tokens, /--font-ui:\s*'Bahnschrift', 'Microsoft YaHei'/, '--font-ui 是 Bahnschrift + 中文黑体')
   assert.match(
     tokens,
-    /--font-mono:\s*"Fira Code", "Cascadia Code", Consolas, "Courier New", monospace/,
-    '--font-mono 仍是等宽字体（同一 font-size 下视觉更小，换成正文字体会让数字 / 备注看起来变大）',
+    /--font-mono:\s*"Fira Code", "Cascadia Code", Consolas, "Courier New", "Microsoft YaHei", "PingFang SC", monospace/,
+    '--font-mono 仍是等宽字体（同一 font-size 下视觉更小，换成正文字体会让数字 / 备注看起来变大）；末尾的中文回退只负责汉字字形',
   )
   // 两者必须不同：把 --font-mono 指到 --font-ui 会让等宽位置的字明显变大
   assert.notEqual(
@@ -52,14 +52,6 @@ test('界面主题的字重与 P3R 一致（900 / 800 / 700）', () => {
   assert.match(common, /html\[data-theme\] \.local-music \.summary-chip strong \{ font-weight: 900; \}/, '汇总数字 900')
   assert.match(common, /html\[data-theme\] \.local-music \.fee-main \{ font-weight: 800; \}/, '金额 800')
 
-  const lone = read('src/assets/css/theme-lone-star.css')
-  assert.match(lone, /\.local-header h2 \{\s*font-weight: 900;/, '孤星标题 900')
-  assert.match(lone, /\.summary-chip strong \{\s*font-family: var\(--font-mono\);\s*font-weight: 900;/, '孤星汇总数字 900')
-  assert.match(lone, /\.song-name \{\s*font-weight: 800;/, '孤星名称 800')
-  assert.match(lone, /\.rc-title-bar h2 \{\s*font-weight: 800;/, '孤星窗口标题 800')
-  assert.match(lone, /\.folder-chip \{[\s\S]{0,160}font-weight: 700;/, '孤星筛选项 700')
-  assert.match(lone, /\.local-toolbar > \.rc-global-btn:first-child \{[\s\S]{0,160}font-weight: 900;/, '孤星主操作按钮 900')
-
   const ef = read('src/assets/css/theme-endfield.css')
   assert.match(ef, /\.local-header h2 \{\s*font-weight: 900;/, '终末地标题 900')
   assert.match(ef, /\.summary-chip strong \{\s*font-family: var\(--font-mono\);\s*font-weight: 900;/, '终末地汇总数字 900')
@@ -87,16 +79,13 @@ test('汇报主题的字重也与 P3R 一致（标题 / 卡片头 / 金额 / 任
   assert.match(sheet, /\.rp-wrap \.rp-meta \.rp-inp \{ font-weight: 900; \}/, '信息栏输入框 900（classic 也吃这条）')
 
   // 各主题自己的「信息栏输入框」也要 900 —— 特异性比基线高，必须逐个对齐
-  for (const theme of ['ls-archive', 'ls-gauge', 'p3r-poster', 'p3r-tiles', 'ef-ledger', 'ef-nightshift', 'ef-workorder']) {
+  for (const theme of ['p3r-poster', 'p3r-tiles', 'ef-ledger', 'ef-nightshift', 'ef-workorder']) {
     const re = new RegExp(`\\.rp-theme-${theme} \\.rp-meta \\.rp-inp \\{[^}]*font-weight: 900`)
     assert.match(sheet, re, `${theme} 的信息栏输入框 900`)
   }
 })
 
-test('字距保留各主题个性（本轮不统一）', () => {
-  const lone = read('src/assets/css/theme-lone-star.css')
-  assert.match(lone, /\.rc-title-bar h2 \{\s*font-weight: 800;\s*letter-spacing: 3px;/, '孤星仍保留 3px 宽字距')
+test('字距保留现存主题个性（本轮不统一）', () => {
   const sheet = read('src/components/ReportSheet.vue')
   assert.match(sheet, /\.rp-theme-p3r-poster \.rp-title \{ font-weight: 900; letter-spacing: -0\.4px; \}/, 'P3R 海报标题负字距保留')
-  assert.match(sheet, /\.rp-theme-ls-archive \.rp-card-head \{ letter-spacing: 2\.2px; \}/, '科研档案卡片头字距保留')
 })

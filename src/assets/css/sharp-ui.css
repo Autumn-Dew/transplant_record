@@ -1,0 +1,26 @@
+/* ══════════════════════════════════════════════════════════════════
+   全局 UI 形状契约：所有 HTML UI 元素一律直角。
+   最后加载并使用 !important，以覆盖组件 scoped 样式与浏览器默认圆角。
+   SVG 背景插画不在此范围内。
+   ══════════════════════════════════════════════════════════════════ */
+
+html body #app *,
+html body #app *::before,
+html body #app *::after,
+html body #app input,
+html body #app select,
+html body #app textarea,
+html body #app button,
+html body #app img,
+html body #app progress,
+html body #app meter,
+html body #app ::file-selector-button {
+  border-radius: 0 !important;
+}
+
+html body #app *::-webkit-scrollbar,
+html body #app *::-webkit-scrollbar-track,
+html body #app *::-webkit-scrollbar-thumb,
+html body #app *::-webkit-scrollbar-corner {
+  border-radius: 0 !important;
+}

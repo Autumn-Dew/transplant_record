@@ -165,7 +165,6 @@
 }
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .rc-global-btn,
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .tl-entry-btn {
-  border-width: 1px;
   border-color: var(--rule-strong);
   background: var(--ef-chip);
   color: var(--text-primary);
@@ -204,7 +203,6 @@
   font-weight: 700;
 }
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .search-box {
-  border-width: 1px;
   border-color: var(--rule-strong);
   background: transparent;
   box-shadow: inset 3px 0 0 var(--ef-trace);
@@ -263,7 +261,6 @@
   box-shadow: inset 0 -1px 0 var(--rule-soft);
 }
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .folder-chip {
-  border-width: 1px;
   border-color: var(--rule-soft);
   background: transparent;
   color: var(--text-primary);
@@ -329,7 +326,6 @@
   color: var(--ef-signal-ink);
 }
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-btn {
-  border-width: 1px;
   border-color: var(--rule-soft);
   background: transparent;
   color: inherit;
@@ -347,7 +343,6 @@
 
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .modal-mask .edit-popup {
   background: var(--surface-raised);
-  border-width: 1px;
   border-color: var(--rule-strong);
 }
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .modal-mask .edit-popup h4 {
@@ -379,7 +374,6 @@
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .form-row select,
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .form-select,
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .pd-inp {
-  border-width: 1px;
   border-color: var(--rule-strong);
   background: var(--ef-chip);
   color: var(--text-primary);
@@ -388,7 +382,6 @@
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .save-btn {
   background: var(--ef-signal);
   color: var(--ef-signal-ink);
-  border-width: 1px;
   border-color: var(--ef-trace);
   letter-spacing: 0.06em;
   clip-path: var(--ef-cut-corner);
@@ -401,7 +394,6 @@
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .cancel-btn {
   background: transparent;
   color: var(--text-primary);
-  border-width: 1px;
   border-color: var(--rule-strong);
   clip-path: var(--ef-cut-corner);
 }
@@ -459,16 +451,15 @@
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .setting-row {
   border-bottom-color: var(--rule-soft);
 }
-:is(.theme-endfield-light, .theme-endfield-dark) .local-music .setting-label {
-  letter-spacing: 0.03em;
-  font-weight: 800;
-}
-:is(.theme-endfield-light, .theme-endfield-dark) .local-music .setting-hint {
-  letter-spacing: 0.04em;
-  opacity: 0.55;
-}
+/* 设置页的标签 / 说明不再单独加字重与字距：这两条让终末地的设置页比其它主题
+   「更重、更散」，同样的说明文字读起来更慢。字号、行高、间距一律不动（不碰布局）。 */
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .section {
   box-shadow: inset 0 2px 0 var(--rule-strong);
+}
+/* 「关于」抽屉里的分组标题（应用 / 数据 / 作者）同样回到全站排印 */
+:is(.theme-endfield-light, .theme-endfield-dark) .local-music .about-popup .detail-section {
+  letter-spacing: 0;
+  opacity: 0.5;
 }
 
 /* 空状态：斜线纹当底，不铺正文 */

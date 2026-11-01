@@ -21,7 +21,12 @@
       <div class="toolbar-spacer"></div>
       <template v-if="section === 'prices'">
         <button class="rc-global-btn" @click="downloadJSON">下载</button>
-        <button class="rc-global-btn" @click="saveToLocal">保存</button>
+        <button
+          class="rc-global-btn"
+          :class="{ 'is-dirty': dirty }"
+          :title="dirty ? '有未保存的修改（切页或关闭窗口会丢失）' : '当前没有未保存的修改'"
+          @click="saveToLocal"
+        >保存{{ dirty ? ' ·未保存' : '' }}</button>
       </template>
     </div>
 
@@ -100,31 +105,32 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { usePrices } from '@/composables/usePrices.js'
 import SelectBox from '@/components/SelectBox.vue'
 import GameSection from '@/components/GameSection.vue'
 import { gamesRepo } from '@/data/repos.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
 import { readShopForGame, writeShopForGame, readShopHidden, writeShopHidden } from '@/data/shop-info.js'
+import { usePageEnter } from '@/composables/usePageEnter.js'
 
 const { prices, save: persist } = usePrices()
 // 数据管理分为两个分类：价格数据 / 游戏与服务（原「游戏管理」页面已并入）
 const section = ref('prices')
 const game = ref('')
-const mode = ref('all')
+const mode = ref('preset')
 // 游戏列表来自「游戏管理」目录
 const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
 const modeOptions = [{ value: 'preset', label: '预设' }, { value: 'custom', label: '自定义' }]
 
-const entered = ref(false)
-onMounted(() => {
-  gamesRepo.hydrate()
-  if (!gameOptions.value.some(o => o.value === game.value)) {
-    game.value = gameOptions.value[0]?.value || 'endfield'
-  }
-  requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
-})
+// 入场动画（统一节奏见 composables/usePageEnter）；数据补齐统一在 src/main.js 的 hydrateAll() 里做
+const { entered } = usePageEnter()
+
+// 游戏目录可能在挂载后才补齐：数据到了再决定当前游戏（不再硬编码回退到某个游戏）
+watch(gameOptions, (opts) => {
+  if (!opts.length) return
+  if (!opts.some(o => o.value === game.value)) game.value = opts[0].value
+}, { immediate: true })
 
 // ══════ 店铺信息（数组：位置/名称/内容，供价格一览头/尾展示） ══════
 const positionOptions = [{ value: 'head', label: '头部' }, { value: 'tail', label: '尾部' }]
@@ -163,7 +169,7 @@ function loadShopInfo() {
 }
 onMounted(loadShopInfo)
 // 切换游戏时加载该游戏的店铺信息（避免把 A 的店铺信息写到 B）
-watch(game, () => loadShopInfo())
+// —— 复位未保存标记的逻辑与它合并写在下方的 watch(game) 里
 function addShopInfo() {
   shopInfo.value.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), label: '', value: '', position: 'head' })
 }
@@ -180,6 +186,23 @@ const filteredCats = computed(() => {
   return mode.value === 'all' ? cats : cats.filter(c => c.mode === mode.value)
 })
 function catIndex(cat) { return allCategories.value.indexOf(cat) }
+
+// ── 未保存标记 ──
+// 价格与店铺信息是「改动直接进内存单例、点『保存』才落盘」：模板里的 v-model 绑的就是
+// usePrices 的 prices 对象。若不提示，切页 / 关窗口时这些改动会静默丢失。
+// 这里只在「用户改动了数据」时亮标记，装载与切换游戏阶段的变化不算。
+const dirty = ref(false)
+let dirtyReady = false
+onMounted(() => { nextTick(() => { dirtyReady = true }) })
+watch([allCategories, shopInfo], () => { if (dirtyReady) dirty.value = true }, { deep: true })
+// 切游戏 = 换了一份数据：先复位标记，装载完成（下一次 flush 之后）再清一次，
+// 避免 loadShopInfo 写入的新数据把标记又点亮。
+watch(game, async () => {
+  dirty.value = false
+  loadShopInfo()
+  await nextTick()
+  dirty.value = false
+})
 
 function nextKey() {
   let max = 0
@@ -218,6 +241,7 @@ function moveItem(cat, i, dir) {
 function saveToLocal() {
   writeShopForGame(game.value, shopInfo.value, gameOptions.value.map(o => o.value))
   try { persist() } catch { /* ignore */ }
+  dirty.value = false
 }
 function downloadJSON() {
   const clean = allCategories.value.map(c => ({ name: c.name, mode: c.mode, items: c.items }))

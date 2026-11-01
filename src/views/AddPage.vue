@@ -67,19 +67,7 @@
         <div class="form-row"><label>蓝图来源</label><input v-model="blueprintForm.source" /></div>
         <div class="form-row"><label>备注</label><input v-model="blueprintForm.note" placeholder="备注（如：材料消耗 / 注意事项）" /></div>
         <div class="form-row"><label>颜色</label>
-          <div class="color-swatches">
-            <span v-for="c in presetColors" :key="c" class="color-swatch" :style="{ background: c }" :class="{ active: blueprintForm.color === c }" @click="blueprintForm.color = c"></span>
-            <input type="color" v-model="blueprintForm.color" class="color-input" title="自定义颜色" />
-            <input
-              v-model="blueprintForm.color"
-              class="bp-hex-input"
-              :class="{ invalid: !isValidHex(blueprintForm.color) }"
-              placeholder="#RRGGBB"
-              title="可直接输入 HEX"
-              @change="blueprintForm.color = normalizeHex(blueprintForm.color)"
-            />
-            <button v-if="blueprintForm.color" class="pwd-toggle" @click="blueprintForm.color = ''">清除</button>
-          </div>
+          <ColorPicker v-model="blueprintForm.color" />
         </div>
         <div class="edit-actions">
           <button class="cancel-btn" @click="cancelEdit">取消</button>
@@ -161,23 +149,25 @@ export default { name: 'AddPage' }
 import { computed, ref, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { useEditState } from '@/composables/useEditState'
 import { maskAccount, getDisplayName, PLATFORM_OPTIONS } from '@/domain/mask.js'
-import { gameOptions as buildGameOptions, serviceNames, findGame, gameKeyOf, LEGACY_DEFAULT_SERVICES } from '@/domain/games.js'
+import { gameOptions as buildGameOptions, serviceNames, findGame, gameKeyOf } from '@/domain/games.js'
 import { isClosed } from '@/domain/project.js'
 import { createProject, updateProject, findRenewalCandidate, addHostingPeriod } from '@/services/projectService.js'
 import { projectsRepo, completionsRepo, gamesRepo, blueprintsRepo, blueprintGroupsRepo } from '@/data/repos.js'
-import { blueprintCopy, isValidHex, normalizeHex } from '@/domain/blueprints.js'
-import { readJSON, writeJSON, KEYS } from '@/data/storage.js'
+import { blueprintCopy, normalizeHex } from '@/domain/blueprints.js'
+import { readRememberedServices, rememberService as rememberServiceName } from '@/data/service-memory.js'
 import { newId } from '@/domain/completion.js'
 import { addMonth, addDays, fmtDate, isYmd, diffDays, todayLocal } from '@/utils/date'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import SelectBox from '@/components/SelectBox.vue'
+import ColorPicker from '@/components/ColorPicker.vue'
+import { usePageEnter } from '@/composables/usePageEnter.js'
 
 const { editType, editRecord, clearEdit } = useEditState()
 // 多次点击确认（所有写操作统一走这套机制）
 const cfm = useConfirmClick()
 
-const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
+// 入场动画（统一节奏见 composables/usePageEnter）
+const { entered } = usePageEnter()
 
 const activeTab = ref('tasks')
 onMounted(() => {
@@ -198,7 +188,20 @@ const defaultTask = () => ({
 const defaultBlueprint = () => ({
   code: '', name: '', land: '', products: '', source: '', note: '', color: '', group: ''
 })
-const presetColors = ['#FF1744', '#FF6D00', '#FFEA00', '#00E676', '#00B0FF', '#2979FF', '#9C27B0', '#F50057']
+
+// ── 表单字段白名单 ──
+// 表单只承载「用户能编辑的字段」。记录里的 id / createdAt / host / payments / prevTaskId
+// 等都不是表单内容：一旦被带进表单，取消编辑后再新增就会复用旧 id、继承别人的收费记录。
+// 白名单直接取自两个默认表单的键，以后加表单项只需改 defaultTask / defaultBlueprint。
+const TASK_FORM_FIELDS = Object.keys(defaultTask())
+const BLUEPRINT_FORM_FIELDS = Object.keys(defaultBlueprint())
+
+function pickFormFields(src, fields) {
+  const out = {}
+  if (!src) return out
+  fields.forEach(k => { if (src[k] !== undefined) out[k] = src[k] })
+  return out
+}
 
 const taskForm = ref(defaultTask())
 const blueprintForm = ref(defaultBlueprint())
@@ -211,12 +214,8 @@ const existingCompletions = computed(() => completionsRepo.state.value)
 const selectedTemplate = ref('')
 
 // ══════ 服务项目（游戏目录 + 手动输入记忆 + 历史记录，合并去重）══════
-const rememberedServices = ref(loadRememberedServices())
-function loadRememberedServices() {
-  const saved = readJSON(KEYS.SERVICES, null)
-  if (Array.isArray(saved) && saved.length) return saved.map(s => String(s).trim()).filter(Boolean)
-  return [...LEGACY_DEFAULT_SERVICES]
-}
+// 手动记忆那一份走 data/service-memory.js（该键的读写规则都在那里，页面不直接碰存储）
+const rememberedServices = ref(readRememberedServices())
 const serviceOptions = computed(() => {
   const game = findGame(gamesRepo.state.value, taskForm.value.game)
   const out = []
@@ -232,10 +231,7 @@ const serviceOptions = computed(() => {
   return out
 })
 function rememberService(name) {
-  const v = String(name || '').trim()
-  if (!v || rememberedServices.value.includes(v)) return
-  rememberedServices.value = [v, ...rememberedServices.value].slice(0, 50)
-  writeJSON(KEYS.SERVICES, rememberedServices.value)
+  rememberedServices.value = rememberServiceName(name)
 }
 
 // 服务项目下拉面板（定位 + 开关）
@@ -280,40 +276,47 @@ function applyTemplate() {
   if (type === 'completion') t = existingCompletions.value.find(r => r.id === id)
   else t = existingTasks.value.find(r => r.id === id)
   if (t) {
-    const { id: _id, createdAt, lastConfirmDate, date, time, taskId, wasHosting, status, locked, prevTaskId, ...rest } = t
+    // 只取表单字段：不复制 id / host / payments 等非表单内容
+    const fields = pickFormFields(t, TASK_FORM_FIELDS)
     // 完成记录按 wasHosting 判定；代办项目保留原状态（托管→托管，单次→单次）
     const finalStatus = type === 'completion'
-      ? (wasHosting ? 2 : 1)
-      : (status === 2 ? 2 : 1)
-    taskForm.value = { ...defaultTask(), ...rest, status: finalStatus }
+      ? (t.wasHosting ? 2 : 1)
+      : (Number(t.status) === 2 ? 2 : 1)
+    taskForm.value = { ...defaultTask(), ...fields, status: finalStatus }
   }
 }
 
 // 编辑态填充：把记录里的托管周期映射成表单的扁平字段（「托管天数」），
 // 否则编辑时「托管天数」是空的 —— 用户就改不了天数。
 // 游戏字段统一成游戏 id（老数据可能存的是游戏名），下拉才能正确选中。
+// 只取表单字段：id / createdAt / host / payments 不进表单（否则取消编辑后再新增会复用旧 id）。
 function fillTaskForm(rec) {
   const host = rec.host || {}
   const days = Number(host.cycleDays) || 0
   taskForm.value = {
-    ...rec,
+    ...defaultTask(),
+    ...pickFormFields(rec, TASK_FORM_FIELDS),
     game: gameKeyOf(gamesRepo.state.value, rec.game),
     hostDays: days > 0 ? days : '',
   }
 }
 
 onMounted(() => {
-  projectsRepo.hydrate()
+  // 数据补齐统一在 src/main.js 的 hydrateAll() 里做
   if (editRecord.value && editType.value === 'accounts') {
     fillTaskForm(editRecord.value)
   }
-  if (!taskForm.value.game) taskForm.value.game = gameOptions.value[0]?.value || ''
 })
+
+// 游戏目录可能在挂载后才补齐（hydrateAll）：数据到了之后再补默认游戏
+watch(gameOptions, (opts) => {
+  if (!taskForm.value.game && opts.length) taskForm.value.game = opts[0].value
+}, { immediate: true })
 
 // 编辑目标变化时同步表单：避免编辑另一条记录时表单残留上一条的数据
 watch([editRecord, editType], ([rec, type]) => {
   if (!rec) return
-  if (type === 'blueprints') blueprintForm.value = { ...defaultBlueprint(), ...rec }
+  if (type === 'blueprints') blueprintForm.value = { ...defaultBlueprint(), ...pickFormFields(rec, BLUEPRINT_FORM_FIELDS) }
   if (type === 'accounts') fillTaskForm(rec)
 }, { immediate: true })
 
@@ -376,7 +379,7 @@ function confirmRenewal() {
   rememberService(r.form.service)
   renewal.value = null
   clearEdit()
-  taskForm.value = defaultTask()
+  resetForms()
 }
 function cancelRenewal() { renewal.value = null }
 
@@ -387,7 +390,7 @@ function saveTask() {
     updateProject(String(editingId.value), data)
     rememberService(data.service)
     clearEdit()
-    taskForm.value = defaultTask()
+    resetForms()
     return
   }
   // 新增托管且同账号已有生效托管 → 询问是否作为「续费」，不静默沿用日期
@@ -399,7 +402,7 @@ function saveTask() {
   createProject(data)
   rememberService(data.service)
   clearEdit()
-  taskForm.value = defaultTask()
+  resetForms()
 }
 
 function saveBlueprint() {
@@ -416,11 +419,28 @@ function saveBlueprint() {
   }
   rememberBlueprintGroup(data.group)
   clearEdit()
-  blueprintForm.value = defaultBlueprint()
-  selectedBlueprint.value = ''
+  resetForms()
 }
 
-function cancelEdit() { clearEdit() }
+// 表单复位：保存 / 取消 / 续费完成 三条路径共用。
+// 之前只有保存路径复位，取消后表单仍留着上一条记录的内容（含旧 id），
+// 再次「新增」就会带着它提交 —— 因此这里统一成一个入口。
+function resetForms() {
+  taskForm.value = defaultTask()
+  taskForm.value.game = gameOptions.value[0]?.value || ''
+  blueprintForm.value = defaultBlueprint()
+  selectedTemplate.value = ''
+  selectedBlueprint.value = ''
+  showAccountInput.value = false
+  showPasswordInput.value = false
+  servicePanelOpen.value = false
+  renewal.value = null
+}
+
+function cancelEdit() {
+  clearEdit()
+  resetForms()
+}
 function onKeydown(e) { if (e.key === 'Escape') cancelEdit() }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
@@ -430,28 +450,4 @@ onUnmounted(() => document.removeEventListener('click', onSvcDocClick))
 
 <style scoped>
 .svc-drop-btn { padding: 0 16px; font-size: 16px; }
-.color-swatches { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.color-swatch {
-  width: 22px; height: 22px;
-  display: inline-block;
-  cursor: pointer;
-  border: 2px solid transparent;
-  flex-shrink: 0;
-}
-.color-swatch.active { border-color: var(--text-primary); }
-.color-input {
-  width: 30px; height: 26px;
-  padding: 0;
-  border: 2px solid var(--border-color);
-  background: var(--bg-secondary);
-  cursor: pointer;
-}
-
-/* ── 颜色：HEX 直填（非法值给出提示，不静默丢弃）── */
-.bp-hex-input {
-  width: 96px; height: 26px; padding: 0 6px;
-  border: 2px solid var(--border-color); background: var(--bg-primary);
-  color: var(--text-primary); font-family: var(--font-mono); font-size: 12px;
-}
-.bp-hex-input.invalid { border-color: #d00; color: #d00; }
 </style>

@@ -25,21 +25,23 @@ const {
   normalizeThemeId,
 } = await import('../src/composables/useGlobalTheme.js')
 
-test('十套主题平级存在，ID 唯一', () => {
-  assert.equal(THEME_IDS.length, 10)
-  assert.equal(new Set(THEME_IDS).size, 10, '主题 ID 不得重复')
+test('六套主题平级存在，ID 唯一', () => {
+  assert.equal(THEME_IDS.length, 6)
+  assert.equal(new Set(THEME_IDS).size, 6, '主题 ID 不得重复')
   assert.deepEqual(
     [...THEME_IDS].sort(),
-    ['endfield-dark', 'endfield-light', 'lone-star-dark', 'lone-star-light', 'p3r-dark', 'p3r-light', 'stijl-dark', 'stijl-light', 'swiss-dark', 'swiss-light'],
+    ['endfield-dark', 'endfield-light', 'p3r-dark', 'p3r-light', 'swiss-dark', 'swiss-light'],
   )
   THEMES.forEach(t => {
     assert.ok(t.label && t.hint, `${t.id} 需要 label 与 hint`)
   })
 })
 
-test('旧版 dark / light 映射到对应的孤星主题（存储键语义不变）', () => {
-  assert.equal(normalizeThemeId('dark'), 'lone-star-dark')
-  assert.equal(normalizeThemeId('light'), 'lone-star-light')
+test('旧版与已删除主题映射到终末地对应明暗主题', () => {
+  assert.equal(normalizeThemeId('dark'), 'endfield-dark')
+  assert.equal(normalizeThemeId('light'), 'endfield-light')
+  assert.equal(normalizeThemeId('lone-star-light'), 'endfield-light')
+  assert.equal(normalizeThemeId('stijl-dark'), 'endfield-dark')
   // 已经是新 ID 的原样返回
   THEME_IDS.forEach(id => assert.equal(normalizeThemeId(id), id))
 })
@@ -55,11 +57,9 @@ test('深色与浅色是两套独立主题，不是运行时组合', () => {
   // 两者在 CSS 中各自成块，各自定义完整变量集
   const theme = read('src/assets/css/global-theme.css')
   for (const sel of [
-    '.theme-lone-star-light', '.theme-lone-star-dark',
     '.theme-p3r-light', '.theme-p3r-dark',
     '.theme-endfield-light', '.theme-endfield-dark',
     '.theme-swiss-light', '.theme-swiss-dark',
-    '.theme-stijl-light', '.theme-stijl-dark',
   ]) {
     const block = theme.slice(theme.indexOf(sel))
     const body = block.slice(0, block.indexOf('}'))
@@ -74,9 +74,11 @@ test('P3R 使用约定的调色板', () => {
   assert.match(theme, /--bg-primary:\s*#071B3A/i, 'P3R 深色背景 = 深海军蓝')
   assert.match(theme, /--bg-primary:\s*#F4F6FA/i, 'P3R 浅色背景 = 冷白')
   const p3r = read('src/assets/css/theme-p3r.css')
-  for (const hex of ['#071B3A', '#1264C8', '#28B8F2', '#F5D83D', '#F4F6FA', '#A8B8D0', '#F07858']) {
+  for (const hex of ['#071B3A', '#1264C8', '#28B8F2', '#F5B93D', '#F4F6FA', '#A8B8D0', '#F07858']) {
     assert.ok(p3r.includes(hex), `theme-p3r.css 应包含调色板色 ${hex}`)
   }
+  // 强调色是「琥珀」（动作色），不再是纯白：白色当强调等于没有强调
+  assert.match(p3r, /--p3r-amber:\s*#F5B93D/i, '琥珀是唯一的动作色')
 })
 
 test('终末地使用约定的调色板（纸 / 墨 / 唯一强调色 lime）', () => {
@@ -123,9 +125,12 @@ test('P3R 动效尊重 prefers-reduced-motion', () => {
   assert.match(p3r, /@media \(prefers-reduced-motion: reduce\)/, '必须有减动效降级')
 })
 
-test('设置页提供平级主题选项（不额外加深/浅开关）', () => {
+test('设置页只提供「配色方案」（族）选项，浅暗由侧栏按钮控制', () => {
   const settings = read('src/views/SettingsPage.vue')
-  assert.match(settings, /v-for="t in themes"/, '遍历全部主题')
-  assert.match(settings, /setTheme\(t\.id\)/, '点击直接选主题')
-  assert.equal(/isDark\s*=\s*!/.test(settings), false, '没有独立的明暗切换开关')
+  assert.match(settings, /v-for="f in families"/, '遍历配色方案（族）')
+  assert.match(settings, /setFamily\(f\.id\)/, '点击切换方案，保持当前明暗')
+  assert.equal(/v-for="t in themes"/.test(settings), false, '不再平铺 6 套平级主题')
+  assert.equal(/setTheme\(/.test(settings), false, '设置页不再直接选具体明暗主题')
+  assert.match(settings, /themeMode === 'dark' \? f\.dark : f\.light/, '预览色板跟随当前明暗')
+  assert.equal(/setMode\(/.test(settings), false, '设置页没有明暗开关')
 })

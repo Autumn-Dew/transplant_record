@@ -185,6 +185,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import SelectBox from '@/components/SelectBox.vue'
 import { maskAccount } from '@/composables/useMask'
+import { PLATFORM_OPTIONS } from '@/domain/mask.js'
+import { STATE_LABEL } from '@/domain/project.js'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import { todayLocal, isYmd, daysBetween, diffDays, endDateFromDays } from '@/utils/date.js'
 
@@ -266,6 +268,8 @@ const cfm = useConfirmClick()
 function onSave() { if (!cfm.trigger('save')) return; submitEdit() }
 function onArchive() { if (cfm.trigger('archive')) emit('archive') }
 function onRemove() { if (cfm.trigger('remove')) emit('remove') }
+// 强制删除：连执行记录一起删，不可恢复 —— 与其它写操作同样走「连点 4 次」
+function onForceRemove() { if (cfm.trigger('force-remove')) emit('force-remove') }
 
 // ── 续费：加天数 + 记一笔收费（默认沿用当前周期天数与最近一次收费金额）──
 const addOpen = ref(false)
@@ -298,27 +302,13 @@ function gameOptionId(v) {
   return hit ? hit.value : v
 }
 const typeOptions = [{ value: 1, label: '单次' }, { value: 2, label: '托管' }]
-const platformOptions = [
-  { value: 'wechat', label: '微信' },
-  { value: 'qq', label: 'QQ' },
-  { value: 'bilibili', label: 'B站' },
-  { value: 'xiaohongshu', label: '小红书' },
-  { value: 'douyin', label: '抖音' },
-]
-const nameFields = [
-  { key: 'wechatName', label: '微信' },
-  { key: 'qqName', label: 'QQ' },
-  { key: 'bilibiliName', label: 'B站' },
-  { key: 'xiaohongshuName', label: '小红书' },
-  { key: 'douyinName', label: '抖音' },
-]
+// 平台清单与状态文案只有一个来源（domain/mask.js 与 domain/project.js），
+// 组件不再各写一份 —— 以前详情窗口与其它页面的文案会漂移。
+const platformOptions = PLATFORM_OPTIONS
+const nameFields = PLATFORM_OPTIONS.map(o => ({ key: `${o.value}Name`, label: o.label }))
 
-const STATE_TEXT = {
-  active: '托管中', paused: '暂停中', scheduled: '待开始', expired: '已到期',
-  completed: '已完成', cancelled: '已取消', archived: '已归档', pending: '待执行',
-}
 const stateText = computed(() => {
-  const t = STATE_TEXT[props.detail.state] || '—'
+  const t = STATE_LABEL[props.detail.state] || '—'
   return props.detail.archived && props.detail.state !== 'archived' ? t + ' · 已归档' : t
 })
 const stateClass = computed(() => 'st-' + (props.detail.archived ? 'archived' : props.detail.state || ''))

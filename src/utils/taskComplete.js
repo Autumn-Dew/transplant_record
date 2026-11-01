@@ -6,13 +6,11 @@
 //   * 托管次数用尽 → 项目完成（续期 = 在原项目上加天数 + 一条收费记录）
 import { confirmExecution } from '../services/projectService.js'
 import { isHosting } from '../domain/project.js'
+import { todayLocal } from './date.js'
 
-// 本地日期 yyyy-MM-dd（避免 UTC 偏移）
-export const localToday = () => {
-  const d = new Date()
-  const p = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
+// 「今天」= 按设置里的每日刷新时间换算过的游戏日（默认 00:00 即自然日）
+// 改名保留 localToday：调用方（代肝代办 / 每日汇报）不需要跟着改。
+export const localToday = () => todayLocal()
 
 /**
  * 确认完成某个项目（代办）。

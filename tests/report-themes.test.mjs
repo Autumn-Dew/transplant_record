@@ -19,7 +19,6 @@ globalThis.localStorage = {
 
 const {
   REPORT_THEMES,
-  REPORT_THEME_GROUPS,
   REPORT_THEME_IDS,
   DEFAULT_REPORT_THEME,
   normalizeReportThemeId,
@@ -28,36 +27,37 @@ const {
   writeReportTheme,
 } = await import('../src/data/report-themes.js')
 
-test('提供十套汇报主题，id 唯一且字段齐全', () => {
-  assert.equal(REPORT_THEMES.length, 41, '经典 1 + 五族各 8 套')
-  assert.equal(new Set(REPORT_THEME_IDS).size, REPORT_THEMES.length, '主题 id 不得重复')
+test('提供 P3R + 终末地 + 瑞士汇报主题，id 唯一且字段齐全', () => {
+  assert.equal(REPORT_THEMES.length, 12, '三族各 4 套（每族删掉后四个）；经典不在列表里')
+  assert.equal(new Set(REPORT_THEME_IDS).size, REPORT_THEME_IDS.length, '主题 id 不得重复')
   for (const t of REPORT_THEMES) {
     assert.match(t.id, /^[a-z0-9-]+$/, `${t.id} 只能用小写字母 / 数字 / 连字符（同时用作类名）`)
     assert.ok(t.label, `${t.id} 需要 label`)
     assert.ok(t.hint && t.hint.length >= 4, `${t.id} 需要一句设计侧重说明`)
-    assert.ok(['classic', 'lone-star', 'p3r', 'endfield', 'swiss', 'stijl'].includes(t.family), `${t.id} 的 family 非法`)
+    assert.ok(['classic', 'p3r', 'endfield', 'swiss'].includes(t.family), `${t.id} 的 family 非法`)
   }
 })
 
-test('分组：经典 1 套、孤星 3 套、P3R 3 套、终末地 3 套、瑞士 2 套，且分组覆盖全部主题', () => {
-  assert.deepEqual(REPORT_THEME_GROUPS.map(g => g.id), ['classic', 'lone-star', 'p3r', 'endfield', 'swiss', 'stijl'], '六个分组顺序固定')
-  const grouped = REPORT_THEME_GROUPS.flatMap(g => g.items.map(t => t.id))
-  assert.deepEqual([...grouped].sort(), [...REPORT_THEME_IDS].sort(), '分组必须覆盖全部主题且不重复')
-  for (const g of REPORT_THEME_GROUPS) {
-    assert.ok(g.label, `${g.id} 需要分组名`)
-    for (const t of g.items) assert.equal(t.family, g.id, `${t.id} 的 family 必须等于所在分组`)
+test('主题是一条平铺列表，不按风格系列分组；经典单列为按钮', async () => {
+  const mod = await import('../src/data/report-themes.js')
+  assert.equal('REPORT_THEME_GROUPS' in mod, false, '不再导出分组结构（选择器里从头到尾只有一条）')
+  assert.deepEqual(REPORT_THEMES.map(t => t.id), [
+    'p3r-poster', 'p3r-lunar', 'p3r-tiles', 'p3r-cut',
+    'ef-ledger', 'ef-nightshift', 'ef-workorder', 'ef-manifest',
+    'swiss-rule', 'swiss-index', 'swiss-field', 'swiss-column',
+  ], '顺序固定：每族四套，经典不在其中')
+  for (const fam of ['p3r', 'endfield', 'swiss']) {
+    assert.equal(REPORT_THEMES.filter(t => t.family === fam).length, 4, `${fam} 保留四套`)
   }
-  assert.equal(REPORT_THEME_GROUPS[0].items.length, 1, '经典只有一套')
-  assert.equal(REPORT_THEME_GROUPS[1].items.length, 8, '孤星八套')
-  assert.equal(REPORT_THEME_GROUPS[2].items.length, 8, 'P3R 八套')
-  assert.equal(REPORT_THEME_GROUPS[3].items.length, 8, '终末地八套')
-  assert.equal(REPORT_THEME_GROUPS[4].items.length, 8, '瑞士八套')
-  assert.equal(REPORT_THEME_GROUPS[5].items.length, 8, '风格派八套')
+  // 经典简报仍在数据里，作为「经典外观」按钮的预设
+  assert.equal(mod.CLASSIC_REPORT_THEME.id, 'classic')
+  assert.equal(REPORT_THEME_IDS[0], 'classic', 'ids 含经典（老用户的存储值要能读回来）')
+  assert.equal(findReportTheme('classic').id, 'classic')
 })
 
 test('同系列各套彼此不同（不是换色的同一套）', () => {
   const byFamily = fam => REPORT_THEMES.filter(t => t.family === fam)
-  for (const fam of ['lone-star', 'p3r', 'endfield', 'swiss', 'stijl']) {
+  for (const fam of ['p3r', 'endfield', 'swiss']) {
     const hints = byFamily(fam).map(t => t.hint)
     assert.equal(new Set(hints).size, hints.length, `${fam} 各套的说明必须各不相同`)
     const labels = byFamily(fam).map(t => t.label)
@@ -100,10 +100,13 @@ test('画布挂汇报主题类，并与背景各自独立绑定', () => {
   const sheet = read('src/components/ReportSheet.vue')
   assert.match(sheet, /:class="`rp-theme-\$\{reportTheme\.id\}`"/, '画布皮肤取自汇报主题')
   assert.match(sheet, /:style="\{ background: reportBg\.bg \}"/, '画布底层取自背景')
-  assert.match(sheet, /v-for="g in REPORT_THEME_GROUPS"/, '按系列分组遍历主题')
-  assert.match(sheet, /v-for="t in g\.items"/, '组内遍历主题选项')
+  assert.match(sheet, /v-for="t in REPORT_THEMES"/, '平铺遍历全部主题')
   assert.match(sheet, /:class="\{ active: reportThemeId === t\.id \}"/, '标识当前选中主题')
   assert.match(sheet, /@click="setReportTheme\(t\.id\)"/, '点击即切换主题')
+  // 经典简报 + 纯白底不在两张卡片列表里：合并成外观下方的独立按钮
+  assert.match(sheet, /class="rp-classic-btn"/, '经典外观是一颗独立按钮')
+  assert.match(sheet, /@click="applyClassicLook"/, '按钮一次设定经典主题与背景')
+  assert.match(sheet, /class="rp-look-foot"/, '按钮位于外观区下方（右侧对齐）')
   assert.match(sheet, /class="rp-theme-thumb"/, '主题缩略图')
   assert.match(sheet, /class="rtt-title"/, '缩略图含标题带')
   assert.match(sheet, /class="rtt-meta"/, '缩略图含信息栏')
@@ -182,8 +185,10 @@ test('主题皮肤不改布局：只允许颜色 / 边框 / 字重 / 字距 / �
 
 test('导出同时带上主题与背景，且不改导出尺寸', () => {
   const sheet = read('src/components/ReportSheet.vue')
-  assert.match(sheet, /html2canvas\(wrapRef\.value,\s*\{[^}]*backgroundColor:\s*reportBg\.value\.base/, '导出兜底底色取当前背景')
-  assert.match(sheet, /html2canvas\(wrapRef\.value,\s*\{[^}]*scale:\s*3/, '导出比例保持 3 倍不变')
+  const exporter = read('src/composables/useReportExport.js')
+  assert.match(exporter, /html2canvas\(wrapRef\.value,\s*\{[^}]*backgroundColor:\s*backgroundBase\(\)/, '导出兜底底色取当前背景')
+  assert.match(exporter, /html2canvas\(wrapRef\.value,\s*\{[^}]*scale:\s*3/, '导出比例保持 3 倍不变')
+  assert.match(sheet, /backgroundBase: \(\) => reportBg\.value\.base/, '组件把当前背景底色传给导出流程')
   // 主题与背景都在画布元素上（DOM + 类名），html2canvas 按计算样式渲染，无需额外处理
   assert.match(sheet, /ref="wrapRef"[^>]*:class="`rp-theme-\$\{reportTheme\.id\}`"/, '主题类挂在导出根节点上')
 })
@@ -200,16 +205,17 @@ test('今日获取资源：可以删到一项不剩，导出时整块隐藏', ()
     false,
     '不再限制「至少留一项」',
   )
-  // 资源卡片有独立类名，导出时按「有没有资源项」决定整块显隐
+  // 资源卡片有独立类名，导出时按「有没有资源项」决定整块显隐（判定在 useReportExport）
   assert.match(sheet, /<div class="rp-card rp-res-card">/, '资源卡片带 rp-res-card 类')
+  const exporter = read('src/composables/useReportExport.js')
   assert.match(
-    sheet,
-    /if \(!resources\.length\) \{\s*const card = wrapRef\.value\.querySelector\('\.rp-res-card'\)/,
+    exporter,
+    /if \(!resources\.length\) hide\(wrapRef\.value\.querySelector\('\.rp-res-card'\)\)/,
     '导出前检查资源项数量',
   )
-  const hideBlock = sheet.slice(sheet.indexOf('if (!resources.length)'))
-  assert.match(hideBlock.slice(0, 260), /card\.style\.display = 'none'/, '没有资源项时整块不导出')
-  assert.match(hideBlock.slice(0, 260), /wasHidden: true/, '导出后恢复显示（屏幕上仍可添加资源）')
+  const hideFn = exporter.slice(exporter.indexOf('const hide ='), exporter.indexOf('const hide =') + 260)
+  assert.match(hideFn, /el\.style\.display = 'none'/, '没有资源项时整块不导出')
+  assert.match(hideFn, /wasHidden: true/, '导出后恢复显示（屏幕上仍可添加资源）')
 })
 
 test('每套汇报主题标明明暗倾向，选择器里显示「浅 / 暗」', () => {
@@ -217,7 +223,7 @@ test('每套汇报主题标明明暗倾向，选择器里显示「浅 / 暗」',
     assert.ok(t.tone === 'light' || t.tone === 'dark', `${t.id} 需要 tone（light / dark）`)
   }
   const dark = REPORT_THEMES.filter(t => t.tone === 'dark').map(t => t.id)
-  assert.deepEqual(dark, ['ls-terminal', 'p3r-night', 'ef-nightshift', 'ef-terminal', 'swiss-index', 'swiss-inverse', 'st-inverse'], '七套暗色主题（含风格派的反白）')
+  assert.deepEqual(dark, ['p3r-cut', 'ef-nightshift', 'swiss-index'], '三套暗色主题（每族一套）')
 
   const sheet = read('src/components/ReportSheet.vue')
   // 卡片名后面带一个小标签，暗色主题用强调色描边

@@ -420,8 +420,15 @@ test('全部写操作都走统一的多次点击确认（连点 4 次生效）',
 
 test('原版详情窗口的字段都不得丢失', () => {
   const sfc = read('src/components/ProjectDetail.vue')
-  for (const f of ['account', 'password', 'preferredPlatform', 'wechatName', 'qqName', 'bilibiliName', 'xiaohongshuName', 'douyinName', 'delayedFee', 'createdAt', 'lastConfirmDate']) {
+  for (const f of ['account', 'password', 'preferredPlatform', 'delayedFee', 'createdAt', 'lastConfirmDate']) {
     assert.ok(sfc.includes(f), `缺少原版字段 ${f}`)
+  }
+  // 五个平台昵称字段由平台清单派生（不再逐个写死），因此断言派生规则 + 清单覆盖原版五个平台
+  assert.match(sfc, /nameFields = PLATFORM_OPTIONS\.map\(o => \(\{ key: `\$\{o\.value\}Name`/, '平台昵称字段由平台清单派生')
+  const mask = read('src/domain/mask.js')
+  assert.match(mask, /PLATFORM_ORDER = \['wechat', 'qq', 'bilibili', 'xiaohongshu', 'douyin'\]/, '平台清单包含原版五个平台')
+  for (const f of ['wechat', 'qq', 'bilibili', 'xiaohongshu', 'douyin']) {
+    assert.ok(mask.includes(`'${f}'`), `平台清单缺少 ${f}（派生的 ${f}Name 字段会丢）`)
   }
   assert.match(sfc, /@media \(prefers-reduced-motion: reduce\)/, '需支持减少动态效果')
 })

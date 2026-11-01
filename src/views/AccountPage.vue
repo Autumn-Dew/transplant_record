@@ -138,14 +138,16 @@
         </div>
 
         <!-- 空状态 -->
-        <div class="empty" v-if="filteredRecords.length === 0 && records.length === 0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke-width="2"/></svg>
-          <p>暂无代肝代办，点击"新增"开始</p>
-        </div>
-        <div class="empty" v-if="filteredRecords.length === 0 && records.length > 0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke-width="2"/></svg>
-          <p>没有匹配的记录</p>
-        </div>
+        <EmptyState
+          v-if="filteredRecords.length === 0 && records.length === 0"
+          icon="doc"
+          text='暂无代肝代办，点击"新增"开始'
+        />
+        <EmptyState
+          v-if="filteredRecords.length === 0 && records.length > 0"
+          icon="search"
+          text="没有匹配的记录"
+        />
       </div>
 
       <!-- 项目详情：与「代肝记录」同一套弹窗版式（实现见 components/ProjectDetail.vue） -->
@@ -177,36 +179,33 @@ import { maskAccount, getDisplayName, PLATFORM_OPTIONS } from '@/domain/mask.js'
 import { RESULT } from '@/domain/completion.js'
 import { confirmExecution, todayTaskItems } from '@/services/projectService.js'
 import ProjectDetail from '@/components/ProjectDetail.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { projectsRepo, gamesRepo } from '@/data/repos.js'
-import { completeTaskById } from '@/utils/taskComplete.js'
+import { completeTaskById, localToday } from '@/utils/taskComplete.js'
 import {
   updateProject, archiveProject, hardDeleteProject, forceDeleteProject, canHardDelete,
   restoreProject, addHostingPeriod,
 } from '@/services/projectService.js'
 import { buildProjectDetail } from '@/services/projectDetail.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
-import { isHosting, hostProgress, isClosed, isCompleted, isArchived, STATE_LABEL } from '@/domain/project.js'
+import { isHosting, hostProgress, isClosed, isCompleted, isArchived } from '@/domain/project.js'
+import { typeColor, feeColor } from '@/utils/fee.js'
+import { usePageEnter } from '@/composables/usePageEnter.js'
 
 const navigateToAdd = inject('navigateToAdd')
 const { startAdd } = useEditState()
 
 // 下拉选项：游戏来自「游戏管理」目录（新增游戏后自动出现）
 const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
-const typeOptions = [{ value: 1, label: '单次' }, { value: 2, label: '托管' }]
 const platformOptions = PLATFORM_OPTIONS
 
-// ══════ 入场动画 ══════
-const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
-function staggerStyle(idx) {
-  const base = 0.24; const interval = 0.023
-  return { transitionDelay: (base + idx * interval) + 's' }
-}
+// ══════ 入场动画（统一节奏见 composables/usePageEnter）══════
+const { entered, replay, staggerStyle } = usePageEnter()
 
 // ══════ 数据（统一经由 Repository，页面不再直接读写 localStorage）══════
+// 数据补齐统一在 src/main.js 的 hydrateAll() 里做，页面不再各自 hydrate
 const { isSelected, toggleSelect, selectLimit } = useRowSelect()
 const records = projectsRepo.state
-onMounted(() => { projectsRepo.hydrate() })
 
 // ══════ 工具函数（maskAccount / getDisplayName 见 @/composables/useMask）══════
 function formatTime(iso) {
@@ -233,8 +232,20 @@ function handleConfirm(item) {
 // 确认完成：统一走 service / repository
 //   * 每次实际执行都会生成一条独立的执行记录（不再只在最后一天记录）
 //   * 托管次数用尽自动完成，并解锁续费项目
+// 失败原因（未开始 / 暂停 / 今日已确认 / 已关闭 …）以前被静默吞掉，点了没反应；
+// 现在把 service 的 reason 翻成人话提示出来。
+const CONFIRM_FAIL_TEXT = {
+  'not-found': '记录不存在，可能已被删除',
+  'confirmed-today': '今天已经确认过了（托管每天只能确认一次）',
+  'not-started': '托管还没开始，暂时不能确认',
+  'paused': '项目已暂停，请先恢复',
+  'closed': '项目已归档或已取消，不能再确认',
+  'local-persist-failed': '保存失败，请重试',
+}
 function executeConfirm(item) {
-  completeTaskById(item.id)
+  const r = completeTaskById(item.id)
+  if (r && r.ok === false) alert(CONFIRM_FAIL_TEXT[r.reason] || '确认失败，请重试')
+  return r
 }
 
 // ══════ 删除（多次点击保护） ══════
@@ -268,11 +279,17 @@ function isRecordDone(item) {
 }
 
 // ══════ 托管「每日只能确认一次」═════
-// 用本地日期（避免 toISOString 的 UTC 跨时区偏移）
-const todayStr = computed(() => {
-  const d = new Date()
-  const p = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+// 用本地日期（避免 toISOString 的 UTC 跨时区偏移），并跟随设置里的「每日刷新时间」：
+// 跨过刷新点才算新的一天 —— 所以存成 ref，在设置变更 / 窗口重新聚焦时重算。
+const todayStr = ref(localToday())
+function refreshToday() { todayStr.value = localToday() }
+onMounted(() => {
+  window.addEventListener('tr-daily-reset-changed', refreshToday)
+  window.addEventListener('focus', refreshToday)
+})
+onUnmounted(() => {
+  window.removeEventListener('tr-daily-reset-changed', refreshToday)
+  window.removeEventListener('focus', refreshToday)
 })
 function isConfirmedToday(item) {
   return item.status === 2 && item.lastConfirmDate === todayStr.value
@@ -284,16 +301,11 @@ function isGrayed(item) {
 
 // ══════ 竖线颜色：上段类型色 + 下段价格色 ══════
 function getTypeColor(item) {
-  if (isGrayed(item)) return '#9E9E9E'    // 待激活 / 今日已确认：灰
-  if (item.status === 2) return '#FF6D00' // 托管：亮橙
-  return '#00B0FF'                        // 单次：亮蓝
+  // 灰显（待激活 / 今日已确认）→ 灰；托管 → 橙；单次 → 蓝
+  return typeColor(isHosting(item), { muted: isGrayed(item) })
 }
 function getFeeColor(item) {
-  const fee = Number(item.totalFee) || 0
-  if (fee >= 100) return '#FF1744'        // 高金额：亮红
-  if (fee >= 50) return '#FFEA00'         // 中金额：亮黄
-  if (fee > 0) return '#00E676'           // 低金额：亮绿
-  return '#BDBDBD'                         // 无金额：灰
+  return feeColor(item.totalFee)
 }
 function rowStyle(item, idx) {
   const base = staggerStyle(idx)
@@ -318,17 +330,12 @@ const visibleRecords = computed(() => (
 ))
 const sortMode = ref('hosting') // time | fee | hosting | game
 
-function stateText(state) {
-  return STATE_LABEL[state] || state || '—'
-}
 const listKey = ref(0)
 function setSortMode(mode) {
   if (sortMode.value === mode) return
   sortMode.value = mode
   listKey.value++
-  // 重新触发列表入场动画
-  entered.value = false
-  requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
+  replay()  // 重新触发列表入场动画
 }
 const filteredRecords = computed(() => {
   // 「已结束」视图列出全部结束（status 0 / 已归档 / 已取消）的记录 ——

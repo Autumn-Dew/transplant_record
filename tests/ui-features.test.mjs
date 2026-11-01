@@ -63,9 +63,14 @@ test('设置页提供「备份全部数据」', () => {
   const settings = read('src/views/SettingsPage.vue')
   assert.match(settings, /@click="backupAll"/, '有备份按钮')
   assert.match(settings, /function backupAll/, '有备份实现')
-  assert.match(settings, /startsWith\('tr-'\)/, '导出全部 tr- 键')
-  assert.match(settings, /!k\.startsWith\('tr-backup-'\)/, '不含迁移备份键')
-  assert.match(settings, /download = `代肝记录备份_/, '导出为带日期的 JSON 文件')
+  assert.match(settings, /downloadSnapshot\(\{/, '导出逻辑在 services/backupService.js')
+
+  // 导出规则由 backupService 承担：全部 tr- 键、排除迁移备份键、带日期的文件名
+  const service = read('src/services/backupService.js')
+  assert.match(service, /KEY_PREFIX = 'tr-'/, '导出全部 tr- 键')
+  assert.match(service, /startsWith\(BACKUP_PREFIX\)/, '不含迁移备份键')
+  assert.match(service, /download = fileName \|\| `代肝记录备份_/, '导出为带日期的 JSON 文件')
+
   // 数据管理页不再放备份入口（已统一到设置页）
   assert.equal(/backupAll/.test(read('src/views/AdminPage.vue')), false, '数据管理页不再有备份按钮')
 })
@@ -80,8 +85,11 @@ test('每日汇报在控件右侧显示当前项目备注', () => {
 test('代肝记录只统计「整个托管周期已完成」的项目', () => {
   const diary = read('src/views/WorkDiary.vue')
   assert.match(diary, /finishedProjectIds/, '有「周期已完成」判定')
-  assert.match(diary, /isCompleted\(p\) \|\| isClosed\(p\) \|\| isExpired\(p\)/, '完成 / 归档 / 到期 都算结束')
   assert.match(diary, /finished\.has\(String\(r\.projectId\)\)/, '列表按项目过滤')
+  // 判定口径本身在 service（组件不再拼业务规则）
+  const svc = read('src/services/projectService.js')
+  assert.match(svc, /export function finishedProjectIds\(\)/, '口径由 service 提供')
+  assert.match(svc, /isCompleted\(p\) \|\| isClosed\(p\) \|\| isExpired\(p\)/, '完成 / 归档 / 到期 都算结束')
 })
 
 test('托管天数可增可减（不做封顶）', () => {
@@ -124,5 +132,10 @@ test('设置页支持从备份恢复（加载）', () => {
   assert.match(settings, /从备份恢复/, '有恢复入口')
   assert.match(settings, /type="file"/, '可选择备份文件')
   assert.match(settings, /restoreCfm\.trigger\('restore'\)/, '走多次点击确认')
-  assert.match(settings, /saveRecords/, '同步 Electron 文件，避免被旧数据覆盖')
+  assert.match(settings, /restoreSnapshot\(/, '恢复逻辑在 services/backupService.js')
+  // 恢复时必须同步 Electron 文件，否则下次启动会被旧文件覆盖
+  const service = read('src/services/backupService.js')
+  assert.match(service, /saveRecords/, '同步项目文件')
+  assert.match(service, /savePrices/, '同步价格表文件（旧实现在这里漏了）')
+  assert.match(service, /refreshMemory\(\)/, '刷新内存单例，恢复后无需重载页面')
 })

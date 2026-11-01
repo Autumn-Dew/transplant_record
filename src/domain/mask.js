@@ -25,6 +25,15 @@ export function maskAccount(acct) {
   return s.slice(0, 3) + '****' + s.slice(-4)
 }
 
+// 密码脱敏：只保留首尾各 1 位（长度 ≤ 2 时全部打码）。
+// 列表与历史详情默认走脱敏；需要明文时由详情窗口的「显示密码」显式切换。
+export function maskPassword(pw) {
+  if (!pw) return ''
+  const s = String(pw)
+  if (s.length <= 2) return '*'.repeat(s.length)
+  return s[0] + '*'.repeat(Math.max(1, s.length - 2)) + s[s.length - 1]
+}
+
 // 按优先平台取老板昵称
 export function getDisplayName(item) {
   if (!item) return ''

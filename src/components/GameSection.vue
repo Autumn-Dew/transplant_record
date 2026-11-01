@@ -114,6 +114,43 @@
         <p class="gm-hint">
           服务项目修改只影响后续新建的项目；已经生成的执行记录保留当时的名称快照，不会被改写。
         </p>
+
+        <!-- 日报预设：决定「每日汇报」里该游戏默认出现哪些任务项与资源项。
+             留空 = 回落内置预设（只有内置三游戏有预设），改动立即保存。 -->
+        <div class="gm-detail-head">
+          <span class="gm-detail-title">日报预设</span>
+          <span class="gm-detail-id">每日汇报里该游戏默认的任务项与资源项</span>
+        </div>
+
+        <div class="gm-report-author">
+          <span class="gm-report-title">汇报人</span>
+          <input
+            class="gm-inp gm-report-inp"
+            :value="reportAuthor"
+            placeholder="留空则用主署名"
+            @change="saveReportAuthor"
+          />
+          <span class="gm-hint" style="margin:0">日报标题会变成「汇报人 + 的每日汇报」</span>
+        </div>
+
+        <div class="gm-report">
+          <div class="gm-report-group" v-for="grp in REPORT_GROUPS" :key="grp.key">
+            <div class="gm-report-head">
+              <span class="gm-report-title">{{ grp.label }}</span>
+              <button class="gm-add" @click="addPresetItem(grp.key)">+ 添加</button>
+            </div>
+            <div class="gm-report-row" v-for="(item, i) in presetOf(grp.key)" :key="grp.key + '-' + i">
+              <input class="gm-inp gm-report-inp" :value="item" @change="setPresetItem(grp.key, i, $event.target.value)" />
+              <button class="gm-del" @click="removePresetItem(grp.key, i)" title="删除这一项">×</button>
+            </div>
+            <p class="gm-hint gm-report-empty" v-if="!presetOf(grp.key).length">{{ grp.empty }}</p>
+          </div>
+        </div>
+
+        <p class="gm-hint">
+          全部留空 = 使用内置预设（只有内置的终末地 / 明日方舟 / 异环有预设）；
+          自建游戏留空则日报里显示空卡片，由你在日报页临时添加。
+        </p>
       </div>
 
       <div class="gm-col-detail gm-col-empty" v-else>
@@ -140,7 +177,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { gamesRepo } from '@/data/repos.js'
 import {
   addGame, updateGame, removeGame, archiveGame, restoreGame, toggleGame, moveGame,
@@ -152,10 +189,10 @@ const stats = computed(() => gameStats())
 const currentId = ref('')
 const current = computed(() => games.value.find(g => g.id === currentId.value) || null)
 
-onMounted(() => {
-  gamesRepo.hydrate()
-  currentId.value = games.value[0]?.id || ''
-})
+// 数据补齐统一在 src/main.js 的 hydrateAll() 里做；这里只跟着数据变化选中第一项
+watch(games, (list) => {
+  if (!currentId.value || !list.some(g => g.id === currentId.value)) currentId.value = list[0]?.id || ''
+}, { immediate: true })
 
 function indexOf(id) { return games.value.findIndex(g => g.id === id) }
 function addNew() {
@@ -188,6 +225,54 @@ function archiveTarget() {
 }
 
 function saveService(svc, patch) { if (current.value) updateService(current.value.id, svc.id, patch) }
+
+// ══════════ 日报预设（`game.report`）══════════
+// 目录里存的是「覆盖值」：空数组 = 没配 → 日报回落到 domain/report-presets.js 的内置预设。
+const REPORT_GROUPS = [
+  { key: 'daily', label: '日常任务项', empty: '未配置（内置游戏会用各自预设）' },
+  { key: 'weekly', label: '周常任务项', empty: '未配置' },
+  { key: 'resources', label: '今日获取资源（默认）', empty: '未配置' },
+]
+
+function presetOf(key) {
+  const g = current.value
+  const list = g && g.report && Array.isArray(g.report[key]) ? g.report[key] : []
+  return list
+}
+
+function savePreset(key, list) {
+  if (!current.value) return
+  const next = { ...(current.value.report || {}) }
+  next[key] = (Array.isArray(list) ? list : []).map(s => String(s == null ? '' : s).trim()).filter(Boolean)
+  updateGame(current.value.id, { report: next })
+}
+
+// 「添加」直接落一个占位名（空串会被规范化过滤掉，加不进去），随后就地改名
+function addPresetItem(key) {
+  savePreset(key, [...presetOf(key), key === 'resources' ? '新资源' : '新任务'])
+}
+
+function setPresetItem(key, index, value) {
+  const list = [...presetOf(key)]
+  list[index] = value
+  savePreset(key, list)
+}
+
+function removePresetItem(key, index) {
+  const list = [...presetOf(key)]
+  list.splice(index, 1)
+  savePreset(key, list)
+}
+
+// 汇报人：每游戏一个固定值（留空则日报页回落到主署名 APP_SIGN）
+const reportAuthor = computed(() => (current.value && current.value.report ? current.value.report.author : '') || '')
+
+function saveReportAuthor(e) {
+  if (!current.value) return
+  const next = { ...(current.value.report || {}) }
+  next.author = String((e && e.target && e.target.value) || '').trim()
+  updateGame(current.value.id, { report: next })
+}
 </script>
 
 <style scoped>
@@ -292,4 +377,15 @@ function saveService(svc, patch) { if (current.value) updateService(current.valu
 }
 .gm-del:hover { background: #d00; border-color: #d00; color: #fff; }
 .gm-hint { font-size: 11px; opacity: 0.5; line-height: 1.6; margin-top: 12px; }
+
+/* 日报预设 */
+.gm-report-author { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.gm-report-author .gm-report-inp { width: 200px; flex: 0 0 auto; }
+.gm-report { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+.gm-report-group { border: 1px solid var(--border-color); padding: 8px; background: var(--bg-primary); }
+.gm-report-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.gm-report-title { font-size: 11px; font-family: var(--font-mono); opacity: 0.65; }
+.gm-report-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; }
+.gm-report-inp { flex: 1; min-width: 0; }
+.gm-report-empty { margin: 2px 0 0; font-size: 10px; }
 </style>

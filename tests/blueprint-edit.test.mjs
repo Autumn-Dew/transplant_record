@@ -227,14 +227,22 @@ test('分组数据结构未被改动（仍为纯字符串数组）', () => {
 
 // ══════════ 结构约束（源码级） ══════════
 
-test('蓝图不再提供字号修改项（列表与两处表单都没有）', () => {
+test('蓝图不再提供字号修改项（列表与两处表单都没有），颜色走统一的 ColorPicker', () => {
   const page = read('src/views/BlueprintPage.vue')
   assert.equal(/bp-size|fontSizeOf\(/.test(page), false, '蓝图详情不应再有字号控件，列表也不按字号渲染')
-  assert.match(page, /class="bp-hex"/, '颜色应支持直接输入 HEX')
+  assert.match(page, /<ColorPicker[^>]*v-model="detailRecord\.color"/, '详情用公共颜色选择器')
 
   const add = read('src/views/AddPage.vue')
   assert.equal(/bp-size|fontSize/.test(add), false, '新增表单不应再有字号修改项')
-  assert.match(add, /class="bp-hex-input"/)
+  assert.match(add, /<ColorPicker[^>]*v-model="blueprintForm\.color"/, '新增表单用同一个颜色选择器')
+
+  // 公共组件本身支持 8 色预设 + 取色器 + HEX 直填，且只在这里定义一次
+  const picker = read('src/components/ColorPicker.vue')
+  assert.match(picker, /const PRESET_COLORS = \['#FF1744'/, '8 色预设')
+  assert.match(picker, /class="bp-hex"/, '支持直接输入 HEX')
+  assert.match(picker, /normalizeHex\(\$event\.target\.value\)/, 'HEX 失焦时规范化（读事件值，避免 prop 同步时序问题）')
+  assert.equal(/presetColors/.test(page), false, '页面不再自带预设色数组')
+  assert.equal(/presetColors/.test(add), false, '新增页不再自带预设色数组')
 })
 
 test('新增蓝图可选择已有蓝图为基础（复制为独立草稿）', () => {

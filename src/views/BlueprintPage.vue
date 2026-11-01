@@ -101,14 +101,16 @@
           </div>
         </template>
 
-        <div class="empty" v-if="displayRows.length === 0 && records.length === 0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2"/><path d="M14 2v6h6" stroke-width="2"/></svg>
-          <p>暂无蓝图，点击"新增"添加</p>
-        </div>
-        <div class="empty" v-if="displayRows.length === 0 && records.length > 0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke-width="2"/></svg>
-          <p>没有匹配的记录</p>
-        </div>
+        <EmptyState
+          v-if="displayRows.length === 0 && records.length === 0"
+          icon="doc"
+          text='暂无蓝图，点击"新增"添加'
+        />
+        <EmptyState
+          v-if="displayRows.length === 0 && records.length > 0"
+          icon="search"
+          text="没有匹配的记录"
+        />
       </div>
 
       <!-- 详情/编辑弹窗 -->
@@ -142,19 +144,7 @@
               <span class="dv" v-else>{{ detailRecord.source || '—' }}</span>
             </div>
             <div class="detail-field"><span class="dl">颜色</span>
-              <div v-if="detailEditMode" class="color-swatches">
-                <span v-for="c in presetColors" :key="c" class="color-swatch" :style="{ background: c }" :class="{ active: detailRecord.color === c }" @click="detailRecord.color = c"></span>
-                <input type="color" v-model="detailRecord.color" class="color-input" title="自定义颜色" />
-                <input
-                  v-model="detailRecord.color"
-                  class="bp-hex"
-                  :class="{ invalid: !isValidHex(detailRecord.color) }"
-                  placeholder="#RRGGBB"
-                  title="可直接输入 HEX"
-                  @change="detailRecord.color = normalizeHex(detailRecord.color)"
-                />
-                <button v-if="detailRecord.color" class="pwd-toggle" @click="detailRecord.color = ''">清除</button>
-              </div>
+              <ColorPicker v-if="detailEditMode" v-model="detailRecord.color" />
               <span v-else class="dv">
                 <span v-if="detailRecord.color" class="color-preview" :style="{ background: detailRecord.color }"></span>{{ detailRecord.color || '—' }}
               </span>
@@ -185,25 +175,25 @@ import { useEditState } from '@/composables/useEditState'
 import { useRowSelect } from '@/composables/useRowSelect'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import { blueprintsRepo, blueprintGroupsRepo } from '@/data/repos.js'
-import { isValidHex, normalizeHex, normalizeFontSize, duplicateBlueprint } from '@/domain/blueprints.js'
+import { normalizeHex, normalizeFontSize, duplicateBlueprint } from '@/domain/blueprints.js'
+import { usePageEnter } from '@/composables/usePageEnter.js'
+import ColorPicker from '@/components/ColorPicker.vue'
+import { copyText } from '@/utils/clipboard.js'
+import EmptyState from '@/components/EmptyState.vue'
 
 const navigateToAdd = inject('navigateToAdd')
 const { startAdd } = useEditState()
 // 多次点击确认（所有写操作统一走这套机制）
 const cfm = useConfirmClick()
 
-const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
-function staggerStyle(idx) { return { transitionDelay: (0.24 + Math.max(0, idx) * 0.023) + 's' } }
-
-const presetColors = ['#FF1744', '#FF6D00', '#FFEA00', '#00E676', '#00B0FF', '#2979FF', '#9C27B0', '#F50057']
+// ══════ 入场动画（统一节奏见 composables/usePageEnter）══════
+const { entered, replay, staggerStyle } = usePageEnter()
 
 // ══════ 数据（统一经由 Repository）══════
+// 数据补齐统一在 src/main.js 的 hydrateAll() 里做，页面不再各自 hydrate
 const records = blueprintsRepo.state
 const groups = blueprintGroupsRepo.state
-onMounted(() => { blueprintsRepo.hydrate() })
 
-function saveRecords() { blueprintsRepo.persist() }
 function saveGroups(list) { blueprintGroupsRepo.save(list ?? groups.value) }
 
 // ══════ 分组重命名（批量修改该组下所有蓝图） ══════
@@ -222,7 +212,7 @@ function commitRename(oldName) {
   // 详情弹窗若正打开着该组内的记录 → 同步组名，避免稍后保存把旧组名写回（数据不同步）
   if (detailRecord.value && String(detailRecord.value.group || '').trim() === oldName) {
     const synced = blueprintsRepo.find(detailRecord.value.id)
-    if (synced) { detailRecord.value = { ...synced }; detailOriginal.value = synced }
+    if (synced) detailRecord.value = { ...synced }
   }
   cancelRename()
 }
@@ -237,8 +227,7 @@ function setSortMode(mode) {
   if (sortMode.value === mode) return
   sortMode.value = mode
   listKey.value++
-  entered.value = false
-  requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
+  replay()  // 重新触发列表入场动画
 }
 
 function matchQuery(r, q) {
@@ -374,18 +363,14 @@ function handleDelete(item) {
 }
 
 function copyCode(item) {
-  if (item.code) {
-    navigator.clipboard.writeText(item.code).then(() => {}).catch(() => {})
-  }
+  if (item.code) copyText(item.code)
 }
 
 // ══════ 详情/编辑弹窗 ══════
 const showDetail = ref(false)
 const detailRecord = ref({})
-const detailOriginal = ref(null)
 const detailEditMode = ref(false)
 function openDetailDialog(item) {
-  detailOriginal.value = item
   detailRecord.value = { ...item }
   detailEditMode.value = false
   showDetail.value = true
@@ -393,7 +378,6 @@ function openDetailDialog(item) {
 function closeDetail() {
   showDetail.value = false
   detailEditMode.value = false
-  detailOriginal.value = null
 }
 // 以当前详情记录为基础新建：深拷贝为**完全独立**的新蓝图，随后直接在弹窗里编辑副本。
 // 副本与原记录互不影响（分组 / 字段 / 颜色 / 字号都各自独立）。
@@ -406,7 +390,6 @@ function duplicateDetail() {
   rememberGroup(copy.group)
   const saved = blueprintsRepo.find(copy.id)
   if (saved) {
-    detailOriginal.value = saved
     detailRecord.value = { ...saved }
     detailEditMode.value = true
   }
@@ -430,7 +413,7 @@ function saveDetail() {
       blueprintsRepo.update(String(rec.id), patch)
       // 保存后刷新弹窗与列表，避免弹窗停留在旧副本上（数据不同步）
       const saved = blueprintsRepo.find(rec.id)
-      if (saved) { detailRecord.value = { ...saved }; detailOriginal.value = saved }
+      if (saved) detailRecord.value = { ...saved }
     }
     rememberGroup(rec?.group)
   } catch (e) {
@@ -523,34 +506,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     var(--bar-bottom, var(--border-color)) 50%,
     var(--bar-bottom, var(--border-color)) 100%);
 }
-.color-swatches { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.color-swatch {
-  width: 22px; height: 22px;
-  display: inline-block;
-  cursor: pointer;
-  border: 2px solid transparent;
-  flex-shrink: 0;
-}
-.color-swatch.active { border-color: var(--text-primary); }
-.color-input {
-  width: 30px; height: 26px;
-  padding: 0;
-  border: 2px solid var(--border-color);
-  background: var(--bg-secondary);
-  cursor: pointer;
-}
 .color-preview {
   display: inline-block;
   width: 14px; height: 14px;
   margin-right: 4px;
   vertical-align: middle;
 }
-
-/* ── 颜色：HEX 直填（非法值给出提示，不静默丢弃）── */
-.bp-hex {
-  width: 92px; height: 24px; padding: 0 6px;
-  border: 1px solid var(--border-color); background: var(--bg-primary);
-  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
-}
-.bp-hex.invalid { border-color: #d00; color: #d00; }
 </style>

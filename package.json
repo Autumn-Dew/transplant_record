@@ -1,7 +1,7 @@
 {
   "name": "boosting-record",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.61",
   "productName": "代肝记录",
   "description": "一站式代肝工具",
   "author": "AutumnDew",
@@ -13,7 +13,8 @@
     "start": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && npm run electron -- --dev\"",
     "pack": "vite build && electron-builder",
     "test": "node --test \"tests/**/*.test.mjs\"",
-    "ui:smoke": "electron tools/ui-smoke.cjs"
+    "ui:smoke": "electron tools/ui-smoke.cjs",
+    "ipc:smoke": "electron tools/ipc-smoke.cjs"
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
@@ -27,8 +28,7 @@
     "electron": "^35.0.0",
     "electron-builder": "^24.13.3",
     "vite": "^6.0.0",
-    "wait-on": "^8.0.0",
-    "xlsx": "^0.18.5"
+    "wait-on": "^8.0.0"
   },
   "build": {
     "appId": "com.autumndew.boosting-record",

@@ -35,7 +35,7 @@ export const STATE = {
 
 export const STATE_LABEL = {
   [STATE.SCHEDULED]: '待开始',
-  [STATE.PENDING]: '未完成',
+  [STATE.PENDING]: '待执行',
   [STATE.ACTIVE]: '托管中',
   [STATE.PAUSED]: '暂停中',
   [STATE.EXPIRED]: '已到期',

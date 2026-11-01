@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 const read = p => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')
 
 const STORAGE = 'src/data/storage.js'
+const THEME = 'src/data/price-theme.js'
 const PAGE = 'src/views/PricePage.vue'
 
 test('价格画布外观有独立存储键，且与业务数据分开', () => {
@@ -17,14 +18,19 @@ test('价格画布外观有独立存储键，且与业务数据分开', () => {
 })
 
 test('原版是默认：未设置 / 未知值都回落到 classic', () => {
-  const page = read(PAGE)
-  assert.match(page, /const PRICE_THEMES = \['classic', 'endfield'\]/, '两套外观')
+  const theme = read(THEME)
+  assert.match(theme, /const PRICE_THEMES = \['classic', 'endfield'\]/, '两套外观')
   assert.match(
-    page,
+    theme,
     /PRICE_THEMES\.includes\(raw\) \? raw : 'classic'/,
     '未知值回落原版（不留「无外观」状态）',
   )
-  assert.match(page, /const priceTheme = ref\(normalizePriceTheme\(readJSON\(KEYS\.PRICE_THEME, null\)\)\)/, '默认从存储读，没有就回落')
+  assert.match(theme, /readJSON\(KEYS\.PRICE_THEME, null\)/, '默认从存储读，没有就回落')
+
+  const page = read(PAGE)
+  assert.match(page, /const priceTheme = ref\(readPriceTheme\(\)\)/, '组件从封装层取初值')
+  assert.equal(/readJSON\(KEYS\.PRICE_THEME/.test(page), false, '组件不得直接读存储键')
+  assert.equal(/writeJSON\(KEYS\.PRICE_THEME/.test(page), false, '组件不得直接写存储键')
 })
 
 test('工具栏提供两套外观入口，点击即切换并持久化', () => {
@@ -33,7 +39,7 @@ test('工具栏提供两套外观入口，点击即切换并持久化', () => {
   assert.match(page, /@click="setTheme\('endfield'\)"/, '终末地入口')
   assert.match(page, /:class="\{ active: !isEf \}"/, '原版高亮')
   assert.match(page, /:class="\{ active: isEf \}"/, '终末地高亮')
-  assert.match(page, /writeJSON\(KEYS\.PRICE_THEME, priceTheme\.value\)/, '切换即写入独立键')
+  assert.match(page, /priceTheme\.value = writePriceTheme\(id\)/, '切换即写入独立键（经 data/price-theme.js）')
   assert.match(page, /:class="\{ 'pr-ef': isEf \}"/, '画布按外观挂类名')
 })
 
@@ -84,18 +90,20 @@ test('复制到剪切板：与每日汇报同款（ClipboardItem + PNG blob）',
   assert.match(page, /@click="exportImage\(false\)"/, '导出图片入口')
   assert.match(page, /@click="exportImage\(true\)"/, '复制到剪切板入口')
   assert.match(page, /<span>复制到剪切板<\/span>/, '按钮文案与每日汇报一致')
-  // 实现：canvas → blob → ClipboardItem('image/png')
+  // 实现：canvas → blob → 公共剪贴板工具（utils/clipboard.js）
   assert.match(page, /async function exportImage\(toClipboard = false\)/, '按参数分流')
   assert.match(page, /canvas\.toBlob\(r, 'image\/png'\)/, '导出为 PNG blob')
+  const clip = read('src/utils/clipboard.js')
   assert.match(
-    page,
+    clip,
     /navigator\.clipboard\.write\(\[new ClipboardItem\(\{ 'image\/png': blob \}\)\]\)/,
     '写系统剪贴板',
   )
-  // 只复制时不触发下载（不建 a[download]）
+  // 只复制时不触发下载（复制分支直接 return）
   const fn = page.slice(page.indexOf('async function exportImage'), page.indexOf('</script>'))
-  const copyBranch = fn.slice(fn.indexOf('if (toClipboard)'), fn.indexOf('const url = URL.createObjectURL(blob)'))
-  assert.equal(/a\.download/.test(copyBranch), false, '复制分支不下载文件')
+  const copyBranch = fn.slice(fn.indexOf('if (toClipboard)'), fn.indexOf('downloadBlob('))
+  assert.equal(/downloadBlob|a\.download/.test(copyBranch), false, '复制分支不下载文件')
+  assert.match(copyBranch, /copyPngBlob\(blob\)/, '复制分支写剪贴板')
 })
 
 test('备注列占最大比例，且列宽按固定值对齐', () => {  const page = read(PAGE)

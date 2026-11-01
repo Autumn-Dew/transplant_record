@@ -40,38 +40,45 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, inject } from 'vue'
+import { ref, reactive, watch, inject } from 'vue'
 import ReportSheet from '@/components/ReportSheet.vue'
+import { usePageEnter } from '@/composables/usePageEnter.js'
+import { readReportPages, writeReportPages, MAX_REPORT_PAGES } from '@/data/report-pages.js'
 
-const MAX_PAGES = 8
+const MAX_PAGES = MAX_REPORT_PAGES
 
 const activeTab = inject('activeTab', null)
 
-const entered = ref(false)
-function replayEnter() {
-  entered.value = false
-  requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
-}
-onMounted(replayEnter)
+const { entered, replay } = usePageEnter()
 
 // 页面常驻（v-show）：每次切换回日报页时重播入场动效
 if (activeTab) {
-  watch(() => activeTab.value, (v) => { if (v === 'report') replayEnter() })
+  watch(() => activeTab.value, (v) => { if (v === 'report') replay() })
 }
 
 let seq = 0
-function newPage() { return { id: 'rp' + (++seq) + '-' + Date.now().toString(36), label: '' } }
+// newPageId 只给 id 生成器用（保存数据缺 id 时补一个）；newPage 才是完整页签对象
+function newPageId() { return 'rp' + (++seq) + '-' + Date.now().toString(36) }
+function newPage() { return { id: newPageId(), label: '' } }
 
-const pages = reactive([newPage()])
-const current = ref(0)
+// 页签与当前页的读写规则在 data/report-pages.js（上限、去重、损坏数据回退都在那里）
+const restored = readReportPages(newPageId)
+const pages = reactive(restored.pages.length ? restored.pages : [newPage()])
+const current = ref(restored.current)
 const sheetRefs = ref([])
+
+// 页签 / 标签 / 当前页变化即落盘（关掉窗口也不丢）
+function persistPages() {
+  writeReportPages({ pages: pages, current: current.value })
+}
+watch(pages, persistPages, { deep: true })
 
 // 本页常驻，切换/鼠标进入时刷新当前页的托管项目列表（排除提前续费的 locked 项）
 function refreshCurrent() {
   const s = sheetRefs.value[current.value]
   if (s && s.refreshHosting) s.refreshHosting()
 }
-watch(current, () => { refreshCurrent() })
+watch(current, () => { persistPages(); refreshCurrent() })
 
 function addPage() {
   if (pages.length >= MAX_PAGES) return

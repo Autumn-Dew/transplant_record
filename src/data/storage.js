@@ -29,6 +29,17 @@ export const KEYS = {
   REPORT_THEME: 'tr-report-theme',
   // 价格一览的画布外观（原版 / 终末地风格，独立于应用主题）
   PRICE_THEME: 'tr-price-theme',
+  // 价格一览的画布背景图（压缩后的 dataURL；不设则用纯色底）
+  PRICE_BG: 'tr-price-bg',
+  // 托管的「每日刷新时间」（游戏日常重置点，'HH:mm'，默认 00:00）——
+  // 跨过这个时间点才算新的一天：日报天数 +1、代办里的托管重新出现、「今日已确认」失效
+  DAILY_RESET: 'tr-daily-reset',
+  // 每日汇报的页签（多页并行时每页的标题）+ 当前页 —— 重启后还原
+  REPORT_PAGES: 'tr-report-pages',
+  // 每日汇报的临时草稿（模板文案 / 任务项 / 资源项），按游戏分开存，直到手动恢复默认
+  REPORT_DRAFT: 'tr-report-draft',
+  // 界面音效（点击 / 悬停）总开关，'false' 表示静音
+  SOUND_ENABLED: 'tr-sound-enabled',
 }
 
 export const SCHEMA_VERSION = 2
@@ -51,6 +62,49 @@ export function readJSON(key, fallback) {
 export function writeJSON(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
+    return true
+  } catch {
+    return false
+  }
+}
+
+// ── 原始键操作 ──
+// 仅备份 / 恢复 / 清除这类「按存储键整体处理」的操作用；业务读写一律走 readJSON/writeJSON。
+export function listKeys(prefix = '') {
+  try {
+    const out = []
+    // 用标准 Storage 接口（length + key(i)）而不是 Object.keys ——
+    // 后者依赖实现的属性枚举，测试替身与某些环境下拿不到键名。
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k != null && k.startsWith(prefix)) out.push(k)
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+export function getRaw(key) {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+export function setRaw(key, value) {
+  try {
+    localStorage.setItem(key, value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function removeKey(key) {
+  try {
+    localStorage.removeItem(key)
     return true
   } catch {
     return false

@@ -320,3 +320,22 @@ test('todayTaskItems 提供今日代办所需的展示信息', () => {
   const oneItem = items.find(i => !i.hosting)
   assert.equal(oneItem.progress, null)
 })
+
+test('finishedProjectIds：只收「整个周期已结束」的项目', () => {
+  reset()
+  const active = makeHosting({ account: '13800138001' })
+  const completed = makeHosting({ account: '13800138002' })
+  svc.archiveProject(completed.id)
+  const cancelled = makeHosting({ account: '13800138003' })
+  svc.cancelProject(cancelled.id)
+  const expired = makeHosting({ account: '13800138004', hostStart: addDays(TODAY, -40), hostEnd: addDays(TODAY, -10) })
+  const pending = svc.createProject({ account: '13800138005', game: 'endfield', service: '基建', status: 1 })
+
+  const ids = svc.finishedProjectIds()
+  assert.ok(ids instanceof Set, '返回 Set 便于 O(1) 判定')
+  assert.equal(ids.has(String(active.id)), false, '进行中的托管不算结束')
+  assert.equal(ids.has(String(pending.id)), false, '未执行的单次项目不算结束')
+  assert.equal(ids.has(String(completed.id)), true, '归档（已完成）应计入')
+  assert.equal(ids.has(String(cancelled.id)), true, '已取消应计入')
+  assert.equal(ids.has(String(expired.id)), true, '已到期（派生判定）应计入')
+})

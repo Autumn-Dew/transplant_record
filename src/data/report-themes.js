@@ -52,22 +52,18 @@ const LONE_STAR_THEMES = [
   { id: 'ls-archive', label: '科研档案', family: 'lone-star', tone: 'light', hint: '暖白纸面 · 深蓝铭牌 · 档案装帧' },
   { id: 'ls-drafting', label: '航天制图', family: 'lone-star', tone: 'light', hint: '冷白图纸 · 坐标基准线 · 轻量线稿' },
   { id: 'ls-gauge', label: '工业仪器', family: 'lone-star', tone: 'light', hint: '实体面板 · 状态铭牌 · 粗细分明' },
-  { id: 'ls-spec', label: '规格卡', family: 'lone-star', tone: 'light', hint: '双层细框 · 右上编号块 · 参数对齐' },
-  { id: 'ls-log', label: '值班日志', family: 'lone-star', tone: 'light', hint: '横向条带 · 左缘时间列 · 逐条记录' },
-  { id: 'ls-schematic', label: '电路图', family: 'lone-star', tone: 'light', hint: '路径节点 · 虚线连接 · 图纸网格感' },
-  { id: 'ls-manifest', label: '货运单', family: 'lone-star', tone: 'light', hint: '表格横线 · 重量列 · 单证压印' },
-  { id: 'ls-terminal', label: '终端', family: 'lone-star', tone: 'dark', hint: '深蓝底 · 冷白字 · 扫描线与状态灯' },
+  { id: 'ls-spec', label: '规格卡', family: 'lone-star', tone: 'light', hint: '器材规格框 · 橙色校验章 · 双层边界' },
+  { id: 'ls-log', label: '值班日志', family: 'lone-star', tone: 'light', hint: '深蓝值班栏 · 橙色时间标 · 横线记录' },
+  { id: 'ls-schematic', label: '电路图', family: 'lone-star', tone: 'light', hint: '蓝图节点 · 虚线回路 · 坐标标记' },
+  { id: 'ls-manifest', label: '货运单', family: 'lone-star', tone: 'light', hint: '单证表头 · 装运条码 · 实线分项' },
+  { id: 'ls-terminal', label: '深空终端', family: 'lone-star', tone: 'dark', hint: '自带深蓝承载面 · 琥珀状态灯 · 扫描行' },
 ]
 
 const P3R_THEMES = [
   { id: 'p3r-poster', label: '斜切海报', family: 'p3r', tone: 'light', hint: '整宽斜切色带 · 明黄收口 · 高对比' },
   { id: 'p3r-lunar', label: '月相编辑', family: 'p3r', tone: 'light', hint: '冷白留白 · 月相轨迹 · 克制编辑感' },
   { id: 'p3r-tiles', label: '都市拼贴', family: 'p3r', tone: 'light', hint: '错位矩形 · 模块拼贴 · 局部反色' },
-  { id: 'p3r-cut', label: '斜切分割', family: 'p3r', tone: 'light', hint: '对角分割 · 上下两色 · 硬边收口' },
-  { id: 'p3r-night', label: '夜间霓虹', family: 'p3r', tone: 'dark', hint: '深蓝底 · 霓虹边线 · 高饱和强调' },
-  { id: 'p3r-index', label: '索引页', family: 'p3r', tone: 'light', hint: '右侧索引条 · 编号列 · 目录感' },
-  { id: 'p3r-flyer', label: '传单', family: 'p3r', tone: 'light', hint: '大标题压顶 · 底部信息带 · 快讯排版' },
-  { id: 'p3r-archive', label: '档案袋', family: 'p3r', tone: 'light', hint: '标签条 · 装订孔 · 牛皮纸色' },
+  { id: 'p3r-cut', label: '夜间数据', family: 'p3r', tone: 'dark', hint: '深海军蓝承载面 · 青色数据刻度 · 琥珀只标关键数字' },
 ]
 
 /* ── 终末地风格：工业工作台（依据 endfield-ui skill 的六条不变量）── */
@@ -75,11 +71,7 @@ const ENDFIELD_THEMES = [
   { id: 'ef-ledger', label: '台账', family: 'endfield', tone: 'light', hint: '纸白承载面 · 墨色信息栏 · lime 只做标记' },
   { id: 'ef-nightshift', label: '夜班', family: 'endfield', tone: 'dark', hint: '石墨黑面板 · 浅墨文字 · lime 收口' },
   { id: 'ef-workorder', label: '工单', family: 'endfield', tone: 'light', hint: '白纸表格 · 墨色实线 · 编号栏' },
-  { id: 'ef-manifest', label: '舱单', family: 'endfield', tone: 'light', hint: '表头铭牌 · 三色条 · 编号前缀' },
-  { id: 'ef-terminal', label: '终端', family: 'endfield', tone: 'dark', hint: '墨底 · lime 边框 · 光标式强调' },
-  { id: 'ef-checklist', label: '检查表', family: 'endfield', tone: 'light', hint: '方框勾选 · 细分隔线 · 逐项核验' },
-  { id: 'ef-batch', label: '批次卡', family: 'endfield', tone: 'light', hint: '大号批次号 · 状态条 · 批次分组' },
-  { id: 'ef-invoice', label: '结算单', family: 'endfield', tone: 'light', hint: '金额右对齐 · 双线收口 · 合计行' },
+  { id: 'ef-manifest', label: '运输舱单', family: 'endfield', tone: 'light', hint: '黑色舱单铭牌 · 三色校验条 · 编号分项' },
 ]
 
 /* ── 瑞士风格：国际主义平面设计（只有墨 / 米白 / 红，全部平涂）── */
@@ -88,10 +80,6 @@ const SWISS_THEMES = [
   { id: 'swiss-index', label: '索引版式', family: 'swiss', tone: 'dark', hint: '墨底米白 · 大号编号 · 不对称留白' },
   { id: 'swiss-field', label: '田字格', family: 'swiss', tone: 'light', hint: '四象限细线 · 居中留白 · 极简分隔' },
   { id: 'swiss-column', label: '分栏', family: 'swiss', tone: 'light', hint: '两栏文本 · 顶部大编号 · 栏间细线' },
-  { id: 'swiss-poster', label: '海报', family: 'swiss', tone: 'light', hint: '红色块 · 超大留白 · 单点强调' },
-  { id: 'swiss-table', label: '表格', family: 'swiss', tone: 'light', hint: '横线分行 · 数字右对齐 · 无竖线' },
-  { id: 'swiss-mono', label: '黑白摄影', family: 'swiss', tone: 'light', hint: '灰度块 · 图注小字 · 大幅留白' },
-  { id: 'swiss-inverse', label: '反白', family: 'swiss', tone: 'dark', hint: '墨底米白 · 红色细线 · 反白排版' },
 ]
 
 
@@ -107,20 +95,15 @@ const STIJL_THEMES = [
   { id: 'st-inverse', label: '反白格', family: 'stijl', tone: 'dark', hint: '黑底米白格 · 红黄蓝三色平涂' },
 ]
 
-export const REPORT_THEMES = [CLASSIC, ...LONE_STAR_THEMES, ...P3R_THEMES, ...ENDFIELD_THEMES, ...SWISS_THEMES, ...STIJL_THEMES]
+/* 一条平铺列表：不再按风格系列分组，选择器里从头到尾只有一条。
+   经典简报不在这条列表里 —— 它是「经典外观」按钮的预设（见下方
+   CLASSIC_REPORT_THEME），按钮一按就把主题与背景一起恢复成经典。 */
+export const REPORT_THEMES = [...P3R_THEMES, ...ENDFIELD_THEMES, ...SWISS_THEMES]
 
-/* 选择器按「经典 / 孤星风格 / P3R 风格 / 终末地风格 / 瑞士风格」分组展示 */
-export const REPORT_THEME_GROUPS = [
-  { id: 'classic', label: '经典', items: [CLASSIC] },
-  { id: 'lone-star', label: '孤星风格', items: LONE_STAR_THEMES },
-  { id: 'p3r', label: 'P3R 风格', items: P3R_THEMES },
-  { id: 'endfield', label: '终末地风格', items: ENDFIELD_THEMES },
-  { id: 'swiss', label: '瑞士风格', items: SWISS_THEMES },
-  { id: 'stijl', label: '风格派', items: STIJL_THEMES },
-]
-
+export const CLASSIC_REPORT_THEME = CLASSIC
 export const DEFAULT_REPORT_THEME = CLASSIC.id
-export const REPORT_THEME_IDS = REPORT_THEMES.map(t => t.id)
+/* ids 仍包含经典：老用户存的就是 'classic'，回落逻辑不能把它当非法值 */
+export const REPORT_THEME_IDS = [CLASSIC.id, ...REPORT_THEMES.map(t => t.id)]
 
 /* 老用户没有主题记录时回落到经典简报；未知值也回落，不留「无主题」状态 */
 export function normalizeReportThemeId(value) {
@@ -130,7 +113,7 @@ export function normalizeReportThemeId(value) {
 
 export function findReportTheme(id) {
   const key = normalizeReportThemeId(id)
-  return REPORT_THEMES.find(t => t.id === key) || REPORT_THEMES[0]
+  return [CLASSIC, ...REPORT_THEMES].find(t => t.id === key) || CLASSIC
 }
 
 /* ── 持久化（独立键，不读写背景键，也不读写应用主题键）── */

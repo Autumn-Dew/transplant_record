@@ -9,8 +9,8 @@
 //             可暂停 / 恢复 / 取消 / 续费（续费=新项目，不继承进度与历史）
 // ═══════════════════════════════════════════════════════════════════
 
-import { projectsRepo, completionsRepo, gamesRepo } from '../data/repos.js'
-import { KIND, STATE, PLAN_MODE, isHosting, isClosed, isArchived, isCancelled, isCompleted, normalizeProject, plannedTimesFor, hostProgress, paymentsOf, normalizePayment, normalizePayments } from '../domain/project.js'
+import { projectsRepo, completionsRepo, gamesRepo, commitBusinessSnapshot } from '../data/repos.js'
+import { KIND, STATE, PLAN_MODE, isHosting, isClosed, isArchived, isCancelled, isCompleted, isExpired, normalizeProject, plannedTimesFor, hostProgress, paymentsOf, normalizePayment, normalizePayments } from '../domain/project.js'
 import { buildCompletion, RESULT, newId } from '../domain/completion.js'
 import { buildChainSummary, incomeByMonth, resolveChainId, assignChainIds } from '../domain/hosting-chain.js'
 import { gameKeyOf, gameNameOf } from '../domain/games.js'
@@ -62,6 +62,9 @@ export function createProject(form = {}) {
   const now = new Date()
   const isHost = Number(form.status) === 2 || form.kind === KIND.HOSTING
   const createdAt = form.createdAt || now.toISOString()
+  // 显式传入的生命周期状态优先（便于恢复、构造特定状态的项目，也让服务层可测）；
+  // 未传时按项目类型取默认值。`status` 仍是 v1 兼容视图，由 normalizeProject 保持同步。
+  const givenState = Object.values(STATE).includes(form.state) ? form.state : ''
   const p = {
     ...form,
     id: form.id || newId('p'),
@@ -76,7 +79,11 @@ export function createProject(form = {}) {
   }
   if (isHost) {
     p.host = buildHost(form, { startDate: form.hostStart, endDate: form.hostEnd, createdAt, days: form.hostDays })
-    p.state = p.locked ? STATE.SCHEDULED : STATE.ACTIVE
+    // 显式延期日期：调用方（如恢复向导、测试）可以直接注入，周期与计划次数仍由 buildHost 推导
+    if (Array.isArray(form.host?.skippedDates)) {
+      p.host.skippedDates = form.host.skippedDates.filter(isYmd)
+    }
+    p.state = givenState || (p.locked ? STATE.SCHEDULED : STATE.ACTIVE)
     p.remainingDays = p.host.plannedTimes
     // 连续托管关系 ID：新建项目自成一链（历史续费项目会由迁移按 prevTaskId 追溯补全）
     p.hostingChainId = String(form.hostingChainId || p.id)
@@ -87,7 +94,7 @@ export function createProject(form = {}) {
       ? normalizePayments(form.payments)
       : [normalizePayment({ amount: firstAmount, paidAt: p.paidAt, days: p.host.cycleDays, note: '', createdAt })]
   } else {
-    p.state = STATE.PENDING
+    p.state = givenState || STATE.PENDING
     p.remainingDays = 1
     if (!isYmd(p.plannedDate)) p.plannedDate = fmtDate(createdAt)
   }
@@ -192,18 +199,45 @@ export function isDueToday(p, today = todayLocal()) {
   return diffDays(plan, today) >= 0
 }
 
+// 今日工作项 read model：代办页与每日汇报共用同一套可执行性判断。
+// includeBlocked=true 时保留不可执行项目并给出原因，适合诊断/提示；默认只返回今日可执行项。
+export function todayWorkItems(today = todayLocal(), { includeBlocked = false, hostingOnly = false } = {}) {
+  return projectsRepo.state.value.flatMap(p => {
+    const hosting = isHosting(p)
+    if (hostingOnly && !hosting) return []
+
+    let blockedReason = ''
+    if (p.locked || p.state === STATE.SCHEDULED) blockedReason = 'not-started'
+    else if (p.state === STATE.PAUSED) blockedReason = 'paused'
+    else if (p.state === STATE.CANCELLED || isArchived(p) || isClosed(p)) blockedReason = 'closed'
+    else if (hosting && Array.isArray(p.host?.skippedDates) && p.host.skippedDates.includes(today)) blockedReason = 'postponed'
+    else if (hosting && isYmd(p.host?.startDate) && diffDays(p.host.startDate, today) < 0) blockedReason = 'before-start'
+    else if (hosting && isYmd(p.host?.endDate) && diffDays(p.host.endDate, today) > 0) blockedReason = 'expired'
+    else if (hosting && p.host?.plan?.mode === PLAN_MODE.CUSTOM) blockedReason = 'custom-plan'
+    else if (hosting && p.host?.plan?.mode === PLAN_MODE.WEEKLY && !shouldRunToday(p, today)) blockedReason = 'not-scheduled-today'
+    else if (!hosting && !isDueToday(p, today)) blockedReason = 'not-due'
+
+    const runnable = !blockedReason && (hosting ? shouldRunToday(p, today) : isDueToday(p, today))
+    if (!includeBlocked && !runnable) return []
+    return [{
+      ...p,
+      hosting,
+      progress: hosting ? hostProgress(p, today) : null,
+      runnable,
+      confirmedToday: hosting && p.lastConfirmDate === today,
+      blockedReason,
+    }]
+  })
+}
+
 // 今日代办列表：托管今日应执行 + 单次到期待办
 export function todayTasks(today = todayLocal()) {
-  return projectsRepo.state.value.filter(p => (isHosting(p) ? shouldRunToday(p, today) : isDueToday(p, today)))
+  return todayWorkItems(today).map(item => projectsRepo.find(item.id) || item)
 }
 
 // 今日代办（带展示信息，供面板直接渲染）
 export function todayTaskItems(today = todayLocal()) {
-  return todayTasks(today).map(p => ({
-    ...p,
-    hosting: isHosting(p),
-    progress: isHosting(p) ? hostProgress(p) : null,
-  }))
+  return todayWorkItems(today)
 }
 
 /**
@@ -290,9 +324,7 @@ export function confirmExecution(projectId, opts = {}) {
     gameName: p.gameName || gameNameOf(games(), p.game),
     ...chainSnap,
   })
-  completionsRepo.add(record)
-
-  // 2) 再更新项目进度
+  // 2) 计算项目的下一状态；记录与项目随后通过同一个业务快照 seam 提交
   const patch = { lastConfirmDate: today }
   if (hosting) {
     const host = { ...(p.host || {}) }
@@ -315,12 +347,19 @@ export function confirmExecution(projectId, opts = {}) {
     patch.completedAt = new Date().toISOString()
   }
 
-  projectsRepo.update(projectId, patch)
+  const shouldUnlock = !hosting || patch.state === STATE.COMPLETED
+  const nextProjects = projectsRepo.plain().map(project => {
+    if (String(project.id) === String(projectId)) return { ...project, ...patch }
+    if (shouldUnlock && project.locked && String(project.prevTaskId) === String(projectId)) {
+      return { ...project, locked: false, state: STATE.ACTIVE }
+    }
+    return project
+  })
+  const nextCompletions = [record, ...completionsRepo.plain()]
+  const committed = commitBusinessSnapshot({ projects: nextProjects, completions: nextCompletions })
+  if (!committed.ok) return { ok: false, reason: committed.reason }
 
-  // 3) 前一期完成 → 解锁续费项目（待开始 → 托管中）
-  if (!hosting || patch.state === STATE.COMPLETED) unlockSuccessors(projectId)
-
-  return { ok: true, record, completed: patch.state === STATE.COMPLETED }
+  return { ok: true, record, completed: patch.state === STATE.COMPLETED, durable: committed.durable }
 }
 
 // 解锁以 projectId 为前序的续费项目
@@ -499,29 +538,31 @@ export function forceDeleteProject(id, { withHistory = true } = {}) {
   if (!target) return { ok: false, reason: 'not-found', removedCompletions: 0, clearedRefs: 0 }
 
   let removedCompletions = 0
+  let nextCompletions = completionsRepo.plain()
   if (withHistory) {
     const keep = []
-    for (const c of completionsRepo.state.value) {
+    for (const c of nextCompletions) {
       const owner = String(c.projectId || c.taskId || '')
       if (owner === String(id)) removedCompletions++
       else keep.push(c)
     }
-    if (removedCompletions > 0) completionsRepo.replaceAll(keep)
+    nextCompletions = keep
   }
 
   // 先收集要改的引用，再逐个写回（update 会替换数组，边遍历边改会漏项）
   const refFixes = []
-  for (const p of projectsRepo.state.value) {
+  const nextProjects = []
+  for (const p of projectsRepo.plain()) {
     if (String(p.id) === String(id)) continue
     const patch = {}
     if (p.prevTaskId != null && String(p.prevTaskId) === String(id)) patch.prevTaskId = null
     if (p.hostingChainId != null && String(p.hostingChainId) === String(id)) patch.hostingChainId = p.id
     if (Object.keys(patch).length) refFixes.push([p.id, patch])
+    nextProjects.push(Object.keys(patch).length ? { ...p, ...patch } : p)
   }
-  for (const [pid, patch] of refFixes) projectsRepo.update(pid, patch)
-
-  projectsRepo.remove(id)
-  return { ok: true, removedCompletions, clearedRefs: refFixes.length }
+  const committed = commitBusinessSnapshot({ projects: nextProjects, completions: nextCompletions })
+  if (!committed.ok) return { ok: false, reason: committed.reason, removedCompletions: 0, clearedRefs: 0 }
+  return { ok: true, removedCompletions, clearedRefs: refFixes.length, durable: committed.durable }
 }
 
 // ── 续费（历史形态：每次续费新建一个独立项目）──
@@ -701,6 +742,17 @@ export function hostingChains(today = todayLocal()) {
 export function chainExecutions(chainId) {
   const ids = new Set(chainPeriods(chainId).map(p => String(p.id)))
   return completionsRepo.state.value.filter(c => ids.has(String(c.projectId || c.taskId)))
+}
+
+// ── 不变量：哪些项目算「整个周期已经结束」──
+// 「代肝记录」只统计这些项目的执行记录：进行中的托管不计入历史口径。
+// 以前这条判断写在 WorkDiary 的 computed 里（业务规则漏到组件），现在收在这里。
+export function finishedProjectIds() {
+  const out = new Set()
+  for (const p of projectsRepo.state.value) {
+    if (isCompleted(p) || isClosed(p) || isExpired(p)) out.add(String(p.id))
+  }
+  return out
 }
 
 // ── 收入统计：每一笔收费（订单）独立，聚合展示绝不合并收入 ──

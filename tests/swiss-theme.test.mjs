@@ -93,13 +93,13 @@ test('汇报新增瑞士两套：变量块 + 皮肤，字重同样只有 400 / 7
   assert.equal(/font-size\s*:/.test(section.replace(/font-size:\s*8px/g, '')), false, '只允许编号伪元素用 8px，其余不得改字号')
 })
 
-test('汇报背景新增瑞士三套，并归到「瑞士风格」组', () => {
+test('汇报背景包含瑞士族，且不再按风格分组', () => {
   const bgs = read('src/data/report-backgrounds.js')
-  for (const id of ['ch-grid', 'ch-asym', 'ch-black']) {
+  for (const id of ['ch-grid', 'ch-asym', 'ch-black', 'ch-columns']) {
     assert.ok(bgs.includes(`id: '${id}'`), `背景 ${id} 已登记`)
-    assert.ok(bgs.includes(`style: 'swiss'`), '风格系列是 swiss')
   }
-  assert.match(bgs, /\{ id: 'swiss', label: '瑞士风格', items: SWISS_BGS \}/, '瑞士分组')
+  assert.ok(bgs.includes(`style: 'swiss'`), '风格系列是 swiss')
+  assert.equal(/REPORT_BG_GROUPS/.test(bgs), false, '不再按风格系列分组（选择器里是一条平铺列表）')
   // 12 栏网格：每组背景都必须画竖线
   assert.match(bgs, /repeating-linear-gradient\(90deg, rgba\(17,17,17,0\.10\) 0 1px, transparent 1px 8\.3333%\)/, '12 栏竖向细线')
 })

@@ -9,6 +9,8 @@
 //     用户可以自由增删改，不构成固定列表。
 // ═══════════════════════════════════════════════════════════════════
 
+import { normalizeReportPreset } from './report-presets.js'
+
 function svc(id, name, price, unit, order, note = '') {
   return { id, name, price, unit, note, enabled: true, order }
 }
@@ -108,6 +110,9 @@ export function normalizeGame(raw, index = 0) {
     enabled: g.enabled !== false,
     archived: !!g.archived,
     services,
+    // 日报预设（每日汇报里该游戏的默认任务项 / 资源项 / 默认汇报人）。
+    // 老数据没有这个字段 → 规范化成空列表，由 domain/report-presets.js 回落到内置预设。
+    report: normalizeReportPreset(g.report),
     // 游戏不使用图标（产品决定）：仅在旧数据确实带值时原样透传，避免丢字段；
     // 界面既不展示也不编辑它。
     ...(g.icon ? { icon: str(g.icon) } : {}),

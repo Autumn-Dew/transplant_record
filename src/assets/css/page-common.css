@@ -687,7 +687,7 @@
   font-weight: 700;
   letter-spacing: 0.22em;
 }
-/* 设置页：主题选择（十套主题平级，一个入口） */
+/* 设置页：主题选择（六套主题平级，一个入口） */
 .theme-picker {
   display: flex;
   align-items: center;

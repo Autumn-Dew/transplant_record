@@ -19,7 +19,7 @@ globalThis.localStorage = {
 
 const {
   REPORT_BACKGROUNDS,
-  REPORT_BG_GROUPS,
+  CLASSIC_REPORT_BG,
   REPORT_BG_IDS,
   DEFAULT_REPORT_BG,
   normalizeReportBgId,
@@ -31,7 +31,7 @@ const {
 
 test('提供多套浅色背景，且都带底色与背景值', () => {
   assert.ok(REPORT_BACKGROUNDS.length >= 5, '至少 5 套可选背景')
-  assert.equal(new Set(REPORT_BG_IDS).size, REPORT_BACKGROUNDS.length, '背景 id 不得重复')
+  assert.equal(new Set(REPORT_BG_IDS).size, REPORT_BG_IDS.length, '背景 id 不得重复')
   for (const b of REPORT_BACKGROUNDS) {
     assert.ok(b.id && b.label && b.hint, `${b.id} 需要 id / label / hint`)
     assert.match(b.base, /^#[0-9a-f]{6}$/i, `${b.id} 需要十六进制底色（导出兜底用）`)
@@ -39,17 +39,18 @@ test('提供多套浅色背景，且都带底色与背景值', () => {
   }
 })
 
-test('背景覆盖纯色 / 渐变 / 几何 / 装饰 / 蓝白 / 暖白几类', () => {
+test('背景覆盖渐变 / 几何 / 装饰几类；纯色改由「经典外观」按钮提供', () => {
   const kinds = REPORT_BACKGROUNDS.map(b => ({
     id: b.id,
     plain: /^#[0-9a-f]{6}$/i.test(b.bg),
     gradient: /linear-gradient|radial-gradient/.test(b.bg),
     geometry: /repeating-linear-gradient/.test(b.bg),
   }))
-  assert.ok(kinds.some(k => k.plain), '需要一套纯色')
+  assert.equal(kinds.some(k => k.plain), false, '纯色不再占卡片位（点击「经典外观」即回到纯白）')
+  assert.match(CLASSIC_REPORT_BG.bg, /^#[0-9a-f]{6}$/i, '经典外观的底必须是纯色')
   assert.ok(kinds.some(k => k.gradient), '需要柔和渐变')
   assert.ok(kinds.some(k => k.geometry), '需要几何构成')
-  assert.ok(kinds.length >= 6, '首批六套')
+  assert.ok(kinds.length >= 6, '至少六套带构图的背景')
 })
 
 test('未知 / 空值回落到默认背景', () => {
@@ -71,22 +72,18 @@ test('每套背景都有明确的构图重心，且不压住正文', () => {
   }
 })
 
-test('背景按「默认 / 孤星风格 / P3R 风格 / 终末地风格 / 瑞士风格」分组，分组即风格系列', () => {
-  assert.deepEqual(REPORT_BG_GROUPS.map(g => g.id), ['default', 'lone-star', 'p3r', 'endfield', 'swiss', 'stijl'], '六个分组顺序固定')
-  const grouped = REPORT_BG_GROUPS.flatMap(g => g.items.map(b => b.id))
-  assert.deepEqual([...grouped].sort(), [...REPORT_BG_IDS].sort(), '分组必须覆盖全部背景且不重复')
-  for (const g of REPORT_BG_GROUPS) {
-    assert.ok(g.label, `${g.id} 需要分组名`)
-    assert.ok(g.items.length > 0, `${g.id} 不得为空组`)
-    // 分组依据是「风格系列」，不是深色/浅色：同组内 style 与组 id 一致
-    for (const b of g.items) assert.equal(b.style, g.id, `${b.id} 的 style 必须等于所在分组`)
+test('背景是一条平铺列表，不按风格系列分组，且每族只留四套', async () => {
+  const mod = await import('../src/data/report-backgrounds.js')
+  assert.equal('REPORT_BG_GROUPS' in mod, false, '不再导出分组结构（选择器里从头到尾只有一条）')
+  for (const style of ['p3r', 'endfield', 'swiss']) {
+    const items = REPORT_BACKGROUNDS.filter(b => b.style === style)
+    assert.equal(items.length, 4, `${style} 风格保留四套（原八套删掉后四个）`)
   }
-  assert.equal(REPORT_BG_GROUPS[0].items.length, 1, '默认组只有纯白一套')
-  assert.ok(REPORT_BG_GROUPS[1].items.length >= 3, '孤星风格至少 3 套')
-  assert.ok(REPORT_BG_GROUPS[2].items.length >= 3, 'P3R 风格至少 3 套')
-  assert.ok(REPORT_BG_GROUPS[3].items.length >= 3, '终末地风格至少 3 套（工业纸 / 石墨夜班 / 工程网格）')
-  assert.ok(REPORT_BG_GROUPS[4].items.length >= 3, '瑞士风格至少 3 套（十二栏 / 不对称留白 / 墨底）')
-  assert.ok(REPORT_BG_GROUPS[5].items.length >= 3, '风格派至少 3 套（粗格 / 色块 / 粗线…）')
+  assert.equal(REPORT_BACKGROUNDS.length, 12, '三族各 4 套；纯白不在列表里')
+  // 纯白底仍在数据里，作为「经典外观」按钮的预设
+  assert.equal(mod.CLASSIC_REPORT_BG.id, 'plain')
+  assert.equal(REPORT_BG_IDS[0], 'plain', 'ids 含纯白（老用户的存储值要能读回来）')
+  assert.equal(findReportBg('plain').id, 'plain')
 })
 
 test('背景独立持久化到 tr-report-bg，不占用主题键', () => {  assert.equal(writeReportBg('p3r-moon'), 'p3r-moon')
@@ -107,16 +104,19 @@ test('画布与导出都使用当前背景', () => {
   const sheet = read('src/components/ReportSheet.vue')
   // 预览：画布自身绑定背景
   assert.match(sheet, /class="rp-wrap"[^>]*:style="\{ background: reportBg\.bg \}"/, '画布绑定背景')
-  // 导出：html2canvas 的兜底底色取当前背景，而不是写死白色
-  assert.match(sheet, /backgroundColor:\s*reportBg\.value\.base/, '导出使用当前背景底色')
-  assert.equal(/backgroundColor:\s*'#ffffff'/.test(sheet), false, '不能写死纯白背景')
+  // 导出：兜底底色取当前背景（导出流程在 composables/useReportExport.js）
+  assert.match(sheet, /backgroundBase: \(\) => reportBg\.value\.base/, '组件把当前背景底色传给导出流程')
+  const exporter = read('src/composables/useReportExport.js')
+  assert.match(exporter, /backgroundColor:\s*backgroundBase\(\)/, '导出兜底底色跟着当前背景走')
+  for (const src of [sheet, exporter]) {
+    assert.equal(/backgroundColor:\s*'#ffffff'/.test(src), false, '不能写死纯白背景')
+  }
 })
 
 test('编辑器内有紧凑的背景选择入口（与主题分区并列）', () => {
   const sheet = read('src/components/ReportSheet.vue')
-  // 分组浮层：外层遍历「默认 / 孤星风格 / P3R 风格」，内层遍历各背景
-  assert.match(sheet, /v-for="g in REPORT_BG_GROUPS"/, '按风格分组遍历')
-  assert.match(sheet, /v-for="b in g\.items"/, '组内遍历背景缩略图')
+  // 平铺浮层：一条列表遍历全部背景（不再按风格系列分组）
+  assert.match(sheet, /v-for="b in REPORT_BACKGROUNDS"/, '平铺遍历全部背景')
   assert.match(sheet, /class="rp-bg-card"/, '缩略图按钮')
   assert.match(sheet, /class="rp-bg-thumb"/, '缩略图色块')
   assert.match(sheet, /class="rp-bg-thumb"\s+:style="\{ background: b\.bg \}"/, '缩略图用与画布相同的背景值')

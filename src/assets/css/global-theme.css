@@ -395,7 +395,17 @@
     pointer-events: none !important;
 }
 
-:focus-visible { outline: none; }
+/* 键盘操作使用当前表面的文字色，亮黄 / lime 不作为浅底焦点色。 */
+html[data-theme] .rc-main-container :is(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 3px;
+}
+html[data-theme] .rc-main-container .rc-sub-func-btn:focus-visible,
+html[data-theme] .rc-main-container .rc-window-btn:focus-visible {
+    outline-color: var(--sb-fg);
+}
+/* 切角不能裁掉焦点框；仅键盘聚焦时恢复完整外形。 */
+html[data-theme] .rc-main-container :is(button, [tabindex]):focus-visible { clip-path: none; }
 
 /* 主题切换时颜色平滑过渡，避免整屏硬切换的闪烁 */
 .rc-main-container,

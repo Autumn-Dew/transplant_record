@@ -2,6 +2,7 @@
 const path = require('path')
 const fs = require('fs/promises')
 const fsSync = require('fs')
+const { createJsonPersistence } = require('./persistence.cjs')
 
 const DATA_DIR = path.join(app.getPath('userData'), 'data')
 const RECORDS_FILE = path.join(DATA_DIR, 'boosting-records.json')
@@ -11,8 +12,8 @@ const PRICES_FILE = path.join(DATA_DIR, 'prices.json')
 const COMPLETIONS_FILE = path.join(DATA_DIR, 'completions.json')
 const GAMES_FILE = path.join(DATA_DIR, 'games.json')
 
-// 单实例锁
-const gotTheLock = app.requestSingleInstanceLock()
+// 单实例锁（测试脚本用 TR_ALLOW_MULTI=1 跳过，避免与正在运行的应用抢锁）
+const gotTheLock = process.env.TR_ALLOW_MULTI === '1' ? true : app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.quit()
 } else {
@@ -29,8 +30,10 @@ let win = null
 let tray = null
 
 async function ensureDataDir() {
-  try { await fs.mkdir(DATA_DIR, { recursive: true }) } catch {}
+  await fs.mkdir(DATA_DIR, { recursive: true })
 }
+
+const jsonPersistence = createJsonPersistence({ fs, ensureDir: ensureDataDir })
 
 function createWindow() {
   const iconPath = fsSync.existsSync(path.join(__dirname, '..', 'public', 'icon.png'))
@@ -55,9 +58,11 @@ function createWindow() {
     },
   })
 
-  win.once('ready-to-show', () => { win.show() })
+  // TR_HEADLESS=1 时不显示窗口（tools/ipc-smoke.cjs 用）
+  win.once('ready-to-show', () => { if (process.env.TR_HEADLESS !== '1') win.show() })
 
-  if (app.isPackaged) {
+  // TR_LOAD_DIST=1 时总是加载打包产物（测试环境没有 vite dev server）
+  if (app.isPackaged || process.env.TR_LOAD_DIST === '1') {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   } else {
     win.loadURL('http://localhost:5173')
@@ -166,22 +171,12 @@ ipcMain.handle('set-auto-launch', (_e, enabled) => {
 // 数据持久化
 // ============================================================
 async function loadJsonFile(filePath, fallback) {
-  await ensureDataDir()
-  try {
-    const raw = await fs.readFile(filePath, 'utf8')
-    return JSON.parse(raw)
-  } catch {
-    return fallback
-  }
+  const result = await jsonPersistence.load(filePath, fallback)
+  return result.data
 }
 
 async function saveJsonFile(filePath, data) {
-  await ensureDataDir()
-  try {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8')
-  } catch (e) {
-    console.error('[boosting] 保存数据失败:', filePath, e.message)
-  }
+  return await jsonPersistence.save(filePath, data)
 }
 
 ipcMain.handle('load-records', async () => {
@@ -189,8 +184,7 @@ ipcMain.handle('load-records', async () => {
 })
 
 ipcMain.handle('save-records', async (_e, records) => {
-  await saveJsonFile(RECORDS_FILE, records)
-  return true
+  return await saveJsonFile(RECORDS_FILE, records)
 })
 
 ipcMain.handle('load-blueprints', async () => {
@@ -198,8 +192,7 @@ ipcMain.handle('load-blueprints', async () => {
 })
 
 ipcMain.handle('save-blueprints', async (_e, records) => {
-  await saveJsonFile(BLUEPRINTS_FILE, records)
-  return true
+  return await saveJsonFile(BLUEPRINTS_FILE, records)
 })
 
 ipcMain.handle('load-workdiary', async () => {
@@ -207,8 +200,7 @@ ipcMain.handle('load-workdiary', async () => {
 })
 
 ipcMain.handle('save-workdiary', async (_e, records) => {
-  await saveJsonFile(WORKDIARY_FILE, records)
-  return true
+  return await saveJsonFile(WORKDIARY_FILE, records)
 })
 
 ipcMain.handle('load-prices', async () => {
@@ -216,8 +208,7 @@ ipcMain.handle('load-prices', async () => {
 })
 
 ipcMain.handle('save-prices', async (_e, data) => {
-  await saveJsonFile(PRICES_FILE, data)
-  return true
+  return await saveJsonFile(PRICES_FILE, data)
 })
 
 // 执行记录（历史事实，独立落盘）
@@ -226,8 +217,7 @@ ipcMain.handle('load-completions', async () => {
 })
 
 ipcMain.handle('save-completions', async (_e, records) => {
-  await saveJsonFile(COMPLETIONS_FILE, records)
-  return true
+  return await saveJsonFile(COMPLETIONS_FILE, records)
 })
 
 // 游戏与服务项目目录
@@ -236,8 +226,7 @@ ipcMain.handle('load-games', async () => {
 })
 
 ipcMain.handle('save-games', async (_e, data) => {
-  await saveJsonFile(GAMES_FILE, data)
-  return true
+  return await saveJsonFile(GAMES_FILE, data)
 })
 
 // ============================================================

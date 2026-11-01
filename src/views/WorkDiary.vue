@@ -53,48 +53,51 @@
         </span>
       </div>
 
-      <!-- 数据列表 -->
+      <!-- 数据列表：按项目聚合，一个项目一行（托管 30 天也只有一条），明细在弹窗里 -->
       <div class="song-list" :key="listKey">
         <div
-          v-for="(item, idx) in filteredRecords"
-          :key="item.id"
+          v-for="(g, idx) in groupedRecords"
+          :key="g.key"
           class="song-item"
-          :class="{ selected: isSelected(item.id) }"
-          :style="rowStyle(item, idx)"
-          @click="toggleSelect(item.id)"
+          :class="{ selected: isSelected(g.key) }"
+          :style="rowStyle(g, idx)"
+          @click="toggleSelect(g.key)"
         >
           <div class="song-info">
-            <div class="song-name">{{ item.displayName || getDisplayName(item) || '未命名' }}</div>
-            <div class="song-artist">{{ maskAccount(item.account) || '无账号' }} · {{ doneDate(item) }} {{ item.time || '' }}</div>
+            <div class="song-name">{{ g.displayName }}</div>
+            <div class="song-artist">
+              {{ maskAccount(g.account) || '无账号' }} · {{ dateRangeText(g) }}<template v-if="g.count > 1"> · 共 {{ g.count }} 条</template>
+            </div>
           </div>
 
-          <div class="col-fixed">{{ item.gameName || item.game || '—' }}</div>
+          <div class="col-fixed">{{ g.game }}</div>
 
           <div class="col-fixed">
-            <span v-if="(item.result || 'done') === 'done'">已完成</span>
-            <span v-else class="fee-dim">{{ resultLabel(item) }}</span>
+            <span v-if="g.wasHosting">{{ g.doneCount }} / {{ g.count }} 次</span>
+            <span v-else-if="g.doneCount">已完成</span>
+            <span v-else class="fee-dim">{{ resultLabel(g.latest) }}</span>
           </div>
 
           <div class="col-fixed">
-            <span v-if="item.service">{{ item.service }}</span>
+            <span v-if="g.service">{{ g.service }}</span>
             <span class="fee-dim" v-else>—</span>
           </div>
 
           <div class="col-fixed">
-            <span v-if="item.fee">¥{{ item.fee }}</span>
+            <span v-if="g.fee">¥{{ g.fee }}</span>
             <span class="fee-dim" v-else>—</span>
           </div>
 
           <div class="song-actions">
-            <button class="song-btn" @click.stop="openDetailDialog(item)" title="详细信息">
+            <button class="song-btn" @click.stop="openDetailDialog(g)" title="详细信息（含执行明细）">
               <span style="font-size:14px;">📄</span>
             </button>
             <button
               class="song-btn"
               data-sfx-overcharge
-              @click.stop="handleDelete(item)"
-              :style="getDeleteStyle(item.id)"
-              :title="deleteTitle(item.id)"
+              @click.stop="handleDelete(g)"
+              :style="getDeleteStyle(g.key)"
+              :title="deleteTitle(g)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M10 11v6M14 11v6M5 6h14v14a2 2 0 012 2H7a2 2 0 01-2-2V6z"/></svg>
             </button>
@@ -102,43 +105,43 @@
         </div>
 
         <!-- 空状态 -->
-        <div class="empty" v-if="filteredRecords.length === 0 && records.length === 0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          <p>完成代肝代办后自动生成</p>
-        </div>
-        <div class="empty" v-if="filteredRecords.length === 0 && records.length > 0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <p>没有匹配的记录</p>
-        </div>
+        <EmptyState v-if="groupedRecords.length === 0 && records.length === 0" icon="doc" text="完成代肝代办后自动生成" />
+        <EmptyState v-if="groupedRecords.length === 0 && records.length > 0" icon="search" text="没有匹配的记录" />
       </div>
 
-      <!-- 详细信息弹窗 -->
-      <div class="modal-mask" v-if="showDetail" @click.self="showDetail = false">
+      <!-- 详细信息弹窗：一个项目的汇总 + 逐日执行明细 -->
+      <div class="modal-mask" v-if="showDetail && detailGroup" @click.self="showDetail = false">
         <div class="edit-popup">
           <h4>详细信息</h4>
           <div class="detail-grid">
             <p class="detail-section">基本信息</p>
-            <div class="detail-field"><span class="dl">游戏</span><span class="dv">{{ detailRecord.gameName || detailRecord.game || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">服务项目</span><span class="dv">{{ detailRecord.service || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">类型</span><span class="dv">{{ detailRecord.wasHosting ? '托管' : '单次' }}</span></div>
-            <div class="detail-field"><span class="dl">执行结果</span><span class="dv">{{ resultLabel(detailRecord) }}</span></div>
-            <div class="detail-field"><span class="dl">计划日期</span><span class="dv">{{ detailRecord.plannedDate || detailRecord.date || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">实际完成</span><span class="dv">{{ doneDate(detailRecord) }} {{ detailRecord.time || '' }}</span></div>
-            <div class="detail-field"><span class="dl">账号</span><span class="dv">{{ detailRecord.account || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">密码</span><span class="dv">{{ detailRecord.password || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">收费</span><span class="dv">{{ detailRecord.fee ? '¥' + detailRecord.fee : '—' }}</span></div>
+            <div class="detail-field"><span class="dl">游戏</span><span class="dv">{{ detailGroup.game }}</span></div>
+            <div class="detail-field"><span class="dl">服务项目</span><span class="dv">{{ detailGroup.service || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">类型</span><span class="dv">{{ detailGroup.wasHosting ? '托管' : '单次' }}</span></div>
+            <div class="detail-field"><span class="dl">账号</span><span class="dv">{{ detailGroup.latest.account || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">密码</span><span class="dv mono">{{ maskPassword(detailGroup.latest.password) || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">记录条数</span><span class="dv mono">{{ detailGroup.count }} 条（已完成 {{ detailGroup.doneCount }}）</span></div>
+            <div class="detail-field"><span class="dl">日期区间</span><span class="dv mono">{{ dateRangeText(detailGroup) }}</span></div>
             <p class="detail-section">平台名称</p>
-            <div class="detail-field"><span class="dl">首选</span><span class="dv">{{ detailRecord.preferredPlatform || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">微信</span><span class="dv">{{ detailRecord.wechatName || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">QQ</span><span class="dv">{{ detailRecord.qqName || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">B站</span><span class="dv">{{ detailRecord.bilibiliName || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">小红书</span><span class="dv">{{ detailRecord.xiaohongshuName || '—' }}</span></div>
-            <div class="detail-field"><span class="dl">抖音</span><span class="dv">{{ detailRecord.douyinName || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">首选</span><span class="dv">{{ detailGroup.latest.preferredPlatform || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">微信</span><span class="dv">{{ detailGroup.latest.wechatName || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">QQ</span><span class="dv">{{ detailGroup.latest.qqName || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">B站</span><span class="dv">{{ detailGroup.latest.bilibiliName || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">小红书</span><span class="dv">{{ detailGroup.latest.xiaohongshuName || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">抖音</span><span class="dv">{{ detailGroup.latest.douyinName || '—' }}</span></div>
             <p class="detail-section">费用</p>
-            <div class="detail-field"><span class="dl">总收费</span><span class="dv">{{ detailRecord.totalFee ? '¥' + detailRecord.totalFee : '—' }}</span></div>
-            <div class="detail-field"><span class="dl">实际收费</span><span class="dv">{{ detailRecord.actualFee ? '¥' + detailRecord.actualFee : '—' }}</span></div>
-            <div class="detail-field"><span class="dl">延后收费</span><span class="dv">{{ detailRecord.delayedFee ? '¥' + detailRecord.delayedFee : '—' }}</span></div>
-            <div class="detail-field"><span class="dl">备注</span><span class="dv">{{ detailRecord.note || '—' }}</span></div>
+            <div class="detail-field"><span class="dl">总收费</span><span class="dv">{{ detailGroup.latest.totalFee ? '¥' + detailGroup.latest.totalFee : '—' }}</span></div>
+            <div class="detail-field"><span class="dl">实际收费</span><span class="dv">{{ detailGroup.latest.actualFee ? '¥' + detailGroup.latest.actualFee : '—' }}</span></div>
+            <div class="detail-field"><span class="dl">延后收费</span><span class="dv">{{ detailGroup.latest.delayedFee ? '¥' + detailGroup.latest.delayedFee : '—' }}</span></div>
+            <div class="detail-field"><span class="dl">备注</span><span class="dv">{{ detailGroup.latest.note || '—' }}</span></div>
+            <p class="detail-section">执行明细（{{ detailGroup.count }} 条）</p>
+          </div>
+          <div class="wd-detail-list">
+            <div v-for="r in detailGroup.items" :key="r.id" class="wd-detail-row">
+              <span class="wd-detail-date">{{ doneDate(r) }} {{ r.time || '' }}</span>
+              <span class="wd-detail-result">{{ resultLabel(r) }}</span>
+              <span class="wd-detail-note">{{ r.note || '—' }}</span>
+            </div>
           </div>
           <div class="edit-actions" style="margin-top:16px">
             <button class="cancel-btn" @click="showDetail = false">关闭</button>
@@ -153,25 +156,24 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRowSelect } from '@/composables/useRowSelect'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
-import { maskAccount, getDisplayName } from '@/domain/mask.js'
+import { maskAccount, getDisplayName, maskPassword } from '@/domain/mask.js'
 import { RESULT_LABEL } from '@/domain/completion.js'
-import { isCompleted, isClosed, isExpired } from '@/domain/project.js'
 import { completionsRepo, projectsRepo } from '@/data/repos.js'
-import { revenueStats } from '@/services/projectService.js'
+import { revenueStats, finishedProjectIds } from '@/services/projectService.js'
 import { todayLocal } from '@/utils/date.js'
+import { typeColor, feeColor } from '@/utils/fee.js'
+import { usePageEnter } from '@/composables/usePageEnter.js'
+import EmptyState from '@/components/EmptyState.vue'
 
 const { isSelected, toggleSelect, selectLimit } = useRowSelect()
 
 // ══════ 入场动画 ══════
-const entered = ref(false)
-onMounted(() => { requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true })) })
-function staggerStyle(idx) {
-  return { transitionDelay: (0.24 + idx * 0.023) + 's' }
-}
+// 入场动画（统一节奏见 composables/usePageEnter）
+const { entered, replay, staggerStyle } = usePageEnter()
 
 // ══════ 数据（统一经由 Repository）══════
+// 数据补齐统一在 src/main.js 的 hydrateAll() 里做，页面不再各自 hydrate
 const records = completionsRepo.state
-onMounted(() => { completionsRepo.hydrate(); projectsRepo.hydrate() })
 
 // 实际完成日期（v2）；兼容 v1 的 date 字段
 function doneDate(item) { return item.completedDate || item.date || '' }
@@ -185,20 +187,15 @@ function setSortMode(mode) {
   if (sortMode.value === mode) return
   sortMode.value = mode
   listKey.value++
-  entered.value = false
-  requestAnimationFrame(() => requestAnimationFrame(() => { entered.value = true }))
+  replay()  // 重新触发列表入场动画
 }
 
 // ══════ 竖线颜色：上段类型色 + 下段价格色 ══════
 function getTypeColor(item) {
-  return item.wasHosting ? '#FF6D00' : '#00B0FF'  // 托管亮橙 / 单次亮蓝
+  return typeColor(!!item.wasHosting)  // 托管亮橙 / 单次亮蓝
 }
 function getFeeColor(item) {
-  const fee = Number(item.totalFee) || Number(item.fee) || 0
-  if (fee >= 100) return '#FF1744'
-  if (fee >= 50) return '#FFEA00'
-  if (fee > 0) return '#00E676'
-  return '#BDBDBD'
+  return feeColor(item.fee || item.totalFee)
 }
 function rowStyle(item, idx) {
   const base = staggerStyle(idx)
@@ -213,17 +210,12 @@ function rowStyle(item, idx) {
 
 // 只统计「整个托管周期已经结束」的项目：进行中的托管项目不计入代肝记录。
 // 托管 → 完成后（已完成 / 已归档 / 已到期 / 已取消）才算；单次 → 完成即算。
-const finishedProjectIds = computed(() => {
-  const set = new Set()
-  for (const p of projectsRepo.state.value) {
-    const done = isCompleted(p) || isClosed(p) || isExpired(p)
-    if (done) set.add(String(p.id))
-  }
-  return set
-})
+// 「整个周期已结束」的项目 id 由 service 判定（已完成 / 已归档 / 已取消 / 已到期），
+// 组件不再自己拼业务口径。
+const finishedIds = computed(() => finishedProjectIds())
 
 const filteredRecords = computed(() => {
-  const finished = finishedProjectIds.value
+  const finished = finishedIds.value
   let list = records.value.filter(r => finished.has(String(r.projectId)))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
@@ -259,7 +251,7 @@ const filteredRecords = computed(() => {
 // ══════ 统计 ══════
 // 只统计「整个托管周期已完成」的项目（与列表口径一致）
 const doneRecords = computed(() => {
-  const finished = finishedProjectIds.value
+  const finished = finishedIds.value
   return records.value.filter(r => finished.has(String(r.projectId)))
 })
 const completedCount = computed(() => doneRecords.value.filter(r => r.status === 0).length)
@@ -272,20 +264,73 @@ const allIncome = computed(() => revenueStats().total)
 const monthIncome = computed(() => revenueStats({ month: todayLocal().slice(0, 7) }).total)
 const monthlyIncome = computed(() => revenueStats().byMonth)
 
-// ══════ 删除（多次点击保护，机制见 composables/useConfirmClick） ══════
-const deleteCfm = useConfirmClick()
-function getDeleteStyle(id) { return deleteCfm.styleOf(id) }
-function deleteTitle(id) { return deleteCfm.titleOf(id, '删除') }
-function handleDelete(item) {
-  if (!deleteCfm.trigger(item.id)) return
-  completionsRepo.remove(item.id)
+// ══════ 按项目聚合 ══════
+// 代肝记录是「每次执行一条」，所以一个 30 天的托管会有 30 条真实记录。
+// 列表里按项目聚成一行（日期区间 + 条数），明细放进详情弹窗 —— 归档后不会一次刷出几十条。
+function groupKeyOf(r) { return r.projectId ? `p:${r.projectId}` : `r:${r.id}` }
+
+function latestOf(items) {
+  return [...items].sort((a, b) => {
+    const da = `${doneDate(a)} ${a.time || ''}`
+    const db = `${doneDate(b)} ${b.time || ''}`
+    return db.localeCompare(da)
+  })[0]
 }
 
-// ══════ 详细信息弹窗 ══════
+const groupedRecords = computed(() => {
+  const map = new Map()
+  for (const r of filteredRecords.value) {
+    const key = groupKeyOf(r)
+    let g = map.get(key)
+    if (!g) {
+      g = { key, id: key, items: [] }
+      map.set(key, g)
+    }
+    g.items.push(r)
+  }
+  for (const g of map.values()) {
+    g.latest = latestOf(g.items)
+    g.count = g.items.length
+    g.doneCount = g.items.filter(r => (r.result || 'done') === 'done').length
+    const dates = g.items.map(doneDate).filter(Boolean).sort()
+    g.firstDate = dates[0] || ''
+    g.lastDate = dates[dates.length - 1] || ''
+    g.wasHosting = g.items.some(r => r.wasHosting)
+    g.displayName = g.latest.displayName || getDisplayName(g.latest) || '未命名'
+    g.account = g.latest.account
+    g.game = g.latest.gameName || g.latest.game || '—'
+    g.service = g.latest.service || ''
+    // 收费是「项目的」金额，每条记录都带着同一份快照 —— 只能取一条，绝不能累加
+    g.fee = Number(g.latest.totalFee) || Number(g.latest.fee) || 0
+  }
+  // 首次出现的顺序即 filteredRecords 的排序结果（时间 / 金额 / 游戏）
+  return [...map.values()]
+})
+
+function dateRangeText(g) {
+  if (!g.firstDate && !g.lastDate) return '—'
+  if (!g.firstDate || g.firstDate === g.lastDate) return g.firstDate || g.lastDate
+  return `${g.firstDate} → ${g.lastDate}`
+}
+
+// ══════ 删除（多次点击保护，机制见 composables/useConfirmClick） ══════
+const deleteCfm = useConfirmClick()
+function getDeleteStyle(key) { return deleteCfm.styleOf(key) }
+function deleteTitle(g) {
+  const base = deleteCfm.titleOf(g.key, '删除')
+  return g.count > 1 ? `${base}（整个项目 ${g.count} 条记录）` : base
+}
+function handleDelete(g) {
+  if (!deleteCfm.trigger(g.key)) return
+  // 聚合成一行，删除也按项目整段删；一次替换只落盘一次，避免 N 条记录触发 N 次持久化。
+  const ids = new Set(g.items.map(r => String(r.id)))
+  completionsRepo.replaceAll(completionsRepo.plain().filter(r => !ids.has(String(r.id))))
+}
+
+// ══════ 详细信息弹窗（项目汇总 + 逐日明细） ══════
 const showDetail = ref(false)
-const detailRecord = ref({})
-function openDetailDialog(item) { detailRecord.value = item; showDetail.value = true }
-function copyText(text) { if (text) navigator.clipboard?.writeText(text) }
+const detailGroup = ref(null)
+function openDetailDialog(g) { detailGroup.value = g; showDetail.value = true }
 
 // ══════ 键盘 ══════
 function onKeydown(e) { if (e.key === 'Escape') { showDetail.value = false } }
@@ -310,6 +355,31 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .income-chip em { font-style: normal; opacity: 0.55; margin-left: 4px; font-size: 10px; }
 .song-info { flex: 1.4; }
 .song-actions { margin-left: 4px; flex-shrink: 0; }
+/* 详情弹窗里的「逐日执行明细」：一行一天，等宽数字，超高就内部滚动 */
+.wd-detail-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+/* 滚动条隐藏，滚轮 / 触控板仍可用（与汇报外观弹窗同一套做法） */
+.wd-detail-list { scrollbar-width: none; }
+.wd-detail-list::-webkit-scrollbar { display: none; }
+.wd-detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--rule-soft, var(--border-color));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.wd-detail-row:last-child { border-bottom: 0; }
+.wd-detail-date { flex: 0 0 140px; font-variant-numeric: tabular-nums; opacity: .85; }
+.wd-detail-result { flex: 0 0 52px; font-weight: 800; }
+.wd-detail-note { flex: 1; min-width: 0; overflow-wrap: anywhere; opacity: .75; }
 .song-item { box-shadow: inset 18px 0 14px -14px var(--bar-top, rgba(128,128,128,0.35)); }
 .song-item::after {
   content: '';

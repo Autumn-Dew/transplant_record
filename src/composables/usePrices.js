@@ -114,6 +114,12 @@ function loadFromLocal() {
 // 全局单例，PricePage 与 AdminPage 共享
 const prices = ref(loadFromLocal())
 
+// 重新从本地数据装载（备份恢复 / 清除数据后同步内存状态用）
+export function reloadPrices() {
+  prices.value = loadFromLocal()
+  return prices.value
+}
+
 // 应用启动：与 Electron 本地文件（userData/data/prices.json）同步
 // 通道优先级：localStorage 为准（用户可能在应用内改过），绝不互相覆盖
 try {

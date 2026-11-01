@@ -1,0 +1,462 @@
+/* 最终主题覆盖层：P3R 官网方向 + 六主题统一状态。 */
+
+.theme-p3r-light {
+  --bg-primary: #F4F8FF; --bg-secondary: #E2EDFC; --bg-sidebar: #0558BE;
+  --text-primary: #08265A; --border-color: #176ACB; --accent: #0878E8;
+  --accent-ink: #FFFFFF; --surface-raised: #FFFFFF; --surface-sunken: #DCEAFB;
+  --surface-plate: #0878E8; --plate-fg: #FFFFFF; --rule-strong: #176ACB;
+  --rule-soft: rgba(8, 38, 90, 0.16); --p3r-navy: #08265A; --p3r-blue: #0878E8;
+  /* 琥珀 = 「这里可以动」：主操作、激活标记。蓝是结构色、青是刻度色、
+     红是危险色 —— 四种颜色各管一件事，不再拿白色当强调。
+     #08265A 压在 #FFB01F 上约 8:1，浅深两套都够读。 */
+  --p3r-cyan: #45B8FF; --p3r-amber: #FFB01F; --p3r-yellow: var(--p3r-amber);
+  --p3r-alert: #FF4E67;
+  --p3r-panel: #DCEAFB; --p3r-key: var(--p3r-amber);
+  --state-bg: #0878E8; --state-fg: #FFFFFF; --state-border: #0878E8; --state-mark: var(--p3r-amber);
+  --focus-ring: #0878E8;
+}
+.theme-p3r-dark {
+  --bg-primary: #031B43; --bg-secondary: #072A60; --bg-sidebar: #021330;
+  --text-primary: #F4F8FF; --border-color: #4BAFFF; --accent: #1488F4;
+  --accent-ink: #FFFFFF; --surface-raised: #0A3471; --surface-sunken: #02132F;
+  --surface-plate: #1488F4; --plate-fg: #FFFFFF; --rule-strong: #63BAFF;
+  --rule-soft: rgba(244, 248, 255, 0.17); --p3r-navy: #031B43; --p3r-blue: #1488F4;
+  --p3r-cyan: #63C5FF; --p3r-amber: #FFC94A; --p3r-yellow: var(--p3r-amber);
+  --p3r-alert: #FF6077;
+  --p3r-panel: #0A3471; --p3r-key: var(--p3r-amber);
+  --state-bg: #1488F4; --state-fg: #FFFFFF; --state-border: #63C5FF; --state-mark: var(--p3r-amber);
+  --focus-ring: #63C5FF;
+}
+.theme-endfield-light,
+.theme-endfield-dark {
+  --state-bg: #B8FF3D; --state-fg: #161616; --state-border: #B8FF3D; --state-mark: #161616;
+  --focus-ring: #B8FF3D;
+}
+.theme-swiss-light {
+  --state-bg: #C7352B; --state-fg: #FFFFFF; --state-border: #C7352B; --state-mark: #FFFFFF;
+  --focus-ring: #C7352B;
+}
+.theme-swiss-dark {
+  --state-bg: #E24A3B; --state-fg: #FFFFFF; --state-border: #E24A3B; --state-mark: #FFFFFF;
+  --focus-ring: #F06454;
+}
+
+/* 用户指定：移除终末地标题栏最左侧竖线。 */
+:is(.theme-endfield-light, .theme-endfield-dark) .rc-title-bar::before { content: none; display: none; }
+
+/* ══════════════════════════════════════════════════════════════════
+   P3R 官网式视觉：高纯度蓝白、对角硬切、巨型排版、快速方向运动。
+   ══════════════════════════════════════════════════════════════════ */
+:is(.theme-p3r-light, .theme-p3r-dark) {
+  --mv-tick: 0.07s;
+  --mv-module: 0.12s;
+  --mv-stage: 0.18s;
+  --mv-ease-frame: cubic-bezier(0.12, 0.82, 0.18, 1);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-title-bar {
+  overflow: hidden; background: var(--p3r-blue); color: #FFFFFF; border-bottom: 0; box-shadow: none;
+}
+/* 标题栏右端不再挂装饰：斜切白块与「03」编号都紧贴窗口控件，看起来像控件
+   自带的零件。标题栏只保留文本前缀「P3R / 」和 theme-p3r.css 里那条底部
+   渐变带（本文件的 ::before 让位后由它接管）。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-title-bar::after { content: none; }
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-title-bar h2 {
+  position: relative; z-index: 1; font-weight: 900; letter-spacing: 0.12em;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-title-bar h2::before {
+  content: 'P3R / '; display: inline; color: #FFFFFF; font-family: var(--font-mono);
+  font-weight: 700; letter-spacing: 0.02em;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-sub-sidebar {
+  background: var(--p3r-navy); border-right: 0; box-shadow: inset -3px 0 0 var(--p3r-blue); overflow: hidden;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-sub-sidebar::before {
+  content: ''; position: absolute; left: -18px; right: -18px; top: 42%; height: 48px;
+  background: color-mix(in srgb, var(--p3r-blue) 30%, transparent); transform: skewY(-22deg); pointer-events: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-sub-sidebar::after { content: none; }
+:is(.theme-p3r-light, .theme-p3r-dark) .rc-sub-func-btn {
+  position: relative; z-index: 1; border: 1px solid transparent; border-radius: 0;
+  /* 与主区域控件同一套右下切角；原先是左右各切一刀的六边形，侧栏一列排下来
+     每个图标块都在晃。 */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+  background: transparent; color: #FFFFFF; box-shadow: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music {
+  position: relative; isolation: isolate; overflow: hidden; background-color: var(--bg-primary);
+  background-image:
+    linear-gradient(118deg, transparent 0 72%, color-mix(in srgb, var(--p3r-blue) 7%, transparent) 72% 100%),
+    linear-gradient(118deg, transparent 0 88%, color-mix(in srgb, var(--p3r-cyan) 8%, transparent) 88% 100%);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music::before {
+  content: 'RELOAD'; position: absolute; z-index: -1; right: -2%; top: 3%;
+  color: color-mix(in srgb, var(--p3r-blue) 5%, transparent); font-family: var(--font-ui);
+  font-weight: 900; letter-spacing: -0.08em; transform: rotate(-8deg); pointer-events: none;
+}
+/* 背景斜块：只做「隐约的大方向」，不抢内容（z-index 在最底层）。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music::after {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  right: -7%;
+  top: -8%;
+  width: 34%;
+  height: 116%;
+  background:
+    linear-gradient(152deg,
+      color-mix(in srgb, var(--p3r-blue) 7%, transparent) 0 46%,
+      transparent 46% 57%,
+      color-mix(in srgb, var(--p3r-cyan) 5%, transparent) 57% 100%);
+  transform: skewX(-9deg);
+  transform-origin: right center;
+  pointer-events: none;
+}
+/* 页头下沿只留一条线：border 保留 3px 宽度但透明（不改高度），
+   可见的色带交给下面的 ::after 渐变 —— 否则实线与渐变叠在同一条边上。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .local-header {
+  position: relative; border-bottom: 3px solid transparent;
+}
+/* 页头右下角原本想放「03」编号，但那一侧已被图例占满，编号只会贴在
+   图例下沿、看起来像残留字符；底边主色带 + 标题前的斜条已经够表达。
+   这里连基础样式那条 3×20 小竖条一起关掉。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .local-header::before {
+  content: none; display: none;
+}
+/* 底边：整宽的一条主色带（蓝 → 青 → 收尾）。原来写的是 left: 42%，
+   但基础样式里的 width: 100% 没有被覆盖 —— 绝对定位下 left + width 同时
+   存在，于是这条线从 42% 处起再横贯一整页宽，直接压到右侧图例上。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .local-header::after {
+  content: ''; display: block; position: absolute; left: 0; right: 0; bottom: -3px;
+  width: auto; height: 3px;
+  background: linear-gradient(90deg, var(--p3r-blue) 0 62%, var(--p3r-cyan) 62% 84%, transparent 84%);
+  transform: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip {
+  background: var(--surface-raised); border: 1px solid var(--p3r-blue); border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+  box-shadow: inset 0 -3px 0 var(--p3r-blue);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip strong { color: var(--p3r-blue); font-weight: 700; }
+/* 列表行：左侧色带交给「编号楔形」伪元素，右侧交给右缘刻度（见下方 ::before / ::after），
+   这里只留 1px 透明边框占位与底部细线 —— 原来左右各写了两道，叠起来就发粗。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item {
+  border: 1px solid transparent; border-radius: 0;
+  background: var(--surface-raised); clip-path: none; transform: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item::after { content: none; }
+
+/* ── P3R 控件形状系统：改变轮廓，不改变任何布局尺寸 ─────────── */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .local-toolbar {
+  position: relative;
+  background: color-mix(in srgb, var(--surface-raised) 92%, var(--p3r-blue) 8%);
+  border-bottom: 0;
+  box-shadow: inset 0 -3px 0 var(--p3r-blue);
+  clip-path: polygon(0 0, 96% 0, 100% 38%, 100% 100%, 4% 100%, 0 62%);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .local-toolbar::before {
+  content: '';
+  position: absolute;
+  left: 34%;
+  right: 8%;
+  top: 0;
+  height: 3px;
+  /* 动作区的顶部刻度用琥珀：与工具栏第一颗按钮、页签激活标记同一色。 */
+  background: var(--p3r-amber);
+  transform: skewX(-32deg);
+  pointer-events: none;
+}
+
+/* 统计块：三种交错切向，形成海报拼贴而非重复卡片。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip:nth-child(3n+1) {
+  clip-path: polygon(0 0, 88% 0, 100% 38%, 100% 100%, 0 100%);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip:nth-child(3n+2) {
+  clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%, 0 34%);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip:nth-child(3n) {
+  clip-path: polygon(0 0, 100% 0, 100% 68%, 90% 100%, 0 100%);
+}
+/* 阵列锚点：第一块是实心主蓝 + 白字 + 底部琥珀刻度。整条数据带原本每块
+   都是「白面 + 蓝边」，从左到右一模一样，眼睛找不到起点；给第一块实心色，
+   它就成了海报里的主数字。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip:first-child {
+  background: var(--surface-plate);
+  border-color: var(--surface-plate);
+  color: var(--plate-fg);
+  box-shadow: inset 0 -3px 0 var(--p3r-amber);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip:first-child strong {
+  color: var(--plate-fg);
+}
+
+/* 页面页签：双端斜切，基础与 active / hover 共用同一个轮廓。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .tl-entry-btn {
+  border-radius: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  background: var(--p3r-panel);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--p3r-blue) 55%, transparent);
+}
+
+/* 普通操作按钮：与输入框同一套「右下 8px 切角」。
+   原来每颗按钮都是「左凹 + 右尖」的箭头形，一排下来像一排弹头 —— 箭头只
+   留给主操作（工具栏第一颗 / 弹窗保存），主次才分得开。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music :is(
+  .rc-global-btn, .pd-btn, .gm-btn, .gm-add, .cancel-btn
+) {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  border-color: var(--p3r-blue);
+  box-shadow: inset 0 -2px 0 var(--p3r-blue);
+}
+/* 主操作：箭头形 + 琥珀实心 + 深蓝「键帽」底线。整页只有它用这个形状。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music :is(
+  .local-toolbar > .rc-global-btn:first-child, .save-btn
+) {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 5px 50%);
+  background: var(--p3r-amber);
+  border-color: var(--p3r-amber);
+  color: var(--p3r-navy);
+  box-shadow: inset 0 -3px 0 var(--p3r-navy);
+}
+
+/* 筛选 chip：双端斜切（与页签同族）。原形状左下角还多切一刀，五个角里
+   四角都不一样，跟页签又对不上；收成两端斜切后，筛选带读起来是一条票签带。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .folder-chip {
+  border-radius: 0;
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  background: var(--p3r-panel);
+  border-color: transparent;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--p3r-blue) 50%, transparent);
+}
+
+/* 下拉与输入：与按钮同一套右下切角（8px），斜向底线标示输入面。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music :is(
+  .sb-trigger, .search-box, .search-input, .form-row input, .form-row select,
+  .form-select, .pd-inp, .pd-input, .pd-field input, .ad-input, .gm-input,
+  .bp-input, .setting-input, textarea
+) {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  border-color: color-mix(in srgb, var(--p3r-blue) 45%, transparent);
+  box-shadow: inset 0 -3px 0 var(--p3r-blue);
+}
+
+/* 列表行：只留底部细线。左侧排号楔形与右缘刻度见 ::before / ::after ——
+   原来这里还写了 5px 实心蓝左带与 3px 右带，和那两个伪元素完整重叠。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item {
+  overflow: hidden;
+  clip-path: none;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--p3r-blue) 26%, transparent);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42px;
+  z-index: -1;
+  background: color-mix(in srgb, var(--p3r-blue) 13%, transparent);
+  clip-path: polygon(0 0, 74% 0, 100% 50%, 74% 100%, 0 100%);
+  transform: none;
+  transition: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-item::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  height: auto;
+  background: var(--p3r-cyan);
+  clip-path: none;
+  opacity: 0.55;
+  pointer-events: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-index {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: var(--p3r-blue);
+  box-shadow: none;
+  opacity: 1;
+  font-weight: 700;
+}
+
+/* 行内按钮：同一套右下切角，只是切得更小，避免抢主角。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music .song-btn {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  border-color: var(--p3r-blue);
+  box-shadow: inset 0 -2px 0 var(--p3r-blue);
+}
+
+/* 弹窗：双向切角面板，宽高与原布局完全不变。 */
+:is(.theme-p3r-light, .theme-p3r-dark) .modal-mask .edit-popup {
+  position: relative;
+  border-radius: 0;
+  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 18px);
+  border-color: var(--p3r-blue);
+  box-shadow:
+    inset 4px 0 0 var(--p3r-blue),
+    inset 0 -3px 0 var(--p3r-cyan);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .modal-mask .edit-popup::before {
+  content: 'P3R // DATA';
+  position: absolute;
+  right: 18px;
+  top: 8px;
+  color: var(--p3r-blue);
+  font-family: var(--font-mono);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+@keyframes p3r-official-stage {
+  from { opacity: 0; transform: translateX(6px); clip-path: none; }
+  to { opacity: 1; transform: none; clip-path: none; }
+}
+@keyframes p3r-official-block {
+  from { opacity: 0; transform: translateX(12px); clip-path: none; }
+  to { opacity: 1; transform: none; clip-path: none; }
+}
+@keyframes p3r-official-header {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes p3r-official-summary-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes p3r-official-summary-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes p3r-official-row-left {
+  from { opacity: 0; transform: translateX(-9px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes p3r-official-row-right {
+  from { opacity: 0; transform: translateX(9px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes p3r-official-backdrop {
+  0% { opacity: 0; transform: translateX(22%) skewX(-9deg); }
+  62% { opacity: 1; transform: translateX(-2%) skewX(-9deg); }
+  to { opacity: 1; transform: skewX(-9deg); }
+}
+@keyframes p3r-official-modal {
+  from { opacity: 0; transform: translateX(18px); clip-path: none; }
+  to { opacity: 1; transform: none; clip-path: none; }
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered { animation: p3r-official-stage var(--mv-stage) var(--mv-ease-frame) both; }
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered::after {
+  animation: p3r-official-backdrop 0.18s var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered .local-header {
+  animation: p3r-official-header var(--mv-module) var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered .local-toolbar {
+  animation: p3r-official-block var(--mv-module) var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered .local-toolbar { animation-delay: 28ms; }
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(.summary-strip, .gm-legend) {
+  animation: p3r-official-block var(--mv-module) 24ms var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered .summary-chip:nth-child(odd) {
+  animation: p3r-official-summary-left var(--mv-module) 34ms var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered .summary-chip:nth-child(even) {
+  animation: p3r-official-summary-right var(--mv-module) 46ms var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(.song-list, .gm-body, .pr-body, .section) {
+  animation: p3r-official-block var(--mv-module) 48ms var(--mv-ease-frame) both;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(.song-item, .gm-item, .gm-svc):nth-child(odd) {
+  animation: p3r-official-row-left var(--mv-module) var(--mv-ease-frame) both;
+  transition-delay: 0ms;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(.song-item, .gm-item, .gm-svc):nth-child(even) {
+  animation: p3r-official-row-right var(--mv-module) var(--mv-ease-frame) both;
+  transition-delay: 0ms;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(.song-item, .gm-item, .gm-svc):nth-child(odd) { animation-delay: 66ms; }
+:is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(.song-item, .gm-item, .gm-svc):nth-child(even) { animation-delay: 78ms; }
+:is(.theme-p3r-light, .theme-p3r-dark) :is(.mv-page-list-enter-from, .mv-page-form-enter-from, .mv-page-doc-enter-from) {
+  opacity: 0; transform: translateX(7px); clip-path: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark) :is(.mv-page-list-enter-active, .mv-page-form-enter-active, .mv-page-doc-enter-active) {
+  transition: opacity var(--mv-stage) var(--mv-ease-frame), transform var(--mv-stage) var(--mv-ease-frame);
+}
+:is(.theme-p3r-light, .theme-p3r-dark) .modal-mask { animation: p3r-mask-in 0.08s linear both; }
+@keyframes p3r-mask-in { from { opacity: 0; } to { opacity: 1; } }
+:is(.theme-p3r-light, .theme-p3r-dark) .modal-mask .edit-popup { animation: p3r-official-modal var(--mv-stage) var(--mv-ease-frame) both; }
+
+/* 统一状态：hover 是 selected / active 的预览。 */
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .song-item.selected,
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .folder-chip.active,
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .tl-entry-btn.active,
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .rc-sub-func-btn.active {
+  background: var(--state-bg); color: var(--state-fg); border-color: var(--state-border);
+  box-shadow: inset 3px 0 0 var(--state-mark); transform: none;
+}
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .song-item.selected :is(
+  .song-name, .song-artist, .song-duration, .song-index, .song-info, .col-fixed, .col-note,
+  .fee-main, .fee-sub, .fee-dim, .status-tag
+) { color: inherit; }
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .song-item:hover,
+  :is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music :is(
+    .folder-chip, .tl-entry-btn, .rc-global-btn, .pd-btn, .gm-btn, .song-btn, .sb-trigger
+  ):not(:disabled):hover,
+  :is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .rc-sub-func-btn:hover {
+    background: var(--state-bg); color: var(--state-fg); border-color: var(--state-border);
+    box-shadow: inset 3px 0 0 var(--state-mark); transform: none;
+  }
+  :is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .song-item:hover :is(
+    .song-name, .song-artist, .song-duration, .song-index, .song-info, .col-fixed, .col-note,
+    .fee-main, .fee-sub, .fee-dim, .status-tag
+  ) { color: inherit; }
+  :is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) .local-music .song-item:hover .song-btn {
+    background: transparent; color: inherit; border-color: currentColor; box-shadow: none; transform: none;
+  }
+}
+
+/* 点击只给短亮度反馈，松开后仍是同一状态色。 */
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) :is(
+  button, .rc-global-btn, .tl-entry-btn, .folder-chip, .pd-btn, .gm-btn, .song-btn, .song-item
+):not(:disabled):active {
+  transform: none; filter: brightness(0.9); transition-duration: 60ms;
+}
+
+/* hover 前后轮廓和位置完全一致，只过渡颜色。 */
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) :is(
+  .song-item, .folder-chip, .tl-entry-btn, .rc-global-btn, .pd-btn, .gm-btn,
+  .song-btn, .sb-trigger, .rc-sub-func-btn
+) {
+  transition-property: background-color, color, border-color, box-shadow, filter;
+  transition-duration: var(--mv-tick, 0.11s); transition-timing-function: ease-out;
+}
+:is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) :is(
+  button, a, input, select, textarea, [tabindex]
+):focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered,
+  :is(.theme-p3r-light, .theme-p3r-dark) .local-music.entered :is(
+    .local-header, .local-toolbar, .summary-strip, .gm-legend, .song-list,
+    .gm-body, .pr-body, .section, .song-item, .gm-item, .gm-svc
+  ),
+  :is(.theme-p3r-light, .theme-p3r-dark) .modal-mask,
+  :is(.theme-p3r-light, .theme-p3r-dark) .modal-mask .edit-popup {
+    animation: none !important; transform: none !important; clip-path: none !important;
+  }
+  :is(.theme-p3r-light, .theme-p3r-dark, .theme-endfield-light, .theme-endfield-dark, .theme-swiss-light, .theme-swiss-dark) * {
+    transition-delay: 0ms !important;
+  }
+}

@@ -1,5 +1,7 @@
 // 日期工具：按「创建日 + 1 个月」的托管周期
 
+import { KEYS, readJSON, writeJSON } from '../data/storage.js'
+
 function pad(n) { return String(n).padStart(2, '0') }
 
 // 任意输入 → 本地 Date（yyyy-MM-dd 或 ISO 均可）
@@ -55,9 +57,62 @@ export function isYmd(v) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''))
 }
 
-// 本地今天 yyyy-MM-dd
+/* ══ 每日刷新时间（游戏日常重置点）══
+   托管的「今天」不是自然日 0 点，而是设置里填的那个刷新时间（默认 00:00）。
+   例：刷新时间 04:00 时，10-30 03:30 仍算 10-29 —— 日报天数不 +1、
+   代办里的托管不重新出现、「今日已确认」也不失效。
+
+   只影响「今天」的判定；日期区间、跨天差值与既有数据格式都不变。 */
+export const DEFAULT_RESET_TIME = '00:00'
+
+export function normalizeResetTime(v) {
+  const m = String(v == null ? '' : v).trim().match(/^(\d{1,2}):(\d{1,2})$/)
+  if (!m) return DEFAULT_RESET_TIME
+  const h = Number(m[1])
+  const mi = Number(m[2])
+  if (!(h >= 0 && h <= 23) || !(mi >= 0 && mi <= 59)) return DEFAULT_RESET_TIME
+  return `${pad(h)}:${pad(mi)}`
+}
+
+/** 读取设置里的刷新时间（'HH:mm'，非法值回落 00:00） */
+export function resetTime() {
+  const raw = readJSON(KEYS.DAILY_RESET, DEFAULT_RESET_TIME)
+  return normalizeResetTime(typeof raw === 'string' ? raw : DEFAULT_RESET_TIME)
+}
+
+/** 写入刷新时间并广播（日报 / 代办据此立刻刷新「今天」） */
+export function writeResetTime(v) {
+  const next = normalizeResetTime(v)
+  writeJSON(KEYS.DAILY_RESET, next)
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tr-daily-reset-changed', { detail: next }))
+    }
+  } catch { /* 非浏览器环境（测试）忽略 */ }
+  return next
+}
+
+/** 刷新时间换算成「当天第几分钟」，用于比较 */
+export function resetMinutes() {
+  const [h, m] = resetTime().split(':').map(Number)
+  return h * 60 + m
+}
+
+/**
+ * 当前时刻所属的「游戏日」：还没到刷新点就算前一天。
+ * 返回 Date（同一时刻，只把日期往前挪一天），便于继续取年月日。
+ */
+export function gameNow(base) {
+  const src = base instanceof Date ? base : new Date()
+  const d = new Date(src.getTime())
+  if (isNaN(d.getTime())) return new Date()
+  if (d.getHours() * 60 + d.getMinutes() < resetMinutes()) d.setDate(d.getDate() - 1)
+  return d
+}
+
+// 本地今天 yyyy-MM-dd（按每日刷新时间换算后的「今天」）
 export function todayLocal(base) {
-  return fmtDate(base instanceof Date ? base : new Date())
+  return fmtDate(gameNow(base))
 }
 
 // 加 n 天（n 可为负）
@@ -82,7 +137,7 @@ export function diffDays(from, to) {
 export function dayIndex(input, span) {
   const d = toDate(input)
   if (!d) return 1
-  const today = new Date()
+  const today = gameNow()
   const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const idx = Math.round((t0 - d) / 86400000) + 1
   const max = span || monthSpanDays(input)

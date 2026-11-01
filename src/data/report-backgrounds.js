@@ -109,7 +109,7 @@ const LONE_STAR_BGS = [
       + 'linear-gradient(90deg, rgba(216,121,56,0.8) 0 3px, transparent 3px),'
       + 'linear-gradient(180deg, rgba(20,27,34,0.10) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
       + 'linear-gradient(180deg, #fbfcfc 0%, #f5f7f7 100%)',
-  },
+  },
   {
     id: 'lt-timeline',
     label: '时间轴',
@@ -123,7 +123,7 @@ const LONE_STAR_BGS = [
       + 'radial-gradient(circle at 16% calc(100% - 26px), rgba(216,121,56,0.85) 0 4px, transparent 4.5px),'
       + 'radial-gradient(circle at 52% calc(100% - 26px), rgba(216,121,56,0.45) 0 3px, transparent 3.5px),'
       + 'linear-gradient(180deg, #fbfbfa 0%, #f4f6f5 100%)',
-  },
+  },
   {
     id: 'lt-corner',
     label: '角标',
@@ -135,7 +135,7 @@ const LONE_STAR_BGS = [
       + 'linear-gradient(180deg, transparent 0 calc(100% - 36px), rgba(20,27,34,0.42) calc(100% - 36px) calc(100% - 35px), transparent calc(100% - 35px)) 0 0 / 36px 100% no-repeat,'
       + 'linear-gradient(90deg, rgba(216,121,56,0.75) 0 100%) 0 100% / 14px 14px no-repeat,'
       + 'linear-gradient(180deg, #fbfbfa 0%, #f6f7f6 100%)',
-  },
+  },
   {
     id: 'lt-stamp',
     label: '印章',
@@ -147,7 +147,7 @@ const LONE_STAR_BGS = [
       + 'repeating-linear-gradient(-45deg, rgba(20,27,34,0.045) 0 1px, transparent 1px 9px),'
       + 'linear-gradient(90deg, rgba(20,27,34,0.28) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
       + 'linear-gradient(180deg, #fafbf9 0%, #f5f6f4 100%)',
-  },
+  },
   {
     id: 'lt-night',
     label: '夜航',
@@ -201,14 +201,16 @@ const P3R_BGS = [
   {
     id: 'p3r-collage',
     label: '都市拼贴',
-    hint: '错位矩形分区 + 方向性色块',
+    hint: '错位矩形分区 + 方向性色块 + 一道竖向接缝',
     style: 'p3r',
     base: '#f4f7fb',
     bg:
       // 左上蓝色横条分区
       'linear-gradient(90deg, rgba(18,100,200,0.19) 0 38%, transparent 38%) 0 0 / 100% 24% no-repeat,'
-      // 右下明黄斜块
-      + 'linear-gradient(105deg, transparent 0 52%, rgba(245,216,61,0.46) 52% 100%) 0 100% / 100% 22% no-repeat,'
+      // 右下琥珀斜块（与主题的动作色同一个）
+      + 'linear-gradient(105deg, transparent 0 52%, rgba(255,176,31,0.42) 52% 100%) 0 100% / 100% 22% no-repeat,'
+      // 62% 处一道竖向接缝：拼贴的「纸与纸之间」
+      + 'linear-gradient(90deg, transparent 0 62%, rgba(7,27,58,0.16) 62% 62.3%, transparent 62.3%),'
       // 底部青蓝细带
       + 'linear-gradient(0deg, rgba(40,184,242,0.16) 0 100%) 0 100% / 100% 7% no-repeat,'
       // 右缘竖向深蓝指示条
@@ -226,57 +228,6 @@ const P3R_BGS = [
       'linear-gradient(45deg, rgba(18,100,200,0.16) 0 38%, transparent 38% 100%),'
       + 'linear-gradient(45deg, transparent 0 38.4%, rgba(245,216,61,0.85) 38.4% 39%, transparent 39%),'
       + 'linear-gradient(45deg, transparent 0 72%, rgba(40,184,242,0.14) 72% 100%),'
-      + 'linear-gradient(180deg, #ffffff 0%, #f3f7fd 100%)',
-  },
-  {
-    id: 'p3r-neon',
-    label: '霓虹夜',
-    hint: '深蓝底 + 青蓝霓虹边线 + 明黄点',
-    style: 'p3r',
-    base: '#071B3A',
-    bg:
-      'linear-gradient(90deg, rgba(40,184,242,0.35) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'linear-gradient(180deg, rgba(245,216,61,0.28) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'linear-gradient(118deg, rgba(40,184,242,0.20) 0 22%, transparent 22% 100%),'
-      + 'radial-gradient(circle at 88% 12%, rgba(245,216,61,0.42) 0 5px, transparent 5.5px),'
-      + 'linear-gradient(180deg, #0B2450 0%, #071B3A 100%)',
-  },
-  {
-    id: 'p3r-band',
-    label: '三色横带',
-    hint: '上中下三条横带 + 细线收口',
-    style: 'p3r',
-    base: '#f5f8fd',
-    bg:
-      'linear-gradient(90deg, rgba(18,100,200,0.22) 0 100%) 0 0 / 100% 18% no-repeat,'
-      + 'linear-gradient(90deg, rgba(40,184,242,0.18) 0 100%) 0 62% / 100% 10% no-repeat,'
-      + 'linear-gradient(90deg, rgba(245,216,61,0.55) 0 100%) 0 100% / 100% 4% no-repeat,'
-      + 'linear-gradient(180deg, rgba(7,27,58,0.18) 0 1px, transparent 1px) 0 18% / 100% 1px no-repeat,'
-      + 'linear-gradient(180deg, #ffffff 0%, #f5f8fd 100%)',
-  },
-  {
-    id: 'p3r-frame',
-    label: '细框',
-    hint: '内缩细框 + 四角小十字',
-    style: 'p3r',
-    base: '#f4f7fc',
-    bg:
-      'linear-gradient(90deg, transparent 0 22px, rgba(7,27,58,0.30) 22px 23px, transparent 23px calc(100% - 23px), rgba(7,27,58,0.30) calc(100% - 23px) calc(100% - 22px), transparent calc(100% - 22px)),'
-      + 'linear-gradient(180deg, transparent 0 22px, rgba(7,27,58,0.30) 22px 23px, transparent 23px calc(100% - 23px), rgba(7,27,58,0.30) calc(100% - 23px) calc(100% - 22px), transparent calc(100% - 22px)),'
-      + 'linear-gradient(90deg, rgba(18,100,200,0.7) 0 1px, transparent 1px) 22px 22px / 14px 1px no-repeat,'
-      + 'linear-gradient(180deg, rgba(18,100,200,0.7) 0 1px, transparent 1px) 22px 22px / 1px 14px no-repeat,'
-      + 'linear-gradient(180deg, #ffffff 0%, #f4f7fc 100%)',
-  },
-  {
-    id: 'p3r-dots',
-    label: '点阵',
-    hint: '网点底纹 + 右缘色带',
-    style: 'p3r',
-    base: '#f3f7fd',
-    bg:
-      'radial-gradient(circle, rgba(7,27,58,0.16) 0 1px, transparent 1.2px) 0 0 / 12px 12px repeat,'
-      + 'linear-gradient(90deg, transparent 0 calc(100% - 40px), rgba(18,100,200,0.22) calc(100% - 40px) 100%),'
-      + 'linear-gradient(90deg, transparent 0 calc(100% - 6px), rgba(245,216,61,0.7) calc(100% - 6px) 100%),'
       + 'linear-gradient(180deg, #ffffff 0%, #f3f7fd 100%)',
   },
 ]
@@ -338,66 +289,20 @@ const ENDFIELD_BGS = [
   {
     id: 'ef-rail',
     label: '导轨',
-    hint: '左侧导轨 + 底部刻度 + 顶边三色条',
+    hint: '左侧导轨 + 主次刻度 + 顶边三色条',
     style: 'endfield',
     base: '#f3f4f2',
     bg:
+      // 顶边三色条（只占开头 24%，不再横贯整页）
       'linear-gradient(90deg, rgba(255,0,240,0.7) 0 8%, rgba(184,255,61,0.85) 8% 16%, rgba(0,255,162,0.7) 16% 24%, transparent 24%) 0 0 / 100% 3px no-repeat,'
-      + 'linear-gradient(90deg, rgba(22,22,22,0.16) 0 10px, transparent 10px),'
-      + 'repeating-linear-gradient(180deg, rgba(22,22,22,0.24) 0 1px, transparent 1px 14px) 0 0 / 10px 100% no-repeat,'
-      + 'repeating-linear-gradient(90deg, rgba(22,22,22,0.22) 0 1px, transparent 1px 10px) 0 100% / 100% 14px no-repeat,'
-      + 'linear-gradient(180deg, rgba(22,22,22,0.30) 0 1px, transparent 1px) 0 calc(100% - 14px) / 100% 1px no-repeat,'
+      // 左侧导轨：深灰底面
+      + 'linear-gradient(90deg, rgba(22,22,22,0.14) 0 12px, transparent 12px),'
+      // 导轨上的短刻度（每 14px）
+      + 'repeating-linear-gradient(180deg, rgba(22,22,22,0.34) 0 1px, transparent 1px 14px) 0 0 / 12px 100% no-repeat,'
+      // 底部主轴：每 50px 一条主刻度（长刻度，与导轨区分）
+      + 'repeating-linear-gradient(90deg, rgba(22,22,22,0.26) 0 1px, transparent 1px 50px) 0 100% / 100% 12px no-repeat,'
+      + 'linear-gradient(180deg, rgba(22,22,22,0.32) 0 1px, transparent 1px) 0 calc(100% - 12px) / 100% 1px no-repeat,'
       + 'linear-gradient(180deg, #fafaf8 0%, #f3f4f2 100%)',
-  },
-  {
-    id: 'ef-scan',
-    label: '扫描线',
-    hint: '横向扫描线 + 右缘 lime 细线',
-    style: 'endfield',
-    base: '#f2f3f1',
-    bg:
-      'linear-gradient(90deg, rgba(255,0,240,0.65) 0 8%, rgba(184,255,61,0.8) 8% 16%, rgba(0,255,162,0.65) 16% 24%, transparent 24%) 0 0 / 100% 3px no-repeat,'
-      + 'repeating-linear-gradient(180deg, rgba(22,22,22,0.055) 0 1px, transparent 1px 4px),'
-      + 'linear-gradient(90deg, transparent 0 calc(100% - 3px), rgba(184,255,61,0.5) calc(100% - 3px) 100%),'
-      + 'linear-gradient(180deg, #f8f9f7 0%, #f2f3f1 100%)',
-  },
-  {
-    id: 'ef-batch',
-    label: '批次格',
-    hint: '右上批次方块 + 底部编号带',
-    style: 'endfield',
-    base: '#f3f4f2',
-    bg:
-      'linear-gradient(90deg, rgba(255,0,240,0.65) 0 8%, rgba(184,255,61,0.8) 8% 16%, rgba(0,255,162,0.65) 16% 24%, transparent 24%) 0 0 / 100% 3px no-repeat,'
-      + 'linear-gradient(90deg, rgba(22,22,22,0.14) 0 100%) calc(100% - 88px) 0 / 88px 44px no-repeat,'
-      + 'linear-gradient(90deg, rgba(184,255,61,0.45) 0 100%) calc(100% - 88px) 44px / 88px 3px no-repeat,'
-      + 'repeating-linear-gradient(90deg, rgba(22,22,22,0.20) 0 1px, transparent 1px 8px) 0 100% / 100% 10px no-repeat,'
-      + 'linear-gradient(180deg, #fafaf8 0%, #f3f4f2 100%)',
-  },
-  {
-    id: 'ef-stamp',
-    label: '盖章',
-    hint: '右下斜线纹方块 + 顶边三色条',
-    style: 'endfield',
-    base: '#f4f4f2',
-    bg:
-      'linear-gradient(90deg, rgba(255,0,240,0.6) 0 8%, rgba(184,255,61,0.78) 8% 16%, rgba(0,255,162,0.6) 16% 24%, transparent 24%) 0 0 / 100% 3px no-repeat,'
-      + 'repeating-linear-gradient(-45deg, rgba(22,22,22,0.10) 0 1px, transparent 1px 7px) calc(100% - 132px) calc(100% - 84px) / 132px 84px no-repeat,'
-      + 'linear-gradient(90deg, rgba(22,22,22,0.22) 0 1px, transparent 1px) calc(100% - 132px) calc(100% - 84px) / 1px 84px no-repeat,'
-      + 'linear-gradient(180deg, rgba(22,22,22,0.22) 0 1px, transparent 1px) calc(100% - 132px) calc(100% - 84px) / 132px 1px no-repeat,'
-      + 'linear-gradient(180deg, #fbfbf9 0%, #f4f4f2 100%)',
-  },
-  {
-    id: 'ef-carbon',
-    label: '暗碳',
-    hint: '碳灰底 + 45° 斜线纹 + lime 细线',
-    style: 'endfield',
-    base: '#171717',
-    bg:
-      'linear-gradient(90deg, rgba(184,255,61,0.55) 0 3px, transparent 3px),'
-      + 'repeating-linear-gradient(-45deg, rgba(237,237,237,0.05) 0 1px, transparent 1px 6px),'
-      + 'linear-gradient(180deg, rgba(237,237,237,0.10) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'linear-gradient(180deg, #1E1E1E 0%, #171717 100%)',
   },
 ]
 
@@ -407,22 +312,24 @@ const SWISS_BGS = [
   {
     id: 'ch-grid',
     label: '十二栏版式',
-    hint: '米白 + 12 栏竖向细线 + 顶部墨线',
+    hint: '米白 + 12 栏竖线 + 24px 基线网格 + 红角标',
     style: 'swiss',
     base: '#f2efe9',
     bg:
       // 12 栏竖向细线（每栏 8.3333%）
       'repeating-linear-gradient(90deg, rgba(17,17,17,0.10) 0 1px, transparent 1px 8.3333%),'
-      // 顶部墨线（版面开始）
-      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      // 左上角红色编号块（很小的实心块，靠 background-size 限定尺寸）
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 26px 3px no-repeat,'
+      // 基线网格：每 24px 一条横线（版式稿的骨架）
+      + 'repeating-linear-gradient(180deg, rgba(17,17,17,0.055) 0 1px, transparent 1px 24px),'
+      // 顶部墨线（版面开始，2px 更明确）
+      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 2px, transparent 2px) 0 0 / 100% 100% no-repeat,'
+      // 左上角红色角标（正方形，不是细条）
+      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 18px 18px no-repeat,'
       + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
   },
   {
     id: 'ch-asym',
     label: '不对称留白',
-    hint: '米白 + 左侧 1/3 栏线 + 大留白',
+    hint: '米白 + 左侧三分栏线 + 底部留白面 + 长红线',
     style: 'swiss',
     base: '#f2efe9',
     bg:
@@ -430,86 +337,49 @@ const SWISS_BGS = [
       'repeating-linear-gradient(90deg, rgba(17,17,17,0.12) 0 1px, transparent 1px 8.3333%) 0 0 / 33.3333% 100% no-repeat,'
       // 右侧一条竖向分区线
       + 'linear-gradient(90deg, transparent 0 calc(100% - 1px), rgba(17,17,17,0.35) calc(100% - 1px) 100%),'
-      // 顶部墨线 + 红色编号块
+      // 底部 1/3 的极淡灰面：把「留白」画成一块面，而不只是没有线
+      + 'linear-gradient(180deg, transparent 0 calc(100% - 33.3333%), rgba(17,17,17,0.035) calc(100% - 33.3333%) 100%),'
+      // 顶部墨线
       + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 60px 2px no-repeat,'
+      // 红线拉满左侧那一栏（33.3333%），和栏线对齐
+      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 33.3333% 3px no-repeat,'
       + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
   },
   {
     id: 'ch-black',
     label: '墨底',
-    hint: '墨黑底 + 米白细线 + 红色编号块',
+    hint: '墨黑底 + 米白栏线 + 红角标 + 右下页码块',
     style: 'swiss',
     base: '#111111',
     bg:
       // 12 栏细线（深底上换成米白 10%）
       'repeating-linear-gradient(90deg, rgba(242,239,233,0.10) 0 1px, transparent 1px 8.3333%),'
-      // 顶部米白细线 + 红色编号块
-      + 'linear-gradient(180deg, rgba(242,239,233,0.9) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'linear-gradient(90deg, rgba(218,41,28,0.92) 0 100%) 0 0 / 26px 3px no-repeat,'
+      // 顶部米白细线（2px，反白版的版面线）
+      + 'linear-gradient(180deg, rgba(242,239,233,0.9) 0 2px, transparent 2px) 0 0 / 100% 100% no-repeat,'
+      // 左上角红色角标
+      + 'linear-gradient(90deg, rgba(218,41,28,0.92) 0 100%) 0 0 / 18px 18px no-repeat,'
+      // 右下角红色页码块（索引感）
+      + 'linear-gradient(90deg, rgba(218,41,28,0.75) 0 100%) calc(100% - 26px) calc(100% - 26px) / 26px 3px no-repeat,'
       + 'linear-gradient(180deg, #161616 0%, #111111 100%)',
   },
   {
     id: 'ch-columns',
     label: '双栏',
-    hint: '中间竖线分成两栏 + 12 栏细线 + 红块',
+    hint: '中缝双线分成两栏 + 栏内细线 + 底部基线',
     style: 'swiss',
     base: '#f2efe9',
     bg:
-      'linear-gradient(90deg, transparent 0 calc(50% - 1px), rgba(17,17,17,0.55) calc(50% - 1px) 50%, transparent 50%),'
-      + 'repeating-linear-gradient(90deg, rgba(17,17,17,0.09) 0 1px, transparent 1px 8.3333%),'
+      // 中缝：细-粗-细的三层（印刷版式的中缝，比一条线更像版面）
+      'linear-gradient(90deg, transparent 0 calc(50% - 2px), rgba(17,17,17,0.30) calc(50% - 2px) calc(50% - 1px), rgba(17,17,17,0.65) calc(50% - 1px) calc(50% + 1px), rgba(17,17,17,0.30) calc(50% + 1px) calc(50% + 2px), transparent calc(50% + 2px)),'
+      // 两栏各自的 12 栏细线
+      + 'repeating-linear-gradient(90deg, rgba(17,17,17,0.08) 0 1px, transparent 1px 8.3333%),'
+      // 顶部墨线
       + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
+      // 底部基线（版心结束）
+      + 'linear-gradient(180deg, transparent 0 calc(100% - 24px), rgba(17,17,17,0.35) calc(100% - 24px) calc(100% - 23px), transparent calc(100% - 23px)),'
+      // 顶部红色标尺
       + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 26px 3px no-repeat,'
       + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
-  },
-  {
-    id: 'ch-rule',
-    label: '横线',
-    hint: '上中下三条墨线 + 米白底',
-    style: 'swiss',
-    base: '#f2efe9',
-    bg:
-      'linear-gradient(180deg, rgba(17,17,17,0.85) 0 2px, transparent 2px calc(50% - 1px), rgba(17,17,17,0.35) calc(50% - 1px) 50%, transparent 50% calc(100% - 1px), rgba(17,17,17,0.85) calc(100% - 1px) 100%),'
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 40px 3px no-repeat,'
-      + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
-  },
-  {
-    id: 'ch-corner',
-    label: '角标',
-    hint: '左上红块 + 右下墨线角',
-    style: 'swiss',
-    base: '#f2efe9',
-    bg:
-      'linear-gradient(90deg, rgba(218,41,28,0.92) 0 100%) 0 0 / 44px 44px no-repeat,'
-      + 'linear-gradient(90deg, transparent 0 calc(100% - 60px), rgba(17,17,17,0.35) calc(100% - 60px) calc(100% - 59px), transparent calc(100% - 59px)) 0 100% / 100% 60px no-repeat,'
-      + 'linear-gradient(180deg, transparent 0 calc(100% - 60px), rgba(17,17,17,0.35) calc(100% - 60px) calc(100% - 59px), transparent calc(100% - 59px)) 100% 0 / 60px 100% no-repeat,'
-      + 'repeating-linear-gradient(90deg, rgba(17,17,17,0.07) 0 1px, transparent 1px 8.3333%),'
-      + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
-  },
-  {
-    id: 'ch-numbers',
-    label: '大编号',
-    hint: '右上编号灰块 + 左侧栏线',
-    style: 'swiss',
-    base: '#f2efe9',
-    bg:
-      'linear-gradient(90deg, rgba(17,17,17,0.10) 0 100%) calc(100% - 120px) 0 / 120px 72px no-repeat,'
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) calc(100% - 120px) 72px / 120px 3px no-repeat,'
-      + 'linear-gradient(90deg, rgba(17,17,17,0.35) 0 1px, transparent 1px) 33.3333% 0 / 1px 100% no-repeat,'
-      + 'repeating-linear-gradient(90deg, rgba(17,17,17,0.07) 0 1px, transparent 1px 8.3333%),'
-      + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
-  },
-  {
-    id: 'ch-inverse',
-    label: '反白',
-    hint: '墨底 + 米白细线 + 红色标记',
-    style: 'swiss',
-    base: '#111111',
-    bg:
-      'linear-gradient(90deg, rgba(242,239,233,0.12) 0 1px, transparent 1px) 0 0 / 33.3333% 100% no-repeat,'
-      + 'linear-gradient(180deg, rgba(242,239,233,0.9) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'linear-gradient(90deg, rgba(218,41,28,0.92) 0 100%) 0 0 / 40px 3px no-repeat,'
-      + 'linear-gradient(180deg, #161616 0%, #111111 100%)',
   },
 ]
 
@@ -629,20 +499,15 @@ const STIJL_BGS = [
 ]
 
 
-export const REPORT_BACKGROUNDS = [DEFAULT_BG, ...LONE_STAR_BGS, ...P3R_BGS, ...ENDFIELD_BGS, ...SWISS_BGS, ...STIJL_BGS]
+/* 一条平铺列表：背景不再按风格系列分组，选择器里从头到尾只有一条。
+   纯白底不在这条列表里 —— 它跟着「经典外观」按钮走（见 CLASSIC_REPORT_BG）。
+   每个原本的风格系列各留前四个。 */
+export const REPORT_BACKGROUNDS = [...P3R_BGS, ...ENDFIELD_BGS, ...SWISS_BGS]
 
-/* 选择器按「默认 / 孤星风格 / P3R 风格 / 终末地风格 / 瑞士风格」分组展示 */
-export const REPORT_BG_GROUPS = [
-  { id: 'default', label: '默认', items: [DEFAULT_BG] },
-  { id: 'lone-star', label: '孤星风格', items: LONE_STAR_BGS },
-  { id: 'p3r', label: 'P3R 风格', items: P3R_BGS },
-  { id: 'endfield', label: '终末地风格', items: ENDFIELD_BGS },
-  { id: 'swiss', label: '瑞士风格', items: SWISS_BGS },
-  { id: 'stijl', label: '风格派', items: STIJL_BGS },
-]
-
+export const CLASSIC_REPORT_BG = DEFAULT_BG
 export const DEFAULT_REPORT_BG = DEFAULT_BG.id
-export const REPORT_BG_IDS = REPORT_BACKGROUNDS.map(b => b.id)
+/* ids 仍包含纯白：老用户存的就是 'plain'，回落逻辑不能把它当非法值 */
+export const REPORT_BG_IDS = [DEFAULT_BG.id, ...REPORT_BACKGROUNDS.map(b => b.id)]
 
 export function normalizeReportBgId(value) {
   const raw = String(value == null ? '' : value).trim()
@@ -651,7 +516,7 @@ export function normalizeReportBgId(value) {
 
 export function findReportBg(id) {
   const key = normalizeReportBgId(id)
-  return REPORT_BACKGROUNDS.find(b => b.id === key) || REPORT_BACKGROUNDS[0]
+  return [DEFAULT_BG, ...REPORT_BACKGROUNDS].find(b => b.id === key) || DEFAULT_BG
 }
 
 /* 背景的明暗：按 base 底色的相对亮度判断（用于在选择器里标「深 / 浅」，

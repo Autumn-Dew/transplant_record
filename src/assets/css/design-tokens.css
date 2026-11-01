@@ -33,7 +33,10 @@
      换成正文字体会让这些文字看起来变大 —— 所以数字 / 编号 / 备注
      这类位置保留等宽字体，字号与视觉大小维持原样。 */
   --font-ui: 'Bahnschrift', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  --font-mono: "Fira Code", "Cascadia Code", Consolas, "Courier New", monospace;
+  /* 等宽栈里原本只有拉丁字形：中文会被交给系统默认的等宽映射（字重偏细、
+     边缘发灰），在「编号 / 日期 / 金额」这类小字号上尤其糊。补上中文黑体
+     回退后，汉字走真实字重，拉丁字符仍是等宽。 */
+  --font-mono: "Fira Code", "Cascadia Code", Consolas, "Courier New", "Microsoft YaHei", "PingFang SC", monospace;
 
   /* ── 工程编号 / 数据标识 ── */
   --tag-letter-spacing: 2px;
