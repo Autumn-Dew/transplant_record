@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { KEYS, readJSON, writeJSON } from './storage.js'
+import { normalizeReportLayout, normalizeRows } from '../domain/report-layout.js'
 
 function str(v) {
   return v == null ? '' : String(v)
@@ -20,19 +21,23 @@ function strList(v) {
   return (Array.isArray(v) ? v : []).map(s => str(s).trim()).filter(Boolean)
 }
 
-/** 读取全部草稿：{ [gameId]: { text, daily, weekly, resources } } */
+/** 读取全部草稿：{ [gameId]: { text, author, daily, weekly, resources, layout } } */
 export function readReportDrafts() {
   const raw = readJSON(KEYS.REPORT_DRAFT, null)
   const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
   const out = {}
   for (const [gameId, draft] of Object.entries(src)) {
     if (!gameId || !draft || typeof draft !== 'object') continue
-    out[gameId] = {
+    const entry = {
       text: draft.text && typeof draft.text === 'object' ? { ...draft.text } : {},
-      daily: strList(draft.daily),
-      weekly: strList(draft.weekly),
+      daily: normalizeRows(draft.daily),
+      weekly: normalizeRows(draft.weekly),
       resources: strList(draft.resources),
+      layout: normalizeReportLayout(draft.layout),
     }
+    // 汇报人：只有草稿里真的填过才带（区分「没设过」与「主动清空」）
+    if (Object.prototype.hasOwnProperty.call(draft, 'author')) entry.author = str(draft.author)
+    out[gameId] = entry
   }
   return out
 }
@@ -43,12 +48,15 @@ export function writeReportDrafts(drafts) {
   const out = {}
   for (const [gameId, draft] of Object.entries(src)) {
     if (!gameId || !draft || typeof draft !== 'object') continue
-    out[gameId] = {
+    const entry = {
       text: draft.text && typeof draft.text === 'object' ? { ...draft.text } : {},
-      daily: strList(draft.daily),
-      weekly: strList(draft.weekly),
+      daily: normalizeRows(draft.daily),
+      weekly: normalizeRows(draft.weekly),
       resources: strList(draft.resources),
+      layout: normalizeReportLayout(draft.layout),
     }
+    if (Object.prototype.hasOwnProperty.call(draft, 'author')) entry.author = str(draft.author)
+    out[gameId] = entry
   }
   writeJSON(KEYS.REPORT_DRAFT, out)
   return out

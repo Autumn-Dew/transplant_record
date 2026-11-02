@@ -22,6 +22,8 @@
       v-if="templatePanelOpen"
       :draft="currentTpl"
       :fields="REPORT_TEXT_FIELDS"
+      :game-label="currentGameName"
+      :game-id="reportGame"
       :save-style="saveGlobalStyle"
       :save-title="saveGlobalTitle"
       :save-label="templateText('btnSaveGlobal', '存为全局预设')"
@@ -52,7 +54,7 @@
       <div class="rp-wrap" ref="wrapRef" :class="`rp-theme-${reportTheme.id}`" :style="{ background: reportBg.bg }">
         <!-- Title -->
         <div class="rp-title-row">
-          <div class="rp-title" contenteditable ref="titleRef">{{ APP_SIGN }}的每日汇报</div>
+          <div class="rp-title" contenteditable ref="titleRef">{{ titleText }}</div>
           <div class="rp-no-export rp-author-box">
             <span class="rp-author-label">{{ templateText('authorLabel', '汇报人') }}</span>
             <span class="rp-author-name">{{ currentAuthor }}</span>
@@ -81,129 +83,154 @@
 
         <!-- AK -->
         <!-- 任务卡片：所有游戏共用一套结构；AK / EF / 异环各自多几行专属字段 -->
-        <div class="rp-cards-row">
-          <div class="rp-card rp-half">
-            <div class="rp-card-head">{{ templateText('cardDaily', '日常') }}</div>
-            <div class="rp-card-body">
-              <div class="rp-tasks">
-                <div v-for="(t, i) in currentRows.daily" :key="'d-' + i" class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">{{ t.label }}</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                  <input v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                  <button class="rp-task-del rp-no-export" @click="removeTaskRow('daily', i)" title="删除这一项（只影响当前这份日报；想让以后都生效，去「模板」里存为全局预设）">×</button>
+        <!-- 卡片流：顺序 / 宽度 / 显示与否来自「模板 → 卡片与布局」
+             整行卡独占一行，半宽卡相邻两张自动并排（flex-wrap 决定折行，不必写坐标） -->
+        <div class="rp-card-flow">
+          <div
+            v-for="card in currentCards"
+            :key="card.id"
+            class="rp-card"
+            :class="card.width === 'half' ? 'rp-half' : 'rp-full'"
+          >
+            <!-- 日常 -->
+            <template v-if="card.kind === 'daily'">
+              <div class="rp-card-head">{{ templateText('cardDaily', '日常') }}</div>
+              <div class="rp-card-body">
+                <div class="rp-tasks">
+                  <template v-for="(t, i) in currentRows.daily" :key="'d-' + i">
+                  <div v-if="t.visible !== false" class="rp-task-row rp-task-grid">
+                    <span class="rp-task-label">{{ t.label }}</span>
+                    <template v-if="t.kind !== 'text'">
+                      <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    </template>
+                    <input v-else v-model="t.value" class="rp-inp rp-cell-wide" placeholder="填写" />
+                  </div>
+                  </template>
+
+                  <!-- AK / 终末地：理智剩余 + 线索传递 -->
+                  <template v-if="reportGame === 'ak' || reportGame === 'endfield'">
+                    <div class="rp-task-row rp-task-grid">
+                      <span class="rp-task-label">{{ templateText('rowSanity', '理智剩余') }}</span>
+                      <input v-if="reportGame === 'ak'" type="number" v-model.number="sanityLeft" class="rp-inp rp-cell-wide" min="0" />
+                      <input v-else type="number" v-model.number="efSanityLeft" class="rp-inp rp-cell-wide" min="0" />
+                    </div>
+                    <div class="rp-task-row rp-task-grid">
+                      <span class="rp-task-label">{{ templateText('rowClue', '线索传递') }}</span>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="好友位已送完" /><span class="rp-radio-box"></span>好友位已送完</label>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="" /><span class="rp-radio-box"></span>无</label>
+                    </div>
+                  </template>
+
+                  <!-- 异环：本性像素剩余 -->
+                  <div class="rp-task-row rp-task-grid" v-if="reportGame === 'nte'">
+                    <span class="rp-task-label">{{ templateText('rowPixel', '本性像素剩余') }}</span>
+                    <input type="number" v-model.number="ntePixelLeft" class="rp-inp rp-cell-wide" min="0" />
+                  </div>
+
                 </div>
+              </div>
+            </template>
 
-                <!-- AK / 终末地：理智剩余 + 线索传递 -->
-                <template v-if="reportGame === 'ak' || reportGame === 'endfield'">
-                  <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ templateText('rowSanity', '理智剩余') }}</span>
-                    <input v-if="reportGame === 'ak'" type="number" v-model.number="sanityLeft" class="rp-inp" min="0" style="width:60px" />
-                    <input v-else type="number" v-model.number="efSanityLeft" class="rp-inp" min="0" style="width:60px" />
-                    <span></span><span></span>
+            <!-- 周常 -->
+            <template v-else-if="card.kind === 'weekly'">
+              <div class="rp-card-head">{{ templateText('cardWeekly', '周常') }}</div>
+              <div class="rp-card-body">
+                <div class="rp-tasks">
+                  <template v-for="(t, i) in currentRows.weekly" :key="'w-' + i">
+                  <div v-if="t.visible !== false" class="rp-task-row rp-task-grid">
+                    <span class="rp-task-label">{{ t.label }}</span>
+                    <template v-if="t.kind !== 'text'">
+                      <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    </template>
+                    <input v-else v-model="t.value" class="rp-inp rp-cell-wide" placeholder="填写" />
                   </div>
-                  <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ templateText('rowClue', '线索传递') }}</span>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="好友位已送完" /><span class="rp-radio-box"></span>好友位已送完</label>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="" /><span class="rp-radio-box"></span>无</label>
-                    <span></span>
-                  </div>
-                </template>
+                  </template>
 
-                <!-- 异环：本性像素剩余 -->
-                <div class="rp-task-row rp-task-grid" v-if="reportGame === 'nte'">
-                  <span class="rp-task-label">{{ templateText('rowPixel', '本性像素剩余') }}</span>
-                  <input type="number" v-model.number="ntePixelLeft" class="rp-inp" min="0" style="width:60px" />
-                  <span></span><span></span>
+                  <!-- 异环：送礼 + 都市体力剩余 -->
+                  <template v-if="reportGame === 'nte'">
+                    <div class="rp-task-row rp-task-grid">
+                      <span class="rp-task-label">{{ templateText('rowGift', '送礼') }}</span>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    </div>
+                    <div class="rp-task-row rp-task-grid">
+                      <span class="rp-task-label">{{ templateText('rowStamina', '都市体力剩余') }}</span>
+                      <input type="number" v-model.number="nteStaminaLeft" class="rp-inp rp-cell-wide" min="0" />
+                    </div>
+                  </template>
+
                 </div>
-
-                <button class="rp-add-row rp-no-export" @click="addTaskRow('daily')">{{ templateText('btnAddTask', '+ 添加任务') }}</button>
               </div>
-            </div>
-          </div>
+            </template>
 
-          <div class="rp-card rp-half">
-            <div class="rp-card-head">{{ templateText('cardWeekly', '周常') }}</div>
-            <div class="rp-card-body">
-              <div class="rp-tasks">
-                <div v-for="(t, i) in currentRows.weekly" :key="'w-' + i" class="rp-task-row rp-task-grid">
-                  <span class="rp-task-label">{{ t.label }}</span>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                  <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                  <input v-model="t.extra" class="rp-inp rp-extra" placeholder="备注" />
-                  <button class="rp-task-del rp-no-export" @click="removeTaskRow('weekly', i)" title="删除这一项（只影响当前这份日报；想让以后都生效，去「模板」里存为全局预设）">×</button>
+
+            <!-- 今日获取资源（不再有备注列） -->
+            <template v-else-if="card.kind === 'resources'">
+              <div class="rp-card-head">{{ templateText('cardResources', '今日获取资源') }}</div>
+              <div class="rp-card-body">
+                <div class="rp-tasks">
+                  <div v-for="(r, i) in resources" :key="i" class="rp-task-row rp-task-grid rp-res-row">
+                    <input v-model="r.label" class="rp-inp" placeholder="资源名" />
+                    <input v-model="r.before" class="rp-inp" placeholder="变更前" />
+                    <input v-model="r.after" class="rp-inp" placeholder="变更后" />
+                  </div>
                 </div>
+              </div>
+            </template>
 
-                <!-- 异环：送礼 + 都市体力剩余 -->
-                <template v-if="reportGame === 'nte'">
-                  <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ templateText('rowGift', '送礼') }}</span>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                    <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                    <input v-model="nteGiftNote" class="rp-inp rp-extra" placeholder="备注" />
+            <!-- 明日计划 -->
+            <template v-else-if="card.kind === 'plan'">
+              <div class="rp-card-head">{{ templateText('cardPlan', '明日计划') }}</div>
+              <div class="rp-card-body">
+                <div class="rp-lines" contenteditable @keydown.enter="onPlanEnter" :ref="setPlanEl">
+                  <div></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- 备注 -->
+            <template v-else-if="card.kind === 'note'">
+              <div class="rp-card-head">{{ templateText('cardNote', '备注') }}</div>
+              <div class="rp-card-body">
+                <div class="rp-lines" contenteditable :ref="setNoteEl">
+                  <div></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- 截图（没有图片时整张卡不占位，见 currentCards） -->
+            <template v-else-if="card.kind === 'shots'">
+              <div class="rp-card-head">{{ templateText('cardShots', '截图') }}</div>
+              <div class="rp-card-body">
+                <div class="rp-images">
+                  <div v-for="(img, i) in images" :key="i" class="rp-img-wrap">
+                    <img :src="img" class="rp-img" />
+                    <button class="rp-img-del rp-no-export" @click="images.splice(i, 1)">×</button>
                   </div>
-                  <div class="rp-task-row rp-task-grid">
-                    <span class="rp-task-label">{{ templateText('rowStamina', '都市体力剩余') }}</span>
-                    <input type="number" v-model.number="nteStaminaLeft" class="rp-inp" min="0" style="width:60px" />
-                    <span></span><span></span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 自定义卡片：标题 + 可增删的条目行 -->
+            <template v-else>
+              <div class="rp-card-head">{{ card.title }}</div>
+              <div class="rp-card-body">
+                <div class="rp-tasks">
+                  <template v-for="(line, i) in card.lines" :key="i">
+                  <div v-if="line.visible !== false" class="rp-task-row rp-task-grid">
+                    <input v-model="line.label" class="rp-inp rp-free-inp" :placeholder="`第 ${i + 1} 行`" />
+                    <template v-if="line.kind !== 'text'">
+                      <label class="rp-radio"><input type="radio" :name="`${uid}_c_${card.id}_${i}`" v-model="line.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="`${uid}_c_${card.id}_${i}`" v-model="line.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    </template>
+                    <input v-else v-model="line.value" class="rp-inp rp-cell-wide rp-free-inp" placeholder="填写" />
                   </div>
-                </template>
-
-                <button class="rp-add-row rp-no-export" @click="addTaskRow('weekly')">{{ templateText('btnAddWeekly', '+ 添加周常') }}</button>
+                  </template>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-
-        <!-- 今日获取资源 -->
-        <div class="rp-card rp-res-card">
-          <div class="rp-card-head">{{ templateText('cardResources', '今日获取资源') }}</div>
-          <div class="rp-card-body">
-            <div class="rp-tasks">
-              <div v-for="(r, i) in resources" :key="i" class="rp-task-row">
-                <input v-model="r.label" class="rp-inp rp-label-inp" placeholder="资源名" />
-                <input v-model="r.before" class="rp-inp rp-res-inp" placeholder="变更前" />
-                <span class="rp-arrow">→</span>
-                <input v-model="r.after" class="rp-inp rp-res-inp" placeholder="变更后" />
-                <input v-model="r.note" class="rp-inp rp-extra" placeholder="备注" />
-                <button class="rp-row-del rp-no-export" @click="resources.splice(i, 1)" title="删除这一项（可以删到一项都不剩，导出时整块隐藏）">×</button>
-              </div>
-              <button class="rp-add-row rp-no-export" @click="resources.push({ label: '', before: '', after: '', note: '' })">{{ templateText('btnAddResource', '+ 添加资源') }}</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 明日计划 -->
-        <div class="rp-card">
-          <div class="rp-card-head">{{ templateText('cardPlan', '明日计划') }}</div>
-          <div class="rp-card-body">
-            <div class="rp-lines" contenteditable @keydown.enter="onPlanEnter" ref="planRef">
-              <div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 备注 -->
-        <div class="rp-card">
-          <div class="rp-card-head">{{ templateText('cardNote', '备注') }}</div>
-          <div class="rp-card-body">
-            <div class="rp-lines" contenteditable ref="noteRef">
-              <div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 截图 -->
-        <div class="rp-card" v-if="images.length">
-          <div class="rp-card-head">{{ templateText('cardShots', '截图') }}</div>
-          <div class="rp-card-body">
-            <div class="rp-images">
-              <div v-for="(img, i) in images" :key="i" class="rp-img-wrap">
-                <img :src="img" class="rp-img" />
-                <button class="rp-img-del rp-no-export" @click="images.splice(i, 1)">×</button>
-              </div>
-            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -301,6 +328,7 @@ import { hostProgress, isHosting, isClosed } from '@/domain/project.js'
 import { projectsRepo, gamesRepo } from '@/data/repos.js'
 import { findGame, gameKeyOf, gameNameOf, usableGames } from '@/domain/games.js'
 import { reportPresetFor } from '@/domain/report-presets.js'
+import { normalizeReportLayout, normalizeRows } from '@/domain/report-layout.js'
 import { readReportDrafts, writeReportDrafts, clearReportDraft } from '@/data/report-draft.js'
 import { REPORT_TEXT_FIELDS } from '@/domain/report-template.js'
 import { updateGame } from '@/services/gameService.js'
@@ -324,18 +352,24 @@ const wrapRef = ref(null)
 const titleRef = ref(null)
 const planRef = ref(null)
 const noteRef = ref(null)
+// 卡片现在是按布局循环渲染的，模板里的字符串 ref 会变成数组；
+// 用函数 ref 保持「单值」，原有的 planRef.value.innerHTML 之类用法不用改。
+function setPlanEl(el) { planRef.value = el || null }
+function setNoteEl(el) { noteRef.value = el || null }
 const images = ref([])
 // 当前日报页签对应的游戏 id；真正的取值由下方的 reportGames watch 校正
 const reportGame = ref('')
 
-// 汇报人是「每游戏一个固定值」，在「数据管理 → 游戏与服务 → 日报预设 → 汇报人」里改；
-// 没配就用主署名 APP_SIGN。日报页只展示，不再提供切换按钮。
+// 汇报人：在「每日汇报 → 模板 → 汇报人」里改，每个游戏各一份草稿；
+// 草稿里没设过就用该游戏的全局预设，都没配则回落到主署名 APP_SIGN。
 const currentAuthor = computed(() => {
-  const author = presetOf(reportGame.value).author
-  return (author && String(author).trim()) || APP_SIGN
+  const draft = draftFor(reportGame.value)
+  const own = draft.author !== undefined ? draft.author : presetOf(reportGame.value).author
+  return (own && String(own).trim()) || APP_SIGN
 })
-// 标题跟着汇报人走（切换游戏 / 改了配置都会同步）
-watch(currentAuthor, (name) => setTitle(name + '的每日汇报'), { immediate: true })
+// 标题：也走模板文案（每个游戏各一份），{sign} 替换成当前汇报人
+// 标题文案依赖「当前草稿的模板文案」，必须放到 tplText / templateText 之后，
+// 否则 immediate watch 会在初始化阶段读到未定义变量（TDZ）—— 见下方「标题」段。
 
 // ── 汇报外观：主题（内容皮肤）与背景（画布底层）各自独立持久化，互不改写 ──
 const reportBgId = ref(readReportBg())
@@ -382,7 +416,6 @@ const efClueExtra = ref('好友位已送完')
 const ntePixelLeft = ref('')
 const nteStaminaLeft = ref('')
 const nteGiftDone = ref(true)
-const nteGiftNote = ref('未刷新')
 
 function calcDays() {
   const [fy, fm, fd] = dateFrom.value.split('-').map(Number)
@@ -435,6 +468,11 @@ function loadHostingTasks(today = localToday()) {
 // 游戏识别一律走「游戏与服务」目录：记录上的 game 既可能是游戏名（老数据），也可能是 id。
 // 以前写死三游戏的映射表，导致自建游戏的记录匹配不到、日报页签也永远不会出现。
 const reportGames = computed(() => usableGames(gamesRepo.state.value))
+// 模板面板标题用：当前页签的游戏名（模板按游戏各存一份）
+const currentGameName = computed(() => {
+  const g = reportGames.value.find(x => x.id === reportGame.value)
+  return g ? g.name : ''
+})
 function gameKeyOfRecord(t) {
   const all = gamesRepo.state.value
   return gameKeyOf(all, (t && t.game) || '') || usableGames(all)[0]?.id || ''
@@ -562,16 +600,15 @@ let programmaticDate = false
 //   · 全局预设 —— 「数据管理 → 游戏与服务 → 日报预设」（game.report），所有时候生效；
 //   · 临时草稿 —— 这里的 drafts，落盘到 tr-report-draft，只影响当前这份日报，
 //     直到点「恢复默认」清掉，或点「存为全局预设」写回配置。
-const DEFAULT_EXTRA = { '公开招募': '无高资', '送礼': '未刷新', '棉花': '未刷新' }
 const drafts = reactive(readReportDrafts())
 
 function presetOf(gameId) {
   return reportPresetFor(gameId, findGame(gamesRepo.state.value, gameId))
 }
 
-// 草稿：没有就用全局预设初始化（文案 / 任务项 / 资源项三份都来自预设）
+// 草稿：没有就用全局预设初始化（文案 / 任务项 / 资源项 / 卡片布局四份都来自预设）
 function draftFor(gameId) {
-  if (!gameId) return { text: {}, daily: [], weekly: [], resources: [] }
+  if (!gameId) return { text: {}, daily: [], weekly: [], resources: [], layout: [] }
   if (!drafts[gameId]) {
     const p = presetOf(gameId)
     drafts[gameId] = {
@@ -579,13 +616,25 @@ function draftFor(gameId) {
       daily: [...p.daily],
       weekly: [...p.weekly],
       resources: [...p.resources],
+      layout: normalizeReportLayout(p.layout),
     }
   }
+  if (!Array.isArray(drafts[gameId].layout)) drafts[gameId].layout = normalizeReportLayout(null)
   return drafts[gameId]
 }
 
 const currentTpl = computed(() => draftFor(reportGame.value))
 const tplText = computed(() => currentTpl.value.text || {})
+
+// 渲染用卡片清单：直接取草稿里的对象（同引用），行内 v-model 改动会落到草稿并触发落盘。
+// 截图卡没有图片时整张不占位。
+const currentCards = computed(() =>
+  (currentTpl.value.layout || []).filter(card => {
+    if (card.visible === false) return false
+    if (card.kind === 'shots' && !images.value.length) return false
+    return true
+  }),
+)
 
 // 草稿落盘（300ms 防抖，避免每敲一个字就写一次）
 let draftTimer = null
@@ -601,10 +650,14 @@ function scheduleDraftSave() {
 // ── 任务行：由草稿的 daily/weekly 生成，勾选状态按游戏缓存 ──
 const rowsByGame = reactive({})
 
-function buildRows(labels, kind, prev) {
-  return labels.map(label => {
-    const old = prev && prev[kind] ? prev[kind].find(r => r.label === label) : null
-    return old ? old : { label, done: true, extra: DEFAULT_EXTRA[label] || '' }
+function buildRows(items, kind, prev) {
+  // items 可能是旧格式的字符串数组，normalizeRows 统一成 { label, kind, visible }
+  return normalizeRows(items).map(row => {
+    const old = prev && prev[kind] ? prev[kind].find(r => r.label === row.label) : null
+    // visible / kind 一律以模板为准：old 只是上一轮的填写状态缓存（勾选、值），不含这两项
+    return old
+      ? { ...old, label: row.label, kind: row.kind, visible: row.visible }
+      : { label: row.label, kind: row.kind, visible: row.visible, done: true, value: '' }
   })
 }
 
@@ -637,19 +690,8 @@ watch(() => gamesRepo.state.value, () => {
 }, { deep: true })
 watch(reportGame, (id) => { if (id && !rowsByGame[id]) syncRows(id) })
 
-// ── 增删任务项：只改草稿（临时）──
-function setTplList(kind, labels) {
-  currentTpl.value[kind] = (Array.isArray(labels) ? labels : []).map(s => String(s == null ? '' : s).trim()).filter(Boolean)
-}
-function addTaskRow(kind) {
-  const list = currentTpl.value[kind] || []
-  setTplList(kind, [...list, kind === 'daily' ? '新任务' : '新周常'])
-}
-function removeTaskRow(kind, index) {
-  const list = [...(currentTpl.value[kind] || [])]
-  list.splice(index, 1)
-  setTplList(kind, list)
-}
+// 任务项 / 资源项 / 自定义行的增删都在「模板 → 卡片与布局」里做，
+// 画布只负责填写内容，不再提供增删入口（避免同一份结构有两个地方能改）。
 function setTplText(key, value) {
   if (!currentTpl.value.text) currentTpl.value.text = {}
   currentTpl.value.text[key] = value
@@ -673,8 +715,11 @@ function saveTemplateAsGlobal() {
       daily: [...(tpl.daily || [])],
       weekly: [...(tpl.weekly || [])],
       resources: [...(tpl.resources || [])],
-      author: preset.author,            // 汇报人不在模板面板里改，保持原值
+      // 汇报人：草稿里改过就用草稿，否则保留原值
+      author: tpl.author !== undefined ? String(tpl.author).trim() : preset.author,
       text: { ...(tpl.text || {}) },
+      // 卡片顺序 / 宽度 / 自定义卡片一并存为全局
+      layout: normalizeReportLayout(tpl.layout).map(c => ({ ...c })),
     },
   })
 }
@@ -694,9 +739,18 @@ function templateText(key, fallback = '') {
   return v == null ? fallback : v
 }
 
+// ── 标题：走模板文案（每个游戏各一份），{sign} 替换成当前汇报人 ──
+// 放在 templateText 之后：immediate watch 会立刻求值，提前定义会读到未初始化的 tplText。
+const titleText = computed(() => {
+  const raw = templateText('titleTpl', '{sign}的每日汇报')
+  return String(raw).replace(/\{sign\}/g, currentAuthor.value)
+})
+// 模板里改了标题 / 换了游戏 → 同步到 DOM（标题本身仍可直接点着改，手改只在当前会话有效）
+watch(titleText, (text) => setTitle(text), { immediate: true })
+
 const resources = reactive([
-  { label: '龙门币', before: '', after: '', note: '' },
-  { label: '合成玉', before: '', after: '', note: '' },
+  { label: '龙门币', before: '', after: '' },
+  { label: '合成玉', before: '', after: '' },
 ])
 
 // 保存「变更后」→ 下次回填到「变更前」。仅在点击「导出图片 / 复制到剪切板」时触发（不再实时保存）
@@ -718,13 +772,13 @@ function defaultResourceLabels(gameId) {
 function resetResourcesForGame(game, roll = {}) {
   resources.splice(0, resources.length)
   defaultResourceLabels(game).forEach(label => {
-    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '', note: '' })
+    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '' })
   })
   // 上次用过的自定义资源也补回来（换项目 / 换游戏后自己加的那几行不该消失）
   Object.keys(roll || {}).forEach(label => {
     if (!label) return
     if (resources.some(r => r.label === label)) return
-    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '', note: '' })
+    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '' })
   })
 }
 
@@ -792,13 +846,12 @@ function resetAll() {
   ntePixelLeft.value = ''
   nteStaminaLeft.value = ''
   nteGiftDone.value = true
-  nteGiftNote.value = '未刷新'
   resetTemplate()
-  currentRows.value.daily.forEach(t => { t.done = true; t.extra = DEFAULT_EXTRA[t.label] || '' })
-  currentRows.value.weekly.forEach(t => { t.done = true; t.extra = DEFAULT_EXTRA[t.label] || '' })
+  currentRows.value.daily.forEach(t => { t.done = true })
+  currentRows.value.weekly.forEach(t => { t.done = true })
   resources.splice(0, resources.length)
   defaultResourceLabels(reportGame.value).forEach(label => {
-    resources.push({ label, before: '', after: '', note: '' })
+    resources.push({ label, before: '', after: '' })
   })
   resetPlan()
   if (noteRef.value) noteRef.value.innerHTML = '<div></div>'
@@ -858,16 +911,6 @@ defineExpose({ refreshHosting })
 .rp-sheet .rp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
 .rp-task-row { position: relative; }
-.rp-task-del {
-  position: absolute; right: -16px; top: 50%; transform: translateY(-50%);
-  width: 16px; height: 16px; line-height: 1; padding: 0;
-  border: 1px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
-  cursor: pointer; opacity: 0;
-  transition: opacity var(--motion-duration-fast) var(--motion-easing-ease);
-}
-.rp-task-row:hover .rp-task-del { opacity: 1; }
-.rp-task-del:hover { background: #d00; border-color: #d00; color: #fff; }
 .rp-hint { font-size: 11px; opacity: 0.4; font-family: var(--font-mono); }
 
 /* ── 汇报外观：工具栏按钮 + 侧边弹窗（版式与项目详情窗口一致） ── */
@@ -1046,6 +1089,20 @@ defineExpose({ refreshHosting })
 .rp-cards-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .rp-cards-row .rp-card { margin-bottom: 0; }
 .rp-half { flex: 1; min-width: 0; }
+/* ── 卡片流（顺序 / 宽度由「模板 → 卡片与布局」决定）──
+   整行卡独占一行；连续两张半宽卡由 flex-wrap 自动并排，不必写坐标 */
+.rp-card-flow { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.rp-card-flow > .rp-card { margin-bottom: 0; }
+.rp-card-flow > .rp-half { flex: 1 1 calc(50% - 5px); min-width: 0; }
+.rp-card-flow > .rp-full { flex: 1 1 100%; min-width: 0; }
+/* 自定义卡片的条目输入：平时看不出边框，像正文一行；悬停/聚焦才露出输入框 */
+.rp-free-inp {
+  flex: 1; min-width: 0;
+  border-color: transparent;
+  background: transparent;
+}
+.rp-free-inp:hover { border-color: var(--rt-inp-edge); }
+.rp-free-inp:focus { border-color: var(--rt-accent); }
 .rp-card-head { padding: 8px 14px; background: var(--rt-head-bg); color: var(--rt-head-fg); border-bottom: 1px solid var(--rt-head-rule); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .rp-reset-sm { font-size: 10px; padding: 1px 8px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; font-family: var(--font-mono); font-weight: 400; margin-left: auto; color: var(--rt-head-fg); }
 .rp-reset-sm:hover { background: var(--rt-btn-on-bg); color: var(--rt-btn-on-fg); }
@@ -1055,13 +1112,36 @@ defineExpose({ refreshHosting })
 .rp-inp:focus { border-color: var(--rt-accent); outline: none; }
 .rp-date-sm { width: 115px; }
 .rp-num { width: 52px; text-align: center; }
+/* 资源行：与「每日任务」同构 —— 资源名 / 变更前 / 变更后 三列等分。
+   原来「→」单独占一格，半宽卡里把三个输入框挤得几乎写不下，故去掉。 */
+.rp-res-row { gap: 10px; }
 .rp-extra { flex: 1; min-width: 0; }
-.rp-res-inp { width: 100px; }
-.rp-label-inp { width: 90px; }
-.rp-arrow { opacity: 0.25; padding: 0 2px; }
+/* （资源行的固定宽度类与「→」已随三列等分网格移除） */
 .rp-task-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 7px 14px; background: var(--rt-row-alt); box-shadow: inset 0 -1px 0 var(--rt-row-rule); }
-.rp-task-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; align-items: center; }
-.rp-task-grid .rp-inp { width: auto; }
+/* 行内网格：每个直接子元素占一列、等宽。
+   这样「按钮型」（标签 + 完成 + 未完成）、「文本型」（标签 + 输入）、
+   资源行（名称 + 变更前 + 变更后）都自动等分，半宽卡里也一样。 */
+.rp-task-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+/* 文本型的值输入占后两列 —— 列边界因此与「按钮型」的两颗单选严格对齐，
+   专属行（理智剩余 / 本性像素 / 都市体力）也是 3 列网格，只是输入跨两列。 */
+.rp-cell-wide { grid-column: 2 / 4; }
+/* 资源行 / 自定义卡片的删除按钮：绝对定位到行外（与「日常」的删除按钮同一位置）。
+   这样它既不占网格列，也不给行右侧留出空洞，三列才能真正铺满整行、与卡片头对齐。 */
+/* 网格里的输入框必须撑满自己那一列：
+   原来写 width: auto，会让 input 用浏览器默认宽度（约 20 字符），
+   半宽卡里比列宽还大 —— 于是三个框互相压住、错位。 */
+.rp-task-grid > input,
+.rp-task-grid > select,
+.rp-task-grid > .rp-inp {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .rp-task-label { flex: 1; min-width: 0; line-height: 1.5; }
 .rp-radio { font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; opacity: 0.5; vertical-align: middle; flex: 1; }
 .rp-radio input { display: none; }
@@ -1075,10 +1155,6 @@ defineExpose({ refreshHosting })
 .rp-quick-btn { font-size: 11px; padding: 2px 8px; border: 1px solid var(--rt-btn-edge); cursor: pointer; font-family: var(--font-mono); margin: 1px 2px; color: var(--rt-ink); background: none; }
 .rp-quick-btn:hover { background: var(--rt-btn-on-bg); color: var(--rt-btn-on-fg); }
 .rp-lines { outline: none; font-size: 13px; line-height: 1.8; min-height: 24px; padding: 10px 14px; }
-.rp-add-row { font-size: 11px; padding: 3px 8px; margin: 6px 14px; border: 1px dashed var(--rt-btn-edge); background: none; cursor: pointer; font-family: var(--font-mono); width: calc(100% - 28px); color: var(--rt-ink); }
-.rp-add-row:hover { border-color: var(--rt-accent); background: var(--rt-row-alt); }
-.rp-row-del { font-size: 14px; padding: 0 6px; border: 1px solid var(--rt-btn-edge); background: none; cursor: pointer; opacity: 0.4; font-family: var(--font-mono); line-height: 1; color: var(--rt-ink); }
-.rp-row-del:hover { opacity: 1; background: #d00; color: #fff; border-color: #d00; }
 .rp-images { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .rp-img-wrap { position: relative; width: 100%; }
 .rp-img { width: 100%; border: 1px solid var(--rt-img-edge); display: block; }

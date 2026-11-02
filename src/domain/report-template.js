@@ -12,13 +12,13 @@
 
 export const REPORT_TEXT_FIELDS = [
   { group: '标题与信息栏', items: [
+    { key: 'titleTpl', label: '日报标题', def: '{sign}的每日汇报' },
     { key: 'authorLabel', label: '汇报人标签', def: '汇报人' },
     { key: 'metaPrefix', label: '托管信息前缀', def: '托管：第' },
     { key: 'metaDaysSuffix', label: '托管天数后缀', def: '天（' },
     { key: 'metaClose', label: '托管信息收尾', def: '）' },
-    { key: 'hintPaste', label: '粘贴提示', def: 'Ctrl+V 粘贴截图' },
   ] },
-  { group: '卡片标题', items: [
+  { group: '卡片标题', placement: 'card', items: [
     { key: 'cardDaily', label: '日常卡片', def: '日常' },
     { key: 'cardWeekly', label: '周常卡片', def: '周常' },
     { key: 'cardResources', label: '资源卡片', def: '今日获取资源' },
@@ -26,12 +26,13 @@ export const REPORT_TEXT_FIELDS = [
     { key: 'cardNote', label: '备注卡片', def: '备注' },
     { key: 'cardShots', label: '截图卡片', def: '截图' },
   ] },
-  { group: '专属行标签', items: [
-    { key: 'rowSanity', label: '理智剩余', def: '理智剩余' },
-    { key: 'rowClue', label: '线索传递', def: '线索传递' },
-    { key: 'rowPixel', label: '本性像素剩余', def: '本性像素剩余' },
-    { key: 'rowGift', label: '送礼', def: '送礼' },
-    { key: 'rowStamina', label: '都市体力剩余', def: '都市体力剩余' },
+  { group: '专属行标签', placement: 'card', items: [
+    // games：只有这些游戏才有这一行（模板面板按当前游戏过滤，避免出现用不到的字段）
+    { key: 'rowSanity', label: '理智剩余', def: '理智剩余', games: ['ak', 'endfield'] },
+    { key: 'rowClue', label: '线索传递', def: '线索传递', games: ['ak', 'endfield'] },
+    { key: 'rowPixel', label: '本性像素剩余', def: '本性像素剩余', games: ['nte'] },
+    { key: 'rowGift', label: '送礼', def: '送礼', games: ['nte'] },
+    { key: 'rowStamina', label: '都市体力剩余', def: '都市体力剩余', games: ['nte'] },
   ] },
   { group: '按钮与新增项', items: [
     { key: 'btnExport', label: '导出图片', def: '导出图片' },
@@ -45,6 +46,7 @@ export const REPORT_TEXT_FIELDS = [
     { key: 'btnAddResource', label: '添加资源', def: '+ 添加资源' },
     { key: 'btnSaveGlobal', label: '存为全局预设', def: '存为全局预设' },
     { key: 'btnTemplate', label: '模板按钮', def: '模板' },
+    { key: 'hintPaste', label: '粘贴提示', def: 'Ctrl+V 粘贴截图' },
   ] },
 ]
 

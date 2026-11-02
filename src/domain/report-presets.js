@@ -16,6 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { normalizeReportText, mergeReportText } from './report-template.js'
+import { normalizeReportLayout, normalizeRows } from './report-layout.js'
 
 // 内置三游戏的默认内容（与原 ReportSheet 里写死的数组逐项一致）
 export const BUILTIN_REPORT_PRESETS = {
@@ -49,15 +50,18 @@ function strList(v) {
   return (Array.isArray(v) ? v : []).map(str).filter(Boolean)
 }
 
-/** 规范化一份预设（不丢弃未知字段由调用方负责，这里只产出示图所需的四项） */
+/** 规范化一份预设（不丢弃未知字段由调用方负责，这里只产出示图所需的几项） */
 export function normalizeReportPreset(raw) {
   const r = raw && typeof raw === 'object' ? raw : {}
+  const rawLayout = Array.isArray(r.layout) ? r.layout : []
   return {
-    daily: strList(r.daily),
-    weekly: strList(r.weekly),
+    daily: normalizeRows(r.daily),
+    weekly: normalizeRows(r.weekly),
     resources: strList(r.resources),
     author: str(r.author),
     text: normalizeReportText(r.text),
+    // 卡片布局：没配（空数组）留给调用方回落到内置布局
+    layout: rawLayout.length ? normalizeReportLayout(rawLayout) : [],
   }
 }
 
@@ -71,11 +75,13 @@ export function reportPresetFor(gameId, game) {
   const builtin = BUILTIN_REPORT_PRESETS[gameId] || EMPTY_PRESET
   const pick = (ownList, builtinList) => (ownList.length ? ownList : builtinList)
   return {
-    daily: pick(own.daily, builtin.daily),
-    weekly: pick(own.weekly, builtin.weekly),
+    daily: normalizeRows(pick(own.daily, builtin.daily)),
+    weekly: normalizeRows(pick(own.weekly, builtin.weekly)),
     resources: pick(own.resources, builtin.resources),
     author: own.author || builtin.author || '',
     // 文案：默认值 ← 全局配置（草稿层由日报页自己叠）
     text: mergeReportText(builtin.text, own.text),
+    // 卡片布局：没配过就用内置顺序
+    layout: own.layout.length ? own.layout : normalizeReportLayout(null),
   }
 }
