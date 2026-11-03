@@ -10,6 +10,7 @@
 // 组件本身不再关心 html2canvas / 下载 / 剪贴板。
 // ═══════════════════════════════════════════════════════════════════
 
+import { ref } from 'vue'
 import html2canvas from 'html2canvas'
 import { copyPngBlob, downloadBlob, timestampName } from '../utils/clipboard.js'
 
@@ -57,6 +58,10 @@ function fieldStyle(el, extra) {
  * @param {() => void} [opts.onExported]                       导出成功后（用于保存资源记录）
  */
 export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAllUndone, backgroundBase, onExported }) {
+  // 导出/复制的进行中状态（'' | 'export' | 'copy'）与失败原因，供按钮显示反馈
+  const busy = ref('')
+  const lastError = ref('')
+
   function fillEmpty() {
     for (const r of resources) {
       if (!r.label) r.label = '—'
@@ -123,19 +128,71 @@ export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAll
     })
 
     return () => {
-      swaps.forEach(s => { if (s.wasHidden) s.old.style.display = ''; else s.parent.replaceChild(s.old, s.current) })
-      hiddens.forEach(el => { el.style.display = '' })
-      restoreEmpty()
+      // 逐项 try/catch：某个节点被 Vue 重渲染掉时，不能让后面的还原全部中断，
+      // 否则画布会残留导出用的临时节点/样式，之后每次导出都会踩到坏状态。
+      swaps.forEach(s => {
+        try {
+          if (s.wasHidden) s.old.style.display = ''
+          else if (s.parent && s.parent.contains(s.current)) s.parent.replaceChild(s.old, s.current)
+        } catch { /* ignore */ }
+      })
+      hiddens.forEach(el => { try { el.style.display = '' } catch { /* ignore */ } })
+      try { restoreEmpty() } catch { /* ignore */ }
     }
   }
 
+  // html2canvas 的解析器对 calc() / color-mix() 这类值会崩在
+  // "Cannot read properties of undefined (reading 'type')"（getAbsoluteValue）。
+  // 导出失败时扫一遍画布，把可疑的属性值直接报出来，省得猜。
+  const UNSUPPORTED = ['calc(', 'color-mix(', 'oklch(', 'oklab(', 'in srgb', 'in oklab', 'image-set(', 'cross-fade(']
+  const WATCHED = [
+    'backgroundPosition', 'backgroundSize', 'backgroundImage',
+    'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius',
+  ]
+  function findUnsupportedStyles() {
+    const wrap = wrapRef.value
+    if (!wrap) return []
+    const hits = []
+    const describe = (el, pseudo) => {
+      const cls = typeof el.className === 'string' ? el.className : (el.className && el.className.baseVal) || ''
+      return el.tagName.toLowerCase() + (cls ? '.' + cls.split(' ')[0] : '') + (pseudo ? pseudo : '')
+    }
+    // 元素本体 + ::before / ::after 都要看：html2canvas 会一起克隆伪元素
+    for (const el of wrap.querySelectorAll('*')) {
+      for (const pseudo of [null, '::before', '::after']) {
+        const cs = getComputedStyle(el, pseudo)
+        for (const prop of WATCHED) {
+          const v = cs[prop]
+          if (v == null) continue
+          // 空值同样会让 html2canvas 崩（getAbsoluteValue 收到 undefined）
+          if (v === '') { hits.push(describe(el, pseudo) + ' 的 ' + prop + ' 是空值'); break }
+          if (v === 'none' || v === 'auto' || v === '0px') continue
+          const token = UNSUPPORTED.find(t => v.includes(t))
+          if (!token) continue
+          hits.push(describe(el, pseudo) + ' 的 ' + prop + ' = ' + v.slice(0, 60))
+          break
+        }
+        if (hits.length >= 6) return hits
+      }
+    }
+    return hits
+  }
+
   async function renderImage() {
+    // 画布不可见时 html2canvas 会抛错或渲染成空白，这里先拦下来给出可读的原因
+    const el = wrapRef.value
+    if (!el) throw new Error('画布还没准备好')
+    if (!el.offsetWidth || !el.offsetHeight) throw new Error('画布尺寸为 0（日报页面可能未显示）')
     // 背景由画布自身 CSS 承担；backgroundColor 只作为边缘兜底
-    return html2canvas(wrapRef.value, { backgroundColor: backgroundBase(), scale: 3 })
+    return html2canvas(el, { backgroundColor: backgroundBase(), scale: 3 })
   }
 
   async function exportImage(toClipboard) {
-    if (!wrapRef.value) return
+    // 进行中状态：导出要 2~4 秒，不给反馈会被当成「点了没反应」
+    if (!wrapRef.value) { lastError.value = '画布还没准备好'; return false }
+    if (busy.value) return false
+    busy.value = toClipboard ? 'copy' : 'export'
+    lastError.value = ''
     const undo = prepareExport()
     const ts = timestampName()
     let ok = false
@@ -153,10 +210,21 @@ export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAll
       ok = true
     } catch (e) {
       console.error(e)
+      // 带上出错位置：html2canvas 内部抛错时靠这行才能定位到是哪个解析器
+      const where = e && e.stack ? String(e.stack).split('\n').slice(1, 3).map(s => s.trim()).join(' ').slice(0, 120) : ''
+      let hint = ''
+      try {
+        const bad = findUnsupportedStyles()
+        if (bad.length) hint = '｜可疑样式：' + bad.join('；')
+      } catch { /* ignore */ }
+      lastError.value = '导出失败：' + ((e && e.message) || e) + (where ? '｜' + where : '') + hint
+      ok = false
     } finally {
+      busy.value = ''
       // 先还原导出时的临时填充（fillEmpty 产生「无」等），再保存「变更后」
       undo()
       if (ok && onExported) onExported()
+    return ok
     }
   }
 
@@ -181,5 +249,5 @@ export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAll
     }
   }
 
-  return { prepareExport, renderImage, exportImage, shareImage }
+  return { prepareExport, renderImage, exportImage, shareImage, busy, lastError }
 }

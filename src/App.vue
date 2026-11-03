@@ -191,7 +191,16 @@ onUnmounted(() => {
 
 // ══════ 全局按钮音效 ══════
 // 命中「可点击元素」即播放单次音效；带 data-sfx-overcharge 的四次保护按钮由组件自身播放逐层音效
-const SFX_SELECTOR = 'button, [role="button"], .rc-global-btn, .tl-entry-btn, .folder-chip, .sb-trigger, .sb-option, .page-tab, .copyable'
+// 表单控件（输入框 / 下拉 / 可编辑区 / 标签）一律覆盖：画布、数据管理、设置页里
+// 这些才是主要操作对象，只认 <button> 的话在这些页面几乎全程静音。
+const SFX_SELECTOR = [
+  'button', '[role="button"]', '.rc-global-btn', '.tl-entry-btn', '.folder-chip',
+  '.sb-trigger', '.sb-option', '.page-tab', '.copyable',
+  'input', 'select', 'textarea', '[contenteditable]', 'label',
+  // 可点击但不是按钮的元素：游戏列表项、画布里的行与信息栏
+  '.gm-item',
+  '.rp-wrap .rp-task-row', '.rp-wrap .rp-card-head', '.rp-wrap .rp-meta',
+].join(',')
 function onGlobalClick(e) {
   if (e.button !== 0) return
   const t = e.target

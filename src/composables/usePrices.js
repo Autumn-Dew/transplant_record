@@ -3,7 +3,11 @@ import endfield from '../data/prices/endfield.js'
 import ak from '../data/prices/ak.js'
 import { KEYS, readJSON, writeJSON, electronApi } from '../data/storage.js'
 
-const DEFAULTS = { endfield, ak }
+// 内置价格数据按「游戏 id」索引；真正的价格表 key 用游戏的 key 名（简称 short），
+// 见 BUILTIN_SHORT 与 normalizeAll。用户改了 key 名，内置默认也会跟着落到新 key 上。
+const BUILTIN_PRICE_DATA = { endfield, ak }
+const BUILTIN_SHORT = { endfield: 'EF', ak: 'AK' }
+const DEFAULTS = BUILTIN_PRICE_DATA
 // 默认数据版本：每次修改 src/data/prices/*.js 时递增。
 // 注意：版本升级只做「合并」，绝不丢弃用户已经修改过的价格数据。
 const DEFAULTS_VERSION = 2
@@ -80,16 +84,65 @@ function mergeGame(savedGame, defaultGame) {
 }
 
 // 任意来源（localStorage / 本地文件 / 空） → 完整价格表结构
+// 「预设 / 自定义」这套分类已取消（用户要求）：自定义类别连同里面的价格项直接清除，
+// 剩下的类别统一不再带 mode 字段。
+function stripMode(cats) {
+  return (Array.isArray(cats) ? cats : [])
+    .filter(c => c && c.mode !== 'custom')
+    .map(c => {
+      const { mode, ...rest } = c
+      return rest
+    })
+}
+
+// 游戏目录：id → { id, short(即 key 名) }
+function gamesById() {
+  const map = {}
+  try {
+    const games = readJSON(KEYS.GAMES, []) || []
+    for (const g of games) if (g && g.id) map[g.id] = g
+  } catch { /* ignore */ }
+  return map
+}
+
+// 某个内置游戏的当前价格表 key（key 名；没填则回落默认 short）
+function builtinKey(id, byId) {
+  const g = byId[id]
+  return (g && String(g.short || '').trim()) || BUILTIN_SHORT[id] || id
+}
+
 function normalizeAll(raw) {
-  const src = raw && typeof raw === 'object' ? raw : {}
+  const byId = gamesById()
+  const src = { ...(raw && typeof raw === 'object' ? raw : {}) }
+
+  // 旧数据以游戏 id 作 key → 搬迁到 key 名（幂等：新 key 已有数据就不动旧 key）
+  const alias = {}
+  for (const id of Object.keys(BUILTIN_PRICE_DATA)) {
+    const k = builtinKey(id, byId)
+    if (k !== id) alias[id] = k
+  }
+  for (const g of Object.values(byId)) {
+    const k = String(g.short || '').trim()
+    if (g.id && k && k !== g.id) alias[g.id] = k
+  }
+  for (const [from, to] of Object.entries(alias)) {
+    if (src[from] && !src[to]) { src[to] = src[from]; delete src[from] }
+    else if (src[from] && src[to]) delete src[from]
+  }
+
   const out = {}
-  Object.keys(DEFAULTS).forEach(g => {
-    out[g] = normalizeKeys(src[g] ? mergeGame(src[g], DEFAULTS[g]) : clone(DEFAULTS[g]))
-  })
-  // 通过「游戏管理」新增的游戏：价格表 key 与游戏 id 对齐，原样保留
+  for (const [id, data] of Object.entries(BUILTIN_PRICE_DATA)) {
+    const key = builtinKey(id, byId)
+    out[key] = normalizeKeys(src[key] ? mergeGame(src[key], data) : clone(data))
+  }
+  // 其它游戏（自建 / 异环等）：key 即游戏 key 名，原样保留
   Object.keys(src).forEach(k => {
     if (k === '__version' || out[k]) return
     if (src[k] && typeof src[k] === 'object') out[k] = normalizeKeys(clone(src[k]))
+  })
+  // 统一去掉 mode 标记，并丢弃自定义类别
+  Object.keys(out).forEach(g => {
+    out[g] = { categories: stripMode(out[g] && out[g].categories) }
   })
   return out
 }
@@ -99,14 +152,11 @@ function freshDefaults() { return normalizeAll({}) }
 function loadFromLocal() {
   const saved = readJSON(KEYS.PRICES, null)
   const out = normalizeAll(saved)
-  // 若规整时清理掉了历史累积的重复分类，落盘一次让存储也收敛（幂等）
+  // 规整时可能发生：去重、去 mode、**价格表 key 从游戏 id 改成 key 名**。
+  // 直接比对整份 JSON，内容变了就落盘一次（幂等，第二次启动不会再写）。
   try {
-    const changed = Object.keys(out).some(g => {
-      const before = saved && saved[g] && Array.isArray(saved[g].categories) ? saved[g].categories.length : null
-      const after = Array.isArray(out[g] && out[g].categories) ? out[g].categories.length : 0
-      return before != null && before !== after
-    })
-    if (changed) writeJSON(KEYS.PRICES, { ...clone(out), __version: DEFAULTS_VERSION })
+    const payload = { ...clone(out), __version: DEFAULTS_VERSION }
+    if (JSON.stringify(saved) !== JSON.stringify(payload)) writeJSON(KEYS.PRICES, payload)
   } catch { /* ignore */ }
   return out
 }
@@ -151,6 +201,23 @@ try {
   }).catch(() => {})
 } catch { /* ignore */ }
 
+// 游戏改了 key 名（简称）后，把价格表从旧 key 搬到新 key（幂等）
+export function renamePriceKey(from, to) {
+  const a = String(from || '').trim()
+  const b = String(to || '').trim()
+  if (!a || !b || a === b || !prices.value[a]) return false
+  const next = { ...prices.value }
+  if (!next[b]) next[b] = next[a]
+  delete next[a]
+  prices.value = next
+  try {
+    const payload = { ...JSON.parse(JSON.stringify(next)), __version: DEFAULTS_VERSION }
+    writeJSON(KEYS.PRICES, payload)
+    try { electronApi()?.savePrices?.(payload) } catch { /* ignore */ }
+  } catch { /* ignore */ }
+  return true
+}
+
 export function usePrices() {
   function save() {
     // 深拷贝成纯对象：IPC 无法结构化克隆 Vue 响应式 Proxy（会同步抛错）
@@ -162,7 +229,13 @@ export function usePrices() {
     try { electronApi()?.savePrices?.(payload) } catch { /* ignore */ }
   }
   function resetGame(game) {
-    prices.value[game] = clone(DEFAULTS[game] || { categories: [] })
+    // game 是价格表 key（key 名）；按 key 名反查对应的内置数据
+    const byId = gamesById()
+    let builtin = null
+    for (const id of Object.keys(BUILTIN_PRICE_DATA)) {
+      if (builtinKey(id, byId) === game) builtin = BUILTIN_PRICE_DATA[id]
+    }
+    prices.value[game] = clone(builtin || { categories: [] })
     save()
   }
   function getGame(game) {

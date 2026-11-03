@@ -85,8 +85,8 @@
 :is(.theme-p3r-light, .theme-p3r-dark) .local-music {
   position: relative; isolation: isolate; overflow: hidden; background-color: var(--bg-primary);
   background-image:
-    linear-gradient(118deg, transparent 0 72%, color-mix(in srgb, var(--p3r-blue) 7%, transparent) 72% 100%),
-    linear-gradient(118deg, transparent 0 88%, color-mix(in srgb, var(--p3r-cyan) 8%, transparent) 88% 100%);
+    linear-gradient(118deg, transparent 0%, transparent 72%, color-mix(in srgb, var(--p3r-blue) 7%, transparent) 72%, color-mix(in srgb, var(--p3r-blue) 7%, transparent) 100%),
+    linear-gradient(118deg, transparent 0%, transparent 88%, color-mix(in srgb, var(--p3r-cyan) 8%, transparent) 88%, color-mix(in srgb, var(--p3r-cyan) 8%, transparent) 100%);
 }
 :is(.theme-p3r-light, .theme-p3r-dark) .local-music::before {
   content: 'RELOAD'; position: absolute; z-index: -1; right: -2%; top: 3%;
@@ -105,7 +105,7 @@
   background:
     linear-gradient(152deg,
       color-mix(in srgb, var(--p3r-blue) 7%, transparent) 0 46%,
-      transparent 46% 57%,
+      transparent 46%, transparent 57%,
       color-mix(in srgb, var(--p3r-cyan) 5%, transparent) 57% 100%);
   transform: skewX(-9deg);
   transform-origin: right center;
@@ -128,7 +128,7 @@
 :is(.theme-p3r-light, .theme-p3r-dark) .local-music .local-header::after {
   content: ''; display: block; position: absolute; left: 0; right: 0; bottom: -3px;
   width: auto; height: 3px;
-  background: linear-gradient(90deg, var(--p3r-blue) 0 62%, var(--p3r-cyan) 62% 84%, transparent 84%);
+  background: linear-gradient(90deg, var(--p3r-blue) 0%, var(--p3r-blue) 62%, var(--p3r-cyan) 62%, var(--p3r-cyan) 84%, transparent 84%);
   transform: none;
 }
 :is(.theme-p3r-light, .theme-p3r-dark) .local-music .summary-chip {

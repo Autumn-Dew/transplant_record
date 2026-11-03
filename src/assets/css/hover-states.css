@@ -253,7 +253,7 @@
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music :is(
   .rc-global-btn, .tl-entry-btn, .pd-btn, .gm-btn, .ad-sort-btn, .bp-sort-btn
 ):not(.danger):not(:disabled) {
-  background-image: linear-gradient(90deg, var(--hv-fill) 0 100%);
+  background-image: linear-gradient(90deg, var(--hv-fill) 0, var(--hv-fill) 100%);
   background-size: 0% 100%;
   background-repeat: no-repeat;
   transition: background-size var(--mv-tick, 0.12s) var(--mv-ease-mech, ease-out),

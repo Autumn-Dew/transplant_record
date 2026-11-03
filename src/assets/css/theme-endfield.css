@@ -23,18 +23,18 @@
   --font-ui: 'Bahnschrift', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
   /* 三色条：品红 / 强调色 / 薄荷绿 —— 只出现在屏幕开始与详情标题下方 */
   --ef-strip: linear-gradient(90deg,
-    var(--ef-tri-a) 0 33.33%,
-    var(--ef-tri-b) 33.33% 66.66%,
-    var(--ef-tri-c) 66.66% 100%);
+    var(--ef-tri-a) 0, var(--ef-tri-a) 33.33%,
+    var(--ef-tri-b) 33.33%, var(--ef-tri-b) 66.66%,
+    var(--ef-tri-c) 66.66%, var(--ef-tri-c) 100%);
   /* 切角：只给可点击的东西 */
   --ef-cut-corner: polygon(0 0, 100% 0, 100% calc(100% - var(--ef-cut)), calc(100% - var(--ef-cut)) 100%, 0 100%);
   /* 斜线纹：45°，墨色 6% —— 只做质底与空状态，不压正文 */
   --ef-hatch: repeating-linear-gradient(-45deg,
-    transparent 0 5px,
-    rgba(22, 22, 22, 0.06) 5px 6.5px);
+    transparent 0, transparent 5px,
+    rgba(22, 22, 22, 0.06) 5px, rgba(22, 22, 22, 0.06) 6.5px);
   --ef-hatch-light: repeating-linear-gradient(-45deg,
-    transparent 0 5px,
-    rgba(237, 237, 237, 0.08) 5px 6.5px);
+    transparent 0, transparent 5px,
+    rgba(237, 237, 237, 0.08) 5px, rgba(237, 237, 237, 0.08) 6.5px);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -177,7 +177,7 @@
 /* 主操作：静止是 chip，悬停时强调色从左擦入（280ms，机械收尾） */
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .local-toolbar > .rc-global-btn:first-child {
   background-color: var(--ef-chip);
-  background-image: linear-gradient(90deg, var(--ef-signal) 0 100%);
+  background-image: linear-gradient(90deg, var(--ef-signal) 0, var(--ef-signal) 100%);
   background-size: 0% 100%;
   background-repeat: no-repeat;
   color: var(--text-primary);
@@ -229,9 +229,9 @@
   left: 0; top: 0; bottom: 0;
   width: 3px;
   background: linear-gradient(180deg,
-    var(--ef-tri-a) 0 33.33%,
-    var(--ef-tri-b) 33.33% 66.66%,
-    var(--ef-tri-c) 66.66% 100%);
+    var(--ef-tri-a) 0, var(--ef-tri-a) 33.33%,
+    var(--ef-tri-b) 33.33%, var(--ef-tri-b) 66.66%,
+    var(--ef-tri-c) 66.66%, var(--ef-tri-c) 100%);
   pointer-events: none;
 }
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .summary-chip {
@@ -492,13 +492,13 @@
    ══════════════════════════════════════════════════════════════════ */
 :is(.theme-endfield-light) .local-music {
   background-image: repeating-linear-gradient(-45deg,
-    rgba(22, 22, 22, 0.035) 0 1px,
-    transparent 1px 7px);
+    rgba(22, 22, 22, 0.035) 0, rgba(22, 22, 22, 0.035) 1px,
+    transparent 1px, transparent 7px);
 }
 :is(.theme-endfield-dark) .local-music {
   background-image: repeating-linear-gradient(-45deg,
-    rgba(237, 237, 237, 0.03) 0 1px,
-    transparent 1px 7px);
+    rgba(237, 237, 237, 0.03) 0, rgba(237, 237, 237, 0.03) 1px,
+    transparent 1px, transparent 7px);
 }
 /* 行首：实心 + 右下切角 */
 :is(.theme-endfield-light, .theme-endfield-dark) .local-music .song-item::after {

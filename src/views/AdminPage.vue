@@ -11,16 +11,24 @@
       </span>
       <template v-if="section === 'prices'">
         <SelectBox v-model="game" :options="gameOptions" width="130px" />
-        <span class="view-tabs">
-          <span class="tl-entry-btn" :class="{ active: mode === 'preset' }" @click="mode = 'preset'">预设</span>
-          <span class="tl-entry-btn" :class="{ active: mode === 'custom' }" @click="mode = 'custom'">自定义</span>
-          <span class="tl-entry-btn" :class="{ active: mode === 'all' }" @click="mode = 'all'">全部</span>
-        </span>
         <button class="rc-global-btn" @click="addCategory">+ 类别</button>
       </template>
       <div class="toolbar-spacer"></div>
       <template v-if="section === 'prices'">
-        <button class="rc-global-btn" @click="downloadJSON">下载</button>
+        <button class="rc-global-btn" @click="exportCurrentJSON" title="导出当前选中游戏的价格表">导出当前</button>
+        <button class="rc-global-btn" @click="downloadAllJSON" title="把全部游戏的价格表导出成一份 JSON（可用于导入）">导出全部</button>
+        <button
+          class="rc-global-btn"
+          title="只导入到当前选中的游戏：可以选单游戏格式 { categories: [...] }，也可以选整份 JSON（只取当前游戏那部分）"
+          @click="pickImport('current')"
+        >导入当前</button>
+        <button
+          class="rc-global-btn"
+          title="导入整份 JSON：文件里有哪些游戏，就替换哪些游戏的价格表"
+          @click="pickImport('all')"
+        >导入全部</button>
+        <input ref="importRef" type="file" accept="application/json,.json" class="ad-import-file" @change="importJSON" />
+        <span class="ad-import-msg" v-if="importMsg">{{ importMsg }}</span>
         <button
           class="rc-global-btn"
           :class="{ 'is-dirty': dirty }"
@@ -65,14 +73,14 @@
           <button class="ad-add-item" @click="addShopInfo">+ 信息</button>
         </div>
       </div>
-      <div v-for="(cat, ci) in filteredCats" :key="ci" class="ad-cat">
+      <div v-for="(cat, ci) in allCategories" :key="ci" class="ad-cat">
         <div class="ad-cat-head">
           <span class="ad-sort">
             <button class="ad-sort-btn" @click="moveCat(cat, -1)" :disabled="catIndex(cat) === 0">↑</button>
             <button class="ad-sort-btn" @click="moveCat(cat, 1)" :disabled="catIndex(cat) === allCategories.length - 1">↓</button>
           </span>
-          <input v-model="cat.name" class="ad-inp ad-cat-name" />
-          <SelectBox v-model="cat.mode" :options="modeOptions" width="90px" />
+          <input v-model="cat.name" class="ad-inp ad-cat-name" :class="{ 'ad-inp-hidden': cat.hidden }" />
+          <button class="ad-btn-hide" :class="{ 'is-hidden': cat.hidden }" @click="toggleHidden(cat)" :title="cat.hidden ? '当前状态：已隐藏（价格一览、导出图、文案里都不出现）。点一下改为显示' : '当前状态：显示中。点一下改为隐藏（数据保留，随时可恢复）'">{{ cat.hidden ? '隐藏' : '显示' }}</button>
           <button class="ad-btn-del" @click="removeCat(cat)">×</button>
         </div>
         <div class="ad-cat-items">
@@ -83,9 +91,9 @@
             <span class="ad-col-price">价格</span>
             <span class="ad-col-unit">单位</span>
             <span class="ad-col-note">备注</span>
-            <span style="width:28px"></span>
+            <span style="width:60px"></span>
           </div>
-          <div v-for="(item, ii) in cat.items" :key="ii" class="ad-item">
+          <div v-for="(item, ii) in cat.items" :key="ii" class="ad-item" :class="{ 'ad-item-hidden': item.hidden }">
             <span class="ad-sort ad-sort-sm">
               <button class="ad-sort-btn" @click="moveItem(cat, ii, -1)" :disabled="ii === 0">↑</button>
               <button class="ad-sort-btn" @click="moveItem(cat, ii, 1)" :disabled="ii === cat.items.length - 1">↓</button>
@@ -95,6 +103,7 @@
             <input v-model.number="item.price" class="ad-inp ad-col-price" type="number" step="any" />
             <input v-model="item.unit" class="ad-inp ad-col-unit" placeholder="—" />
             <input v-model="item.note" class="ad-inp ad-col-note" placeholder="—" />
+            <button class="ad-btn-hide ad-btn-hide-sm" :class="{ 'is-hidden': item.hidden }" @click="toggleHidden(item)" :title="item.hidden ? '当前状态：已隐藏（价格一览、导出图、文案里都不出现）。点一下改为显示' : '当前状态：显示中。点一下改为隐藏（数据保留，随时可恢复）'">{{ item.hidden ? '隐藏' : '显示' }}</button>
             <button class="ad-btn-del" @click="cat.items.splice(ii, 1)">×</button>
           </div>
           <button class="ad-add-item" @click="addItem(cat)">+ 项目</button>
@@ -110,7 +119,7 @@ import { usePrices } from '@/composables/usePrices.js'
 import SelectBox from '@/components/SelectBox.vue'
 import GameSection from '@/components/GameSection.vue'
 import { gamesRepo } from '@/data/repos.js'
-import { gameOptions as buildGameOptions } from '@/domain/games.js'
+import { priceGameOptions as buildGameOptions } from '@/domain/games.js'
 import { readShopForGame, writeShopForGame, readShopHidden, writeShopHidden } from '@/data/shop-info.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
 
@@ -118,10 +127,8 @@ const { prices, save: persist } = usePrices()
 // 数据管理分为两个分类：价格数据 / 游戏与服务（原「游戏管理」页面已并入）
 const section = ref('prices')
 const game = ref('')
-const mode = ref('preset')
 // 游戏列表来自「游戏管理」目录
 const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
-const modeOptions = [{ value: 'preset', label: '预设' }, { value: 'custom', label: '自定义' }]
 
 // 入场动画（统一节奏见 composables/usePageEnter）；数据补齐统一在 src/main.js 的 hydrateAll() 里做
 const { entered } = usePageEnter()
@@ -181,10 +188,14 @@ function moveShop(i, dir) {
 }
 
 const allCategories = computed(() => prices.value[game.value]?.categories || [])
-const filteredCats = computed(() => {
-  const cats = allCategories.value
-  return mode.value === 'all' ? cats : cats.filter(c => c.mode === mode.value)
-})
+
+// 有些游戏根本没有价格表（异环、以及后来新增的游戏）：
+// 之前 allCategories 在这种情况下返回的是一个「临时空数组」，新增的类别 push 进去就丢，
+// 表现为「能点新增、但保存后什么都没有」。这里先给该游戏建一张空表。
+watch(game, (g) => {
+  if (!g) return
+  if (!prices.value[g]) prices.value[g] = { categories: [] }
+}, { immediate: true })
 function catIndex(cat) { return allCategories.value.indexOf(cat) }
 
 // ── 未保存标记 ──
@@ -212,8 +223,27 @@ function nextKey() {
   }))
   return max + 1
 }
+// 类别 / 项目级隐藏：与每日汇报的卡片隐藏同一套做法 ——
+// 只影响展示（价格一览、导出图、文案），数据完整保留，点一下就恢复。
+function toggleHidden(obj) {
+  if (!obj) return
+  if (obj.hidden) delete obj.hidden
+  else obj.hidden = true
+  dirty.value = true
+}
+
 function addCategory() {
-  allCategories.value.push({ name: '新类别', mode: mode.value === 'all' ? 'custom' : mode.value, items: [] })
+  const g = game.value
+  if (!g) return
+  // 兜底：该游戏还没有价格表时先建（与上面 watch 同样的原因）
+  if (!prices.value[g]) prices.value[g] = { categories: [] }
+  const cats = prices.value[g].categories
+  // 名字必须唯一：保存时会按名称去重，连点两次「新增类别」会只剩一个
+  const names = new Set(cats.map(c => String(c && c.name)))
+  let name = '新类别'
+  let n = 2
+  while (names.has(name)) name = `新类别 ${n++}`
+  cats.push({ name, items: [] })
 }
 function addItem(cat) {
   cat.items.push({ key: nextKey(), name: '', price: 0, unit: '', note: '' })
@@ -243,8 +273,8 @@ function saveToLocal() {
   try { persist() } catch { /* ignore */ }
   dirty.value = false
 }
-function downloadJSON() {
-  const clean = allCategories.value.map(c => ({ name: c.name, mode: c.mode, items: c.items }))
+function exportCurrentJSON() {
+  const clean = allCategories.value.map(c => ({ name: c.name, items: c.items }))
   const json = JSON.stringify({ categories: clean }, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -254,10 +284,158 @@ function downloadJSON() {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// 导出全部游戏：{"endfield": {"categories": [...]}, "ak": {...}} —— 与导入的整份格式对称
+function downloadAllJSON() {
+  const out = {}
+  for (const [g, v] of Object.entries(prices.value)) {
+    if (g === '__version' || !v || !Array.isArray(v.categories)) continue
+    out[g] = { categories: v.categories.map(c => ({ name: c.name, items: c.items })) }
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'prices-all.json'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── 导入 JSON ──
+// 两种文件都吃：
+//   1. 本页「下载」导出的单游戏格式 { categories: [...] }（或直接是数组）
+//   2. 含多个游戏的整份 JSON { endfield: { categories }, ak: { categories }, ... }
+// 导入即落盘（不用再点「保存」），同名游戏的价格表会被替换。
+const importRef = ref(null)
+const importMsg = ref('')
+let importTimer = null
+
+let importScope = 'all'
+function pickImport(scope = 'all') {
+  importScope = scope
+  if (importRef.value) importRef.value.click()
+}
+
+function normalizeImportedCats(list) {
+  return (Array.isArray(list) ? list : [])
+    // 自定义类别已取消：导入时一并丢弃，也不再写 mode
+    .filter(c => !c || c.mode !== 'custom')
+    .map(c => ({
+      name: String((c && c.name) != null ? c.name : '').trim() || '未命名类别',
+      items: (Array.isArray(c && c.items) ? c.items : [])
+        .map((it, i) => {
+          const n = Number(it && it.key)
+          return {
+            key: Number.isInteger(n) && n > 0 ? n : i + 1,
+            name: String((it && it.name) != null ? it.name : '').trim(),
+            price: Number(it && it.price) || 0,
+            unit: String((it && it.unit) != null ? it.unit : ''),
+            note: String((it && it.note) != null ? it.note : ''),
+          }
+        }),
+    }))
+    .filter(c => c.items.length || c.name)
+}
+
+function flashImport(msg) {
+  importMsg.value = msg
+  if (importTimer) clearTimeout(importTimer)
+  importTimer = setTimeout(() => { importMsg.value = '' }, 6000)
+}
+
+async function importJSON(e) {
+  const file = e && e.target && e.target.files ? e.target.files[0] : null
+  if (e && e.target) e.target.value = ''   // 允许连续选同一个文件
+  if (!file) return
+  try {
+    const raw = JSON.parse(await file.text())
+    const list = Array.isArray(raw) ? raw : null
+    const single = list || (raw && Array.isArray(raw.categories) ? raw.categories : null)
+    const multi = !single && raw && typeof raw === 'object'
+      ? Object.entries(raw).filter(([k, v]) => k !== '__version' && v && Array.isArray(v.categories))
+      : []
+
+    // 「导入当前」：不管文件是单游戏还是整份，都只改当前选中的游戏
+    if (importScope === 'current') {
+      const g = game.value
+      if (!g) throw new Error('先在左上角选一个游戏')
+      let list = single
+      if (!list && raw && raw[g] && Array.isArray(raw[g].categories)) list = raw[g].categories
+      if (!list) throw new Error(`文件里没有「${g}」的价格数据`)
+      const cats = normalizeImportedCats(list)
+      if (!cats.length) throw new Error('文件里没有可用的类别')
+      if (!prices.value[g]) prices.value[g] = { categories: [] }
+      prices.value[g].categories = cats
+      persist()
+      dirty.value = false
+      flashImport(`已导入 ${g}：${cats.length} 个类别 / ${cats.reduce((n, c) => n + c.items.length, 0)} 项`)
+      return
+    }
+
+    if (single) {
+      const cats = normalizeImportedCats(single)
+      if (!cats.length) throw new Error('文件里没有可用的类别')
+      const g = game.value
+      if (!g) throw new Error('先在左上角选一个游戏')
+      if (!prices.value[g]) prices.value[g] = { categories: [] }
+      prices.value[g].categories = cats
+      persist()
+      dirty.value = false
+      flashImport(`已导入 ${g}：${cats.length} 个类别 / ${cats.reduce((n, c) => n + c.items.length, 0)} 项`)
+      return
+    }
+
+    if (multi.length) {
+      let catsTotal = 0, gamesTotal = 0
+      for (const [g, v] of multi) {
+        const cats = normalizeImportedCats(v.categories)
+        if (!cats.length) continue
+        prices.value[g] = { categories: cats }
+        catsTotal += cats.length
+        gamesTotal++
+      }
+      if (!gamesTotal) throw new Error('文件里没有可用的类别')
+      persist()
+      dirty.value = false
+      flashImport(`已导入 ${gamesTotal} 个游戏 / ${catsTotal} 个类别`)
+      return
+    }
+
+    throw new Error('认不出来：需要 { categories: [...] } 或 { 游戏id: { categories } }')
+  } catch (err) {
+    flashImport('导入失败：' + (err && err.message ? err.message : err))
+  }
+}
 </script>
 
 <style scoped>
+/* ── 隐藏开关（参考每日汇报的隐藏/已隐藏）── */
+.ad-btn-hide {
+  flex: 0 0 auto; height: 24px; padding: 0 10px;
+  border: 1px solid var(--border-color); font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+/* 显示中：主题主色实心（开）——文字写的是当前状态，颜色也对应状态 */
+.ad-btn-hide {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff);
+  font-weight: 700; box-shadow: inset 0 0 0 2px var(--bg-secondary);
+}
+.ad-btn-hide:hover { filter: brightness(1.12); }
+/* 已隐藏：素色（关），点一下恢复 */
+.ad-btn-hide.is-hidden {
+  background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-secondary);
+  font-weight: 600; box-shadow: none;
+}
+.ad-btn-hide.is-hidden:hover { background: var(--btn-hover-bg, var(--border-color)); color: var(--btn-hover-fg, #fff); filter: none; }
+.ad-btn-hide-sm { width: 44px; padding: 0; }
+.ad-inp-hidden { opacity: 0.45; text-decoration: line-through; }
+.ad-item-hidden { opacity: 0.5; }
 .ad-body { padding: 12px 16px; }
+/* 导入：文件选择器藏起来，由「导入」按钮触发 */
+.ad-import-file { display: none; }
+.ad-import-msg {
+  font-size: 11px; font-family: var(--font-mono); opacity: 0.75;
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .ad-shop { border: 2px solid var(--border-color); margin-bottom: 16px; background: var(--bg-primary); }
 .ad-col-pos { width: 70px; flex-shrink: 0; }
 .ad-col-label { width: 120px; flex-shrink: 0; }

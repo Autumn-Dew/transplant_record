@@ -51,14 +51,14 @@ const LONE_STAR_BGS = [
     base: '#f8f5ee',
     bg:
       // 顶部档头条带
-      'linear-gradient(180deg, rgba(20,27,34,0.10) 0 34px, transparent 34px),'
+      'linear-gradient(180deg, rgba(20,27,34,0.10) 0, rgba(20,27,34,0.10) 34px, transparent 34px),'
       // 竖向索引网格
-      + 'repeating-linear-gradient(90deg, rgba(20,27,34,0.042) 0 1px, transparent 1px 46px),'
+      + 'repeating-linear-gradient(90deg, rgba(20,27,34,0.042) 0, rgba(20,27,34,0.042) 1px, transparent 1px, transparent 46px),'
       // 左侧工业橙装订线
-      + 'linear-gradient(90deg, rgba(216,121,56,0.85) 0 4px, transparent 4px),'
+      + 'linear-gradient(90deg, rgba(216,121,56,0.85) 0, rgba(216,121,56,0.85) 4px, transparent 4px),'
       // 右下角档案索引框（细边）
-      + 'linear-gradient(180deg, transparent 0 86%, rgba(113,129,138,0.18) 86% 86.4%, transparent 86.4%),'
-      + 'linear-gradient(90deg, transparent 0 10px, rgba(20,27,34,0.22) 10px 11px, transparent 11px),'
+      + 'linear-gradient(180deg, transparent 0, transparent 86%, rgba(113,129,138,0.18) 86%, rgba(113,129,138,0.18) 86.4%, transparent 86.4%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 10px, rgba(20,27,34,0.22) 10px, rgba(20,27,34,0.22) 11px, transparent 11px),'
       + 'linear-gradient(160deg, #fdfbf6 0%, #f8f5ee 62%, #f2ece0 100%)',
   },
   {
@@ -69,14 +69,14 @@ const LONE_STAR_BGS = [
     base: '#f4f6f8',
     bg:
       // 右下双轨道圆环
-      'radial-gradient(circle at 94% 98%, transparent 0 148px, rgba(16,25,35,0.17) 148px 150px, transparent 150px 206px, rgba(216,121,56,0.32) 206px 208px, transparent 208px),'
+      'radial-gradient(circle at 94% 98%, transparent 0, transparent 148px, rgba(16,25,35,0.17) 148px, rgba(16,25,35,0.17) 150px, transparent 150px, transparent 206px, rgba(216,121,56,0.32) 206px, rgba(216,121,56,0.32) 208px, transparent 208px),'
       // 45° 工程制图线
-      + 'repeating-linear-gradient(45deg, rgba(16,25,35,0.045) 0 1px, transparent 1px 26px),'
+      + 'repeating-linear-gradient(45deg, rgba(16,25,35,0.045) 0, rgba(16,25,35,0.045) 1px, transparent 1px, transparent 26px),'
       // 左上坐标原点十字（横 + 竖）
-      + 'linear-gradient(90deg, rgba(16,25,35,0.22) 0 1px, transparent 1px) 56px 56px / 26px 1px no-repeat,'
-      + 'linear-gradient(180deg, rgba(16,25,35,0.22) 0 1px, transparent 1px) 56px 56px / 1px 26px no-repeat,'
-      + 'linear-gradient(90deg, rgba(16,25,35,0.35) 0 1px, transparent 1px) calc(100% - 56px) 56px / 18px 1px no-repeat,'
-      + 'linear-gradient(180deg, rgba(16,25,35,0.35) 0 1px, transparent 1px) calc(100% - 56px) 56px / 1px 18px no-repeat,'
+      + 'linear-gradient(90deg, rgba(16,25,35,0.22) 0, rgba(16,25,35,0.22) 1px, transparent 1px) 56px 56px / 26px 1px no-repeat,'
+      + 'linear-gradient(180deg, rgba(16,25,35,0.22) 0, rgba(16,25,35,0.22) 1px, transparent 1px) 56px 56px / 1px 26px no-repeat,'
+      + 'linear-gradient(90deg, rgba(16,25,35,0.35) 0, rgba(16,25,35,0.35) 1px, transparent 1px) right 56px top 56px / 18px 1px no-repeat,'
+      + 'linear-gradient(180deg, rgba(16,25,35,0.35) 0, rgba(16,25,35,0.35) 1px, transparent 1px) right 56px top 56px / 1px 18px no-repeat,'
       + 'linear-gradient(198deg, #ffffff 0%, #f5f7f8 55%, #eceff2 100%)',
   },
   {
@@ -87,14 +87,14 @@ const LONE_STAR_BGS = [
     base: '#f3f4f3',
     bg:
       // 底部密集刻度尺
-      'repeating-linear-gradient(90deg, rgba(16,25,35,0.30) 0 1px, transparent 1px 9px) 0 100% / 100% 16px no-repeat,'
+      'repeating-linear-gradient(90deg, rgba(16,25,35,0.30) 0, rgba(16,25,35,0.30) 1px, transparent 1px, transparent 9px) 0 100% / 100% 16px no-repeat,'
       // 底部刻度基准线
       + 'linear-gradient(180deg, transparent 0 calc(100% - 17px), rgba(16,25,35,0.38) calc(100% - 17px) calc(100% - 16px), transparent calc(100% - 16px)),'
       // 右侧铭牌分区底板
-      + 'linear-gradient(90deg, transparent 0 76%, rgba(113,129,138,0.16) 76% 100%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 76%, rgba(113,129,138,0.16) 76%, rgba(113,129,138,0.16) 100%),'
       // 右上状态标签块
-      + 'linear-gradient(90deg, rgba(216,121,56,0.34) 0 100%) 76% 0 / 24% 26px no-repeat,'
-      + 'repeating-linear-gradient(180deg, rgba(16,25,35,0.28) 0 1px, transparent 1px 12px) calc(100% - 18px) 0 / 10px 100% no-repeat,'
+      + 'linear-gradient(90deg, rgba(216,121,56,0.34) 0, rgba(216,121,56,0.34) 100%) 76% 0 / 24% 26px no-repeat,'
+      + 'repeating-linear-gradient(180deg, rgba(16,25,35,0.28) 0, rgba(16,25,35,0.28) 1px, transparent 1px, transparent 12px) right 18px top 0 / 10px 100% no-repeat,'
       + 'linear-gradient(180deg, #fbfbfa 0%, #f3f4f3 70%, #eaebea 100%)',
   },
   {
@@ -104,10 +104,10 @@ const LONE_STAR_BGS = [
     style: 'lone-star',
     base: '#f5f7f7',
     bg:
-      'linear-gradient(90deg, rgba(20,27,34,0.055) 0 1px, transparent 1px) 0 0 / 22px 22px repeat,'
-      + 'linear-gradient(180deg, rgba(20,27,34,0.055) 0 1px, transparent 1px) 0 0 / 22px 22px repeat,'
-      + 'linear-gradient(90deg, rgba(216,121,56,0.8) 0 3px, transparent 3px),'
-      + 'linear-gradient(180deg, rgba(20,27,34,0.10) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
+      'linear-gradient(90deg, rgba(20,27,34,0.055) 0, rgba(20,27,34,0.055) 1px, transparent 1px) 0 0 / 22px 22px repeat,'
+      + 'linear-gradient(180deg, rgba(20,27,34,0.055) 0, rgba(20,27,34,0.055) 1px, transparent 1px) 0 0 / 22px 22px repeat,'
+      + 'linear-gradient(90deg, rgba(216,121,56,0.8) 0, rgba(216,121,56,0.8) 3px, transparent 3px),'
+      + 'linear-gradient(180deg, rgba(20,27,34,0.10) 0, rgba(20,27,34,0.10) 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
       + 'linear-gradient(180deg, #fbfcfc 0%, #f5f7f7 100%)',
   },
   {
@@ -118,10 +118,10 @@ const LONE_STAR_BGS = [
     base: '#f4f6f5',
     bg:
       'linear-gradient(180deg, transparent 0 calc(100% - 26px), rgba(20,27,34,0.32) calc(100% - 26px) calc(100% - 25px), transparent calc(100% - 25px)),'
-      + 'repeating-linear-gradient(90deg, rgba(20,27,34,0.20) 0 1px, transparent 1px 40px) 0 calc(100% - 26px) / 100% 10px no-repeat,'
-      + 'linear-gradient(90deg, rgba(20,27,34,0.16) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
-      + 'radial-gradient(circle at 16% calc(100% - 26px), rgba(216,121,56,0.85) 0 4px, transparent 4.5px),'
-      + 'radial-gradient(circle at 52% calc(100% - 26px), rgba(216,121,56,0.45) 0 3px, transparent 3.5px),'
+      + 'repeating-linear-gradient(90deg, rgba(20,27,34,0.20) 0, rgba(20,27,34,0.20) 1px, transparent 1px, transparent 40px) left 0 bottom 26px / 100% 10px no-repeat,'
+      + 'linear-gradient(90deg, rgba(20,27,34,0.16) 0, rgba(20,27,34,0.16) 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
+      + 'radial-gradient(circle at 16% calc(100% - 26px), rgba(216,121,56,0.85) 0, rgba(216,121,56,0.85) 4px, transparent 4.5px),'
+      + 'radial-gradient(circle at 52% calc(100% - 26px), rgba(216,121,56,0.45) 0, rgba(216,121,56,0.45) 3px, transparent 3.5px),'
       + 'linear-gradient(180deg, #fbfbfa 0%, #f4f6f5 100%)',
   },
   {
@@ -133,7 +133,7 @@ const LONE_STAR_BGS = [
     bg:
       'linear-gradient(90deg, transparent 0 calc(100% - 36px), rgba(20,27,34,0.42) calc(100% - 36px) calc(100% - 35px), transparent calc(100% - 35px)) 0 0 / 100% 36px no-repeat,'
       + 'linear-gradient(180deg, transparent 0 calc(100% - 36px), rgba(20,27,34,0.42) calc(100% - 36px) calc(100% - 35px), transparent calc(100% - 35px)) 0 0 / 36px 100% no-repeat,'
-      + 'linear-gradient(90deg, rgba(216,121,56,0.75) 0 100%) 0 100% / 14px 14px no-repeat,'
+      + 'linear-gradient(90deg, rgba(216,121,56,0.75) 0, rgba(216,121,56,0.75) 100%) 0 100% / 14px 14px no-repeat,'
       + 'linear-gradient(180deg, #fbfbfa 0%, #f6f7f6 100%)',
   },
   {
@@ -143,9 +143,9 @@ const LONE_STAR_BGS = [
     style: 'lone-star',
     base: '#f5f6f4',
     bg:
-      'radial-gradient(circle at 86% 88%, transparent 0 44px, rgba(20,27,34,0.18) 44px 45px, transparent 45px 52px, rgba(216,121,56,0.5) 52px 53px, transparent 53px),'
-      + 'repeating-linear-gradient(-45deg, rgba(20,27,34,0.045) 0 1px, transparent 1px 9px),'
-      + 'linear-gradient(90deg, rgba(20,27,34,0.28) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
+      'radial-gradient(circle at 86% 88%, transparent 0, transparent 44px, rgba(20,27,34,0.18) 44px, rgba(20,27,34,0.18) 45px, transparent 45px, transparent 52px, rgba(216,121,56,0.5) 52px, rgba(216,121,56,0.5) 53px, transparent 53px),'
+      + 'repeating-linear-gradient(-45deg, rgba(20,27,34,0.045) 0, rgba(20,27,34,0.045) 1px, transparent 1px, transparent 9px),'
+      + 'linear-gradient(90deg, rgba(20,27,34,0.28) 0, rgba(20,27,34,0.28) 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
       + 'linear-gradient(180deg, #fafbf9 0%, #f5f6f4 100%)',
   },
   {
@@ -155,9 +155,9 @@ const LONE_STAR_BGS = [
     style: 'lone-star',
     base: '#101923',
     bg:
-      'linear-gradient(90deg, rgba(232,226,211,0.06) 0 1px, transparent 1px) 0 0 / 24px 24px repeat,'
-      + 'linear-gradient(180deg, rgba(232,226,211,0.06) 0 1px, transparent 1px) 0 0 / 24px 24px repeat,'
-      + 'linear-gradient(90deg, rgba(216,121,56,0.55) 0 3px, transparent 3px),'
+      'linear-gradient(90deg, rgba(232,226,211,0.06) 0, rgba(232,226,211,0.06) 1px, transparent 1px) 0 0 / 24px 24px repeat,'
+      + 'linear-gradient(180deg, rgba(232,226,211,0.06) 0, rgba(232,226,211,0.06) 1px, transparent 1px) 0 0 / 24px 24px repeat,'
+      + 'linear-gradient(90deg, rgba(216,121,56,0.55) 0, rgba(216,121,56,0.55) 3px, transparent 3px),'
       + 'linear-gradient(180deg, transparent 0 calc(100% - 1px), rgba(232,226,211,0.18) calc(100% - 1px) 100%),'
       + 'linear-gradient(180deg, #16222E 0%, #101923 100%)',
   },
@@ -173,12 +173,12 @@ const P3R_BGS = [
     base: '#f2f7fd',
     bg:
       // 左侧大面积斜切蓝块
-      'linear-gradient(118deg, rgba(18,100,200,0.17) 0 25%, transparent 25% 100%),'
+      'linear-gradient(118deg, rgba(18,100,200,0.17) 0, rgba(18,100,200,0.17) 25%, transparent 25%, transparent 100%),'
       // 明黄细切线（贴着斜边）
-      + 'linear-gradient(118deg, transparent 0 25.2%, rgba(245,216,61,0.9) 25.2% 25.9%, transparent 25.9%),'
+      + 'linear-gradient(118deg, transparent 0, transparent 25.2%, rgba(245,216,61,0.9) 25.2%, rgba(245,216,61,0.9) 25.9%, transparent 25.9%),'
       // 右下斜切青蓝块（与左侧错位）
-      + 'linear-gradient(118deg, transparent 0 64%, rgba(40,184,242,0.15) 64% 100%),'
-      + 'linear-gradient(118deg, transparent 0 78.2%, rgba(18,100,200,0.85) 78.2% 78.8%, transparent 78.8%),'
+      + 'linear-gradient(118deg, transparent 0, transparent 64%, rgba(40,184,242,0.15) 64%, rgba(40,184,242,0.15) 100%),'
+      + 'linear-gradient(118deg, transparent 0, transparent 78.2%, rgba(18,100,200,0.85) 78.2%, rgba(18,100,200,0.85) 78.8%, transparent 78.8%),'
       + 'linear-gradient(155deg, #ffffff 0%, #f2f7fd 100%)',
   },
   {
@@ -189,13 +189,13 @@ const P3R_BGS = [
     base: '#f0f6fc',
     bg:
       // 外环轨迹
-      'radial-gradient(circle at 84% 10%, transparent 0 86px, rgba(18,100,200,0.20) 86px 89px, transparent 89px 130px, rgba(18,100,200,0.12) 130px 132px, transparent 132px),'
+      'radial-gradient(circle at 84% 10%, transparent 0, transparent 86px, rgba(18,100,200,0.20) 86px, rgba(18,100,200,0.20) 89px, transparent 89px, transparent 130px, rgba(18,100,200,0.12) 130px, rgba(18,100,200,0.12) 132px, transparent 132px),'
       // 月相（实心圆 + 冷白切口）
-      + 'radial-gradient(circle at 84% 10%, rgba(40,184,242,0.24) 0 40%, transparent 40.5%),'
-      + 'radial-gradient(circle at 78% 6%, #ffffff 0 30%, transparent 30.5%),'
+      + 'radial-gradient(circle at 84% 10%, rgba(40,184,242,0.24) 0, rgba(40,184,242,0.24) 40%, transparent 40.5%),'
+      + 'radial-gradient(circle at 78% 6%, #ffffff 0, #ffffff 30%, transparent 30.5%),'
       // 底部时间刻度
-      + 'repeating-linear-gradient(90deg, rgba(7,27,58,0.12) 0 1px, transparent 1px 12px) 0 100% / 100% 12px no-repeat,'
-      + 'repeating-linear-gradient(90deg, rgba(7,27,58,0.18) 0 1px, transparent 1px 6px) 0 100% / 100% 6px no-repeat,'
+      + 'repeating-linear-gradient(90deg, rgba(7,27,58,0.12) 0, rgba(7,27,58,0.12) 1px, transparent 1px, transparent 12px) 0 100% / 100% 12px no-repeat,'
+      + 'repeating-linear-gradient(90deg, rgba(7,27,58,0.18) 0, rgba(7,27,58,0.18) 1px, transparent 1px, transparent 6px) 0 100% / 100% 6px no-repeat,'
       + 'linear-gradient(200deg, #ffffff 0%, #f1f7fc 58%, #e7effa 100%)',
   },
   {
@@ -206,16 +206,16 @@ const P3R_BGS = [
     base: '#f4f7fb',
     bg:
       // 左上蓝色横条分区
-      'linear-gradient(90deg, rgba(18,100,200,0.19) 0 38%, transparent 38%) 0 0 / 100% 24% no-repeat,'
+      'linear-gradient(90deg, rgba(18,100,200,0.19) 0, rgba(18,100,200,0.19) 38%, transparent 38%) 0 0 / 100% 24% no-repeat,'
       // 右下琥珀斜块（与主题的动作色同一个）
-      + 'linear-gradient(105deg, transparent 0 52%, rgba(255,176,31,0.42) 52% 100%) 0 100% / 100% 22% no-repeat,'
+      + 'linear-gradient(105deg, transparent 0, transparent 52%, rgba(255,176,31,0.42) 52%, rgba(255,176,31,0.42) 100%) 0 100% / 100% 22% no-repeat,'
       // 62% 处一道竖向接缝：拼贴的「纸与纸之间」
-      + 'linear-gradient(90deg, transparent 0 62%, rgba(7,27,58,0.16) 62% 62.3%, transparent 62.3%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 62%, rgba(7,27,58,0.16) 62%, rgba(7,27,58,0.16) 62.3%, transparent 62.3%),'
       // 底部青蓝细带
-      + 'linear-gradient(0deg, rgba(40,184,242,0.16) 0 100%) 0 100% / 100% 7% no-repeat,'
+      + 'linear-gradient(0deg, rgba(40,184,242,0.16) 0, rgba(40,184,242,0.16) 100%) 0 100% / 100% 7% no-repeat,'
       // 右缘竖向深蓝指示条
       + 'linear-gradient(90deg, transparent 0 calc(100% - 6px), rgba(7,27,58,0.30) calc(100% - 6px) 100%),'
-      + 'linear-gradient(90deg, transparent 0 82%, rgba(18,100,200,0.45) 82% 100%) 0 0 / 100% 18px no-repeat,'
+      + 'linear-gradient(90deg, transparent 0, transparent 82%, rgba(18,100,200,0.45) 82%, rgba(18,100,200,0.45) 100%) 0 0 / 100% 18px no-repeat,'
       + 'linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%)',
   },
   {
@@ -225,9 +225,9 @@ const P3R_BGS = [
     style: 'p3r',
     base: '#f3f7fd',
     bg:
-      'linear-gradient(45deg, rgba(18,100,200,0.16) 0 38%, transparent 38% 100%),'
-      + 'linear-gradient(45deg, transparent 0 38.4%, rgba(245,216,61,0.85) 38.4% 39%, transparent 39%),'
-      + 'linear-gradient(45deg, transparent 0 72%, rgba(40,184,242,0.14) 72% 100%),'
+      'linear-gradient(45deg, rgba(18,100,200,0.16) 0, rgba(18,100,200,0.16) 38%, transparent 38%, transparent 100%),'
+      + 'linear-gradient(45deg, transparent 0, transparent 38.4%, rgba(245,216,61,0.85) 38.4%, rgba(245,216,61,0.85) 39%, transparent 39%),'
+      + 'linear-gradient(45deg, transparent 0, transparent 72%, rgba(40,184,242,0.14) 72%, rgba(40,184,242,0.14) 100%),'
       + 'linear-gradient(180deg, #ffffff 0%, #f3f7fd 100%)',
   },
 ]
@@ -242,13 +242,13 @@ const ENDFIELD_BGS = [
     base: '#f4f4f2',
     bg:
       // 顶边三色条（品红 / lime / 薄荷绿）—— 屏幕开始的位置
-      'linear-gradient(90deg, rgba(255,0,240,0.85) 0 12%, rgba(184,255,61,0.9) 12% 24%, rgba(0,255,162,0.85) 24% 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
+      'linear-gradient(90deg, rgba(255,0,240,0.85) 0, rgba(255,0,240,0.85) 12%, rgba(184,255,61,0.9) 12%, rgba(184,255,61,0.9) 24%, rgba(0,255,162,0.85) 24%, rgba(0,255,162,0.85) 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
       // 45° 工业细斜线纹
-      + 'repeating-linear-gradient(-45deg, rgba(22,22,22,0.05) 0 1px, transparent 1px 6.5px),'
+      + 'repeating-linear-gradient(-45deg, rgba(22,22,22,0.05) 0, rgba(22,22,22,0.05) 1px, transparent 1px, transparent 6.5px),'
       // 右缘墨色分区线
       + 'linear-gradient(90deg, transparent 0 calc(100% - 96px), rgba(22,22,22,0.10) calc(100% - 96px)),'
       // 右下角记录区细线
-      + 'linear-gradient(180deg, transparent 0 88%, rgba(22,22,22,0.12) 88% 88.3%, transparent 88.3%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 88%, rgba(22,22,22,0.12) 88%, rgba(22,22,22,0.12) 88.3%, transparent 88.3%),'
       + 'linear-gradient(180deg, #f8f8f6 0%, #f4f4f2 60%, #ededeb 100%)',
   },
   {
@@ -259,13 +259,13 @@ const ENDFIELD_BGS = [
     base: '#191919',
     bg:
       // 顶边三色条（深色底上同样保留，只是更亮一档）
-      'linear-gradient(90deg, rgba(255,0,240,0.75) 0 12%, rgba(184,255,61,0.85) 12% 24%, rgba(0,255,162,0.75) 24% 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
+      'linear-gradient(90deg, rgba(255,0,240,0.75) 0, rgba(255,0,240,0.75) 12%, rgba(184,255,61,0.85) 12%, rgba(184,255,61,0.85) 24%, rgba(0,255,162,0.75) 24%, rgba(0,255,162,0.75) 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
       // 浅墨色斜线纹（深底上才看得见）
-      + 'repeating-linear-gradient(-45deg, rgba(237,237,237,0.055) 0 1px, transparent 1px 6.5px),'
+      + 'repeating-linear-gradient(-45deg, rgba(237,237,237,0.055) 0, rgba(237,237,237,0.055) 1px, transparent 1px, transparent 6.5px),'
       // 右缘 lime 细分区
-      + 'linear-gradient(90deg, transparent 0 82%, rgba(184,255,61,0.10) 82%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 82%, rgba(184,255,61,0.10) 82%),'
       // 底部数据线
-      + 'linear-gradient(180deg, transparent 0 86%, rgba(237,237,237,0.14) 86% 86.3%, transparent 86.3%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 86%, rgba(237,237,237,0.14) 86%, rgba(237,237,237,0.14) 86.3%, transparent 86.3%),'
       + 'linear-gradient(180deg, #202020 0%, #191919 55%, #131313 100%)',
   },
   {
@@ -276,14 +276,14 @@ const ENDFIELD_BGS = [
     base: '#f2f2ef',
     bg:
       // 顶边三色条
-      'linear-gradient(90deg, rgba(255,0,240,0.75) 0 10%, rgba(184,255,61,0.85) 10% 20%, rgba(0,255,162,0.75) 20% 30%, transparent 30%) 0 0 / 100% 3px no-repeat,'
+      'linear-gradient(90deg, rgba(255,0,240,0.75) 0, rgba(255,0,240,0.75) 10%, rgba(184,255,61,0.85) 10%, rgba(184,255,61,0.85) 20%, rgba(0,255,162,0.75) 20%, rgba(0,255,162,0.75) 30%, transparent 30%) 0 0 / 100% 3px no-repeat,'
       // 工程坐标网格（竖向 + 横向细线，24px 一格）
-      + 'linear-gradient(90deg, rgba(22,22,22,0.07) 0 1px, transparent 1px) 0 0 / 24px 24px repeat,'
-      + 'linear-gradient(180deg, rgba(22,22,22,0.07) 0 1px, transparent 1px) 0 0 / 24px 24px repeat,'
+      + 'linear-gradient(90deg, rgba(22,22,22,0.07) 0, rgba(22,22,22,0.07) 1px, transparent 1px) 0 0 / 24px 24px repeat,'
+      + 'linear-gradient(180deg, rgba(22,22,22,0.07) 0, rgba(22,22,22,0.07) 1px, transparent 1px) 0 0 / 24px 24px repeat,'
       // 右缘编号栏
       + 'linear-gradient(90deg, transparent 0 calc(100% - 120px), rgba(22,22,22,0.12) calc(100% - 120px)),'
       // 右下角标题框
-      + 'linear-gradient(180deg, transparent 0 90%, rgba(22,22,22,0.10) 90% 90.3%, transparent 90.3%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 90%, rgba(22,22,22,0.10) 90%, rgba(22,22,22,0.10) 90.3%, transparent 90.3%),'
       + 'linear-gradient(165deg, #f6f6f3 0%, #f2f2ef 60%, #ececea 100%)',
   },
   {
@@ -294,14 +294,14 @@ const ENDFIELD_BGS = [
     base: '#f3f4f2',
     bg:
       // 顶边三色条（只占开头 24%，不再横贯整页）
-      'linear-gradient(90deg, rgba(255,0,240,0.7) 0 8%, rgba(184,255,61,0.85) 8% 16%, rgba(0,255,162,0.7) 16% 24%, transparent 24%) 0 0 / 100% 3px no-repeat,'
+      'linear-gradient(90deg, rgba(255,0,240,0.7) 0, rgba(255,0,240,0.7) 8%, rgba(184,255,61,0.85) 8%, rgba(184,255,61,0.85) 16%, rgba(0,255,162,0.7) 16%, rgba(0,255,162,0.7) 24%, transparent 24%) 0 0 / 100% 3px no-repeat,'
       // 左侧导轨：深灰底面
-      + 'linear-gradient(90deg, rgba(22,22,22,0.14) 0 12px, transparent 12px),'
+      + 'linear-gradient(90deg, rgba(22,22,22,0.14) 0, rgba(22,22,22,0.14) 12px, transparent 12px),'
       // 导轨上的短刻度（每 14px）
-      + 'repeating-linear-gradient(180deg, rgba(22,22,22,0.34) 0 1px, transparent 1px 14px) 0 0 / 12px 100% no-repeat,'
+      + 'repeating-linear-gradient(180deg, rgba(22,22,22,0.34) 0, rgba(22,22,22,0.34) 1px, transparent 1px, transparent 14px) 0 0 / 12px 100% no-repeat,'
       // 底部主轴：每 50px 一条主刻度（长刻度，与导轨区分）
-      + 'repeating-linear-gradient(90deg, rgba(22,22,22,0.26) 0 1px, transparent 1px 50px) 0 100% / 100% 12px no-repeat,'
-      + 'linear-gradient(180deg, rgba(22,22,22,0.32) 0 1px, transparent 1px) 0 calc(100% - 12px) / 100% 1px no-repeat,'
+      + 'repeating-linear-gradient(90deg, rgba(22,22,22,0.26) 0, rgba(22,22,22,0.26) 1px, transparent 1px, transparent 50px) 0 100% / 100% 12px no-repeat,'
+      + 'linear-gradient(180deg, rgba(22,22,22,0.32) 0, rgba(22,22,22,0.32) 1px, transparent 1px) left 0 bottom 12px / 100% 1px no-repeat,'
       + 'linear-gradient(180deg, #fafaf8 0%, #f3f4f2 100%)',
   },
 ]
@@ -317,13 +317,13 @@ const SWISS_BGS = [
     base: '#f2efe9',
     bg:
       // 12 栏竖向细线（每栏 8.3333%）
-      'repeating-linear-gradient(90deg, rgba(17,17,17,0.10) 0 1px, transparent 1px 8.3333%),'
+      'repeating-linear-gradient(90deg, rgba(17,17,17,0.10) 0, rgba(17,17,17,0.10) 1px, transparent 1px, transparent 8.3333%),'
       // 基线网格：每 24px 一条横线（版式稿的骨架）
-      + 'repeating-linear-gradient(180deg, rgba(17,17,17,0.055) 0 1px, transparent 1px 24px),'
+      + 'repeating-linear-gradient(180deg, rgba(17,17,17,0.055) 0, rgba(17,17,17,0.055) 1px, transparent 1px, transparent 24px),'
       // 顶部墨线（版面开始，2px 更明确）
-      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 2px, transparent 2px) 0 0 / 100% 100% no-repeat,'
+      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0, rgba(17,17,17,0.85) 2px, transparent 2px) 0 0 / 100% 100% no-repeat,'
       // 左上角红色角标（正方形，不是细条）
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 18px 18px no-repeat,'
+      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0, rgba(218,41,28,0.9) 100%) 0 0 / 18px 18px no-repeat,'
       + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
   },
   {
@@ -334,15 +334,15 @@ const SWISS_BGS = [
     base: '#f2efe9',
     bg:
       // 只画出左侧三分栏的竖线：留白由缺线表达
-      'repeating-linear-gradient(90deg, rgba(17,17,17,0.12) 0 1px, transparent 1px 8.3333%) 0 0 / 33.3333% 100% no-repeat,'
+      'repeating-linear-gradient(90deg, rgba(17,17,17,0.12) 0, rgba(17,17,17,0.12) 1px, transparent 1px, transparent 8.3333%) 0 0 / 33.3333% 100% no-repeat,'
       // 右侧一条竖向分区线
       + 'linear-gradient(90deg, transparent 0 calc(100% - 1px), rgba(17,17,17,0.35) calc(100% - 1px) 100%),'
       // 底部 1/3 的极淡灰面：把「留白」画成一块面，而不只是没有线
       + 'linear-gradient(180deg, transparent 0 calc(100% - 33.3333%), rgba(17,17,17,0.035) calc(100% - 33.3333%) 100%),'
       // 顶部墨线
-      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
+      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0, rgba(17,17,17,0.85) 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
       // 红线拉满左侧那一栏（33.3333%），和栏线对齐
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 33.3333% 3px no-repeat,'
+      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0, rgba(218,41,28,0.9) 100%) 0 0 / 33.3333% 3px no-repeat,'
       + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
   },
   {
@@ -353,13 +353,13 @@ const SWISS_BGS = [
     base: '#111111',
     bg:
       // 12 栏细线（深底上换成米白 10%）
-      'repeating-linear-gradient(90deg, rgba(242,239,233,0.10) 0 1px, transparent 1px 8.3333%),'
+      'repeating-linear-gradient(90deg, rgba(242,239,233,0.10) 0, rgba(242,239,233,0.10) 1px, transparent 1px, transparent 8.3333%),'
       // 顶部米白细线（2px，反白版的版面线）
-      + 'linear-gradient(180deg, rgba(242,239,233,0.9) 0 2px, transparent 2px) 0 0 / 100% 100% no-repeat,'
+      + 'linear-gradient(180deg, rgba(242,239,233,0.9) 0, rgba(242,239,233,0.9) 2px, transparent 2px) 0 0 / 100% 100% no-repeat,'
       // 左上角红色角标
-      + 'linear-gradient(90deg, rgba(218,41,28,0.92) 0 100%) 0 0 / 18px 18px no-repeat,'
+      + 'linear-gradient(90deg, rgba(218,41,28,0.92) 0, rgba(218,41,28,0.92) 100%) 0 0 / 18px 18px no-repeat,'
       // 右下角红色页码块（索引感）
-      + 'linear-gradient(90deg, rgba(218,41,28,0.75) 0 100%) calc(100% - 26px) calc(100% - 26px) / 26px 3px no-repeat,'
+      + 'linear-gradient(90deg, rgba(218,41,28,0.75) 0, rgba(218,41,28,0.75) 100%) right 26px bottom 26px / 26px 3px no-repeat,'
       + 'linear-gradient(180deg, #161616 0%, #111111 100%)',
   },
   {
@@ -372,13 +372,13 @@ const SWISS_BGS = [
       // 中缝：细-粗-细的三层（印刷版式的中缝，比一条线更像版面）
       'linear-gradient(90deg, transparent 0 calc(50% - 2px), rgba(17,17,17,0.30) calc(50% - 2px) calc(50% - 1px), rgba(17,17,17,0.65) calc(50% - 1px) calc(50% + 1px), rgba(17,17,17,0.30) calc(50% + 1px) calc(50% + 2px), transparent calc(50% + 2px)),'
       // 两栏各自的 12 栏细线
-      + 'repeating-linear-gradient(90deg, rgba(17,17,17,0.08) 0 1px, transparent 1px 8.3333%),'
+      + 'repeating-linear-gradient(90deg, rgba(17,17,17,0.08) 0, rgba(17,17,17,0.08) 1px, transparent 1px, transparent 8.3333%),'
       // 顶部墨线
-      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
+      + 'linear-gradient(180deg, rgba(17,17,17,0.85) 0, rgba(17,17,17,0.85) 1px, transparent 1px) 0 0 / 100% 100% no-repeat,'
       // 底部基线（版心结束）
       + 'linear-gradient(180deg, transparent 0 calc(100% - 24px), rgba(17,17,17,0.35) calc(100% - 24px) calc(100% - 23px), transparent calc(100% - 23px)),'
       // 顶部红色标尺
-      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0 100%) 0 0 / 26px 3px no-repeat,'
+      + 'linear-gradient(90deg, rgba(218,41,28,0.9) 0, rgba(218,41,28,0.9) 100%) 0 0 / 26px 3px no-repeat,'
       + 'linear-gradient(180deg, #f6f3ed 0%, #f2efe9 100%)',
   },
 ]
@@ -395,14 +395,14 @@ const STIJL_BGS = [
     base: '#f4f1ea',
     bg:
       // 顶部红带（落在上留白里，不压标题）
-      'linear-gradient(180deg, rgba(208,48,42,0.94) 0 1.4%, transparent 1.4%),'
+      'linear-gradient(180deg, rgba(208,48,42,0.94) 0, rgba(208,48,42,0.94) 1.4%, transparent 1.4%),'
       // 上边粗线
-      + 'linear-gradient(180deg, transparent 0 1.4%, rgba(17,17,17,0.94) 1.4% 2%, transparent 2%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 1.4%, rgba(17,17,17,0.94) 1.4%, rgba(17,17,17,0.94) 2%, transparent 2%),'
       // 左缘粗线
-      + 'linear-gradient(90deg, rgba(17,17,17,0.94) 0 1.2%, transparent 1.2%),'
+      + 'linear-gradient(90deg, rgba(17,17,17,0.94) 0, rgba(17,17,17,0.94) 1.2%, transparent 1.2%),'
       // 右下蓝角（横 + 竖两条贴边）
-      + 'linear-gradient(180deg, transparent 0 98%, rgba(29,63,140,0.9) 98% 100%),'
-      + 'linear-gradient(90deg, transparent 0 98.4%, rgba(29,63,140,0.9) 98.4% 100%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 98%, rgba(29,63,140,0.9) 98%, rgba(29,63,140,0.9) 100%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 98.4%, rgba(29,63,140,0.9) 98.4%, rgba(29,63,140,0.9) 100%),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -412,10 +412,10 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#f4f1ea',
     bg:
-      'linear-gradient(90deg, rgba(235,194,38,0.9) 0 1.4%, transparent 1.4%),'
-      + 'linear-gradient(90deg, transparent 0 98.6%, rgba(208,48,42,0.9) 98.6% 100%),'
-      + 'linear-gradient(180deg, rgba(17,17,17,0.94) 0 1.1%, transparent 1.1%),'
-      + 'linear-gradient(180deg, transparent 0 98.9%, rgba(17,17,17,0.94) 98.9% 100%),'
+      'linear-gradient(90deg, rgba(235,194,38,0.9) 0, rgba(235,194,38,0.9) 1.4%, transparent 1.4%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 98.6%, rgba(208,48,42,0.9) 98.6%, rgba(208,48,42,0.9) 100%),'
+      + 'linear-gradient(180deg, rgba(17,17,17,0.94) 0, rgba(17,17,17,0.94) 1.1%, transparent 1.1%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 98.9%, rgba(17,17,17,0.94) 98.9%, rgba(17,17,17,0.94) 100%),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -425,9 +425,9 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#f4f1ea',
     bg:
-      'linear-gradient(180deg, rgba(17,17,17,0.94) 0 1.6%, transparent 1.6% calc(100% - 1.6%), rgba(17,17,17,0.94) calc(100% - 1.6%) 100%),'
-      + 'linear-gradient(90deg, rgba(29,63,140,0.9) 0 1.2%, transparent 1.2%),'
-      + 'linear-gradient(90deg, transparent 0 99.2%, rgba(235,194,38,0.9) 99.2% 100%),'
+      'linear-gradient(180deg, rgba(17,17,17,0.94) 0, rgba(17,17,17,0.94) 1.6%, transparent 1.6% calc(100% - 1.6%), rgba(17,17,17,0.94) calc(100% - 1.6%) 100%),'
+      + 'linear-gradient(90deg, rgba(29,63,140,0.9) 0, rgba(29,63,140,0.9) 1.2%, transparent 1.2%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 99.2%, rgba(235,194,38,0.9) 99.2%, rgba(235,194,38,0.9) 100%),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -437,11 +437,11 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#f4f1ea',
     bg:
-      'linear-gradient(90deg, rgba(208,48,42,0.94) 0 2.2%, transparent 2.2%),'
-      + 'linear-gradient(180deg, rgba(208,48,42,0.94) 0 1.6%, transparent 1.6%),'
-      + 'linear-gradient(90deg, transparent 0 97.8%, rgba(235,194,38,0.9) 97.8% 100%),'
-      + 'linear-gradient(180deg, transparent 0 98.4%, rgba(235,194,38,0.9) 98.4% 100%),'
-      + 'linear-gradient(180deg, transparent 0 0.6%, rgba(17,17,17,0.6) 0.6% 0.9%, transparent 0.9% calc(100% - 0.9%), rgba(17,17,17,0.6) calc(100% - 0.9%) calc(100% - 0.6%), transparent calc(100% - 0.6%)),'
+      'linear-gradient(90deg, rgba(208,48,42,0.94) 0, rgba(208,48,42,0.94) 2.2%, transparent 2.2%),'
+      + 'linear-gradient(180deg, rgba(208,48,42,0.94) 0, rgba(208,48,42,0.94) 1.6%, transparent 1.6%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 97.8%, rgba(235,194,38,0.9) 97.8%, rgba(235,194,38,0.9) 100%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 98.4%, rgba(235,194,38,0.9) 98.4%, rgba(235,194,38,0.9) 100%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 0.6%, rgba(17,17,17,0.6) 0.6%, rgba(17,17,17,0.6) 0.9%, transparent 0.9% calc(100% - 0.9%), rgba(17,17,17,0.6) calc(100% - 0.9%) calc(100% - 0.6%), transparent calc(100% - 0.6%)),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -451,10 +451,10 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#f4f1ea',
     bg:
-      'linear-gradient(180deg, rgba(235,194,38,0.9) 0 1.4%, transparent 1.4%),'
-      + 'linear-gradient(180deg, transparent 0 1.4%, rgba(17,17,17,0.94) 1.4% 1.9%, transparent 1.9%),'
-      + 'linear-gradient(90deg, rgba(208,48,42,0.94) 0 1.2%, transparent 1.2%),'
-      + 'linear-gradient(180deg, transparent 0 99%, rgba(17,17,17,0.94) 99% 100%),'
+      'linear-gradient(180deg, rgba(235,194,38,0.9) 0, rgba(235,194,38,0.9) 1.4%, transparent 1.4%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 1.4%, rgba(17,17,17,0.94) 1.4%, rgba(17,17,17,0.94) 1.9%, transparent 1.9%),'
+      + 'linear-gradient(90deg, rgba(208,48,42,0.94) 0, rgba(208,48,42,0.94) 1.2%, transparent 1.2%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 99%, rgba(17,17,17,0.94) 99%, rgba(17,17,17,0.94) 100%),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -464,10 +464,10 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#f4f1ea',
     bg:
-      'linear-gradient(90deg, transparent 0 97.6%, rgba(29,63,140,0.9) 97.6% 100%),'
-      + 'linear-gradient(90deg, transparent 0 97.1%, rgba(17,17,17,0.94) 97.1% 97.6%, transparent 97.6%),'
-      + 'linear-gradient(90deg, rgba(235,194,38,0.9) 0 1.6%, transparent 1.6%),'
-      + 'linear-gradient(180deg, rgba(235,194,38,0.9) 0 1.2%, transparent 1.2%),'
+      'linear-gradient(90deg, transparent 0, transparent 97.6%, rgba(29,63,140,0.9) 97.6%, rgba(29,63,140,0.9) 100%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 97.1%, rgba(17,17,17,0.94) 97.1%, rgba(17,17,17,0.94) 97.6%, transparent 97.6%),'
+      + 'linear-gradient(90deg, rgba(235,194,38,0.9) 0, rgba(235,194,38,0.9) 1.6%, transparent 1.6%),'
+      + 'linear-gradient(180deg, rgba(235,194,38,0.9) 0, rgba(235,194,38,0.9) 1.2%, transparent 1.2%),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -477,9 +477,9 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#f4f1ea',
     bg:
-      'linear-gradient(90deg, rgba(17,17,17,0.94) 0 1%, transparent 1% 1.8%, rgba(208,48,42,0.94) 1.8% 2.8%, transparent 2.8% 3.6%, rgba(235,194,38,0.94) 3.6% 4.6%, transparent 4.6%),'
-      + 'linear-gradient(180deg, transparent 0 1.6%, rgba(17,17,17,0.94) 1.6% 2.1%, transparent 2.1%),'
-      + 'linear-gradient(90deg, transparent 0 99%, rgba(29,63,140,0.85) 99% 100%),'
+      'linear-gradient(90deg, rgba(17,17,17,0.94) 0, rgba(17,17,17,0.94) 1%, transparent 1%, transparent 1.8%, rgba(208,48,42,0.94) 1.8%, rgba(208,48,42,0.94) 2.8%, transparent 2.8%, transparent 3.6%, rgba(235,194,38,0.94) 3.6%, rgba(235,194,38,0.94) 4.6%, transparent 4.6%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 1.6%, rgba(17,17,17,0.94) 1.6%, rgba(17,17,17,0.94) 2.1%, transparent 2.1%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 99%, rgba(29,63,140,0.85) 99%, rgba(29,63,140,0.85) 100%),'
       + 'linear-gradient(180deg, #f7f4ee 0%, #f4f1ea 100%)',
   },
   {
@@ -489,11 +489,11 @@ const STIJL_BGS = [
     style: 'stijl',
     base: '#111111',
     bg:
-      'linear-gradient(180deg, rgba(244,241,234,0.9) 0 1.2%, transparent 1.2%),'
-      + 'linear-gradient(90deg, rgba(244,241,234,0.9) 0 0.9%, transparent 0.9%),'
-      + 'linear-gradient(90deg, rgba(208,48,42,0.94) 0 1.8%, transparent 1.8%),'
-      + 'linear-gradient(90deg, transparent 0 98.2%, rgba(29,63,140,0.92) 98.2% 100%),'
-      + 'linear-gradient(180deg, transparent 0 98.8%, rgba(235,194,38,0.92) 98.8% 100%),'
+      'linear-gradient(180deg, rgba(244,241,234,0.9) 0, rgba(244,241,234,0.9) 1.2%, transparent 1.2%),'
+      + 'linear-gradient(90deg, rgba(244,241,234,0.9) 0, rgba(244,241,234,0.9) 0.9%, transparent 0.9%),'
+      + 'linear-gradient(90deg, rgba(208,48,42,0.94) 0, rgba(208,48,42,0.94) 1.8%, transparent 1.8%),'
+      + 'linear-gradient(90deg, transparent 0, transparent 98.2%, rgba(29,63,140,0.92) 98.2%, rgba(29,63,140,0.92) 100%),'
+      + 'linear-gradient(180deg, transparent 0, transparent 98.8%, rgba(235,194,38,0.92) 98.8%, rgba(235,194,38,0.92) 100%),'
       + 'linear-gradient(180deg, #171717 0%, #111111 100%)',
   },
 ]

@@ -38,6 +38,7 @@ export const KEYS = {
   REPORT_PAGES: 'tr-report-pages',
   // 每日汇报的临时草稿（模板文案 / 任务项 / 资源项），按游戏分开存，直到手动恢复默认
   REPORT_DRAFT: 'tr-report-draft',
+  REPORT_WEEKDAY: 'tr-report-weekday',
   // 界面音效（点击 / 悬停）总开关，'false' 表示静音
   SOUND_ENABLED: 'tr-sound-enabled',
 }

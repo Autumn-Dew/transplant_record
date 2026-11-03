@@ -7,9 +7,6 @@
     <div class="local-toolbar">
       <SelectBox v-model="game" :options="gameOptions" width="130px" />
       <span class="view-tabs">
-        <span class="tl-entry-btn" :class="{ active: mode === 'preset' }" @click="mode = 'preset'">预设</span>
-        <span class="tl-entry-btn" :class="{ active: mode === 'custom' }" @click="mode = 'custom'">自定义</span>
-        <span class="tl-entry-btn" :class="{ active: mode === 'all' }" @click="mode = 'all'">全部</span>
       </span>
       <button class="rc-global-btn" @click="exportImage(false)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
@@ -19,6 +16,11 @@
       <button class="rc-global-btn" @click="exportImage(true)" title="把价目表图片复制到剪贴板">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
         <span>复制到剪切板</span>
+      </button>
+      <!-- 价目文案：把当前价格表拼成一段可直接发出去的文本 -->
+      <button class="rc-global-btn" @click="openCopyText" title="按当前价格表生成一段可以直接发出去的价目文案">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+        <span>文案</span>
       </button>
       <!-- 画布外观：原版（默认）/ 终末地风格，独立持久化，不影响业务数据 -->
       <span class="view-tabs">
@@ -56,10 +58,9 @@
           </div>
           <!-- 原版：每个分类一块表格 -->
           <template v-if="!isEf">
-            <div v-for="cat in filteredCats" :key="cat.name" class="pr-cat">
+            <div v-for="cat in allCats" :key="cat.name" class="pr-cat">
               <div class="pr-cat-head">
                 <span class="pr-cat-name">{{ cat.name }}</span>
-                <span class="pr-cat-badge">{{ cat.mode === 'preset' ? '预设' : '自定义' }}</span>
               </div>
               <table class="pr-table">
                 <thead>
@@ -86,7 +87,7 @@
           <!-- 终末地风格：分类是卡片（第一张占满、其余并排两列），每个单项一行 -->
           <div class="pr-ef-cards" v-else-if="isEf">
             <div
-              v-for="(cat, ci) in filteredCats"
+              v-for="(cat, ci) in allCats"
               :key="cat.name"
               class="pr-ef-card"
               :class="{ wide: ci === 0 }"
@@ -123,6 +124,20 @@
     </div>
     <!-- 名称列的测量尺：按「最长的单项名称」定列宽，放在画布外，不影响导出尺寸 -->
     <span class="pr-ef-measure" ref="measureRef" aria-hidden="true"></span>
+
+    <!-- 价目文案：按当前价格表生成，可直接改，改完复制 -->
+    <div class="modal-mask" v-if="textPanelOpen" @click.self="textPanelOpen = false">
+      <div class="edit-popup pd-popup ct-popup">
+        <h4>价目文案</h4>
+        <p class="ct-hint">按「{{ currentGameName || '当前游戏' }}」的价格表生成；可以直接改，改完点「复制」带走。</p>
+        <textarea class="ct-text" v-model="copyDraft" spellcheck="false"></textarea>
+        <div class="edit-actions">
+          <button class="cancel-btn" @click="textPanelOpen = false">关闭</button>
+          <button class="cancel-btn" @click="rebuildCopyText">重新生成</button>
+          <button class="save-btn" @click="doCopyText">{{ copied ? '已复制' : '复制' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -131,14 +146,14 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import html2canvas from 'html2canvas'
 import { usePrices } from '@/composables/usePrices.js'
 import { gamesRepo } from '@/data/repos.js'
-import { gameOptions as buildGameOptions } from '@/domain/games.js'
+import { priceGameOptions as buildGameOptions } from '@/domain/games.js'
 import SelectBox from '@/components/SelectBox.vue'
 import { readShopForGame, readShopHidden } from '@/data/shop-info.js'
 import { readPriceTheme, writePriceTheme } from '@/data/price-theme.js'
 import { readPriceBg, writePriceBg, fileToBgDataUrl } from '@/data/price-bg.js'
 import { APP_SIGN } from '@/data/app-info.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
-import { copyPngBlob, downloadBlob, timestampName } from '@/utils/clipboard.js'
+import { copyPngBlob, copyText as copyToClipboard, downloadBlob, timestampName } from '@/utils/clipboard.js'
 
 // 个人标签：价格表画布右下角的署名（导出图里也保留）。唯一来源是 data/app-info.js 的 APP_SIGN
 const SIGNATURE = APP_SIGN
@@ -153,9 +168,59 @@ function setTheme(id) {
 }
 
 const { getGame } = usePrices()
+
+// ── 价目文案：把当前价格表拼成一段可以直接发出去的文本 ──
+const textPanelOpen = ref(false)
+const copyDraft = ref('')
+const copied = ref(false)
+let copiedTimer = null
+
+const currentGameName = computed(() => {
+  const o = gameOptions.value.find(x => x.value === game.value)
+  return o ? o.label : ''
+})
+
+function buildPriceText() {
+  const lines = []
+  const head = shopHead.value.filter(s => s.value)
+  lines.push(`【${currentGameName.value || '价目表'}】`)
+  if (head.length) lines.push(head.map(s => `${s.label}：${s.value}`).join('　'))
+  lines.push('')
+  for (const c of allCats.value) {
+    const items = (c.items || []).filter(it => it && it.name)
+    if (!items.length) continue
+    lines.push(`◆ ${c.name}`)
+    for (const it of items) {
+      const price = it.price === '' || it.price == null ? '面议' : String(it.price)
+      const unit = it.unit ? `/${it.unit}` : ''
+      const note = it.note ? `（${it.note}）` : ''
+      lines.push(`· ${it.name} ${price}${unit}${note}`)
+    }
+    lines.push('')
+  }
+  const tail = shopTail.value.filter(s => s.value)
+  if (tail.length) lines.push(tail.map(s => `${s.label}：${s.value}`).join('　'))
+  lines.push(`—— ${SIGNATURE}`)
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+function openCopyText() {
+  copyDraft.value = buildPriceText()
+  copied.value = false
+  textPanelOpen.value = true
+}
+function rebuildCopyText() {
+  copyDraft.value = buildPriceText()
+  copied.value = false
+}
+async function doCopyText() {
+  const ok = await copyToClipboard(copyDraft.value)
+  copied.value = Boolean(ok)
+  if (copiedTimer) clearTimeout(copiedTimer)
+  copiedTimer = setTimeout(() => { copied.value = false }, 2500)
+}
 // 当前游戏：留空，由 watch(gameOptions) 在数据就绪后选中第一个可用游戏（不再硬编码某个游戏 id）
 const game = ref('')
-const mode = ref('preset')
 const wrapRef = ref(null)
 // 画布背景图：压缩后存 dataURL（`tr-price-bg`），重启后仍在；清除即写空串。
 // 压缩规则见 data/price-bg.js（最长边 1600px / JPEG 0.78 / 上限 2MB）。
@@ -198,10 +263,14 @@ const { entered } = usePageEnter()
 // 只做筛选，绝不往共享单例（usePrices 的 prices）里写字段：
 // 之前给每个分类注入 _cid 当 :key，等于在 computed 内部修改全局状态（computed 必须纯净）。
 // 分类名经 dedupeCats 保证唯一，可以直接作为 key。
-const filteredCats = computed(() => {
-  const cats = getGame(game.value).categories || []
-  return mode.value === 'all' ? cats : cats.filter(c => c.mode === mode.value)
-})
+// 「预设 / 自定义」分类已取消：直接展示该游戏的全部类别
+// 隐藏的类别 / 项目只影响展示：价格一览、导出图、文案都会跳过它们，
+// 数据完整保留（数据管理里点「隐藏 / 已隐藏」切换，与每日汇报的卡片隐藏同一套做法）。
+const allCats = computed(() =>
+  (getGame(game.value).categories || [])
+    .filter(c => c && !c.hidden)
+    .map(c => ({ ...c, items: (c.items || []).filter(it => it && !it.hidden) })),
+)
 
 /* ── 名称列宽度：按「每张卡片自己的最长名称」算 ──
    不写死百分比（22% 会让短名称那几行留一大片空白、长名称又换行）。
@@ -213,13 +282,13 @@ const filteredCats = computed(() => {
    备注列 flex: 1 1 auto，自然吃掉剩下的全部宽度。
    尺子放在画布外：不影响画布尺寸，也不会被导出。 */
 const measureRef = ref(null)
-const cardNameWidths = ref([])   // 与 filteredCats 一一对应的名称列宽（px）
+const cardNameWidths = ref([])   // 与 allCats 一一对应的名称列宽（px）
 const NAME_COL_PAD = 12          // 名称列 padding-right(10) + 2px 余量
 
 function measureNameColumn() {
   const el = measureRef.value
   if (!el || !isEf.value) { cardNameWidths.value = []; return }
-  const widths = filteredCats.value.map((cat) => {
+  const widths = allCats.value.map((cat) => {
     let max = 0
     for (const item of cat.items || []) {
       el.textContent = String(item.name || '')
@@ -232,7 +301,7 @@ function measureNameColumn() {
   cardNameWidths.value = widths
 }
 onMounted(() => nextTick(measureNameColumn))
-watch([filteredCats, isEf, game, mode], () => nextTick(measureNameColumn), { deep: true })
+watch([allCats, isEf, game], () => nextTick(measureNameColumn), { deep: true })
 
 async function onBgFile(e) {
   const file = e.target.files?.[0]
@@ -275,6 +344,16 @@ async function exportImage(toClipboard = false) {
 </script>
 
 <style scoped>
+/* ── 价目文案弹窗 ── */
+.ct-popup { max-width: 560px; width: min(560px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
+.ct-hint { font-size: 11px; opacity: 0.55; line-height: 1.6; margin: 4px 0 10px; }
+.ct-text {
+  flex: 1; min-height: 300px; resize: vertical;
+  border: 2px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 12px;
+  line-height: 1.8; padding: 10px 12px;
+}
+.ct-text:focus { outline: none; border-color: var(--btn-hover-bg); }
 /* 导出区域：完全按原站布局与样式（白色系） */
 .pr-body { padding: 12px 0; }
 .pr-wrap { position: relative; max-width: 900px; margin: 0 auto; padding: 80px 24px 24px; background: #fff; color: #0d0d0d; }
@@ -293,7 +372,6 @@ async function exportImage(toClipboard = false) {
 .pr-cat { margin-bottom: 16px; border: 1px solid rgba(0,0,0,0.12); }
 .pr-cat-head { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px; border-bottom: 1px solid rgba(0,0,0,0.08); }
 .pr-cat-name { font-size: 13px; font-weight: 800; letter-spacing: 2px; }
-.pr-cat-badge { font-size: 10px; font-family: var(--font-mono); padding: 1px 6px; border: 1px solid rgba(0,0,0,0.3); opacity: 0.7; }
 .pr-table { width: 100%; border-collapse: collapse; }
 .pr-table th { text-align: left; font-size: 10px; font-family: var(--font-mono); font-weight: 700; letter-spacing: 2px; opacity: 0.6; padding: 5px 14px; border-bottom: 1px solid rgba(0,0,0,0.1); }
 .pr-table td { padding: 5px 14px; border-bottom: 1px solid rgba(0,0,0,0.1); font-size: 13px; font-weight: 600; }
@@ -332,7 +410,7 @@ async function exportImage(toClipboard = false) {
   position: absolute;
   left: 0; right: 0; top: 0;
   height: 3px;
-  background: linear-gradient(90deg, #FF00F0 0 33.33%, #B8FF3D 33.33% 66.66%, #00FFA2 66.66% 100%);
+  background: linear-gradient(90deg, #FF00F0 0%, #FF00F0 33.33%, #B8FF3D 33.33%, #B8FF3D 66.66%, #00FFA2 66.66%, #00FFA2 100%);
 }
 .pr-wrap.pr-ef::after {
   content: '// PRICE LIST / 价目工单';
@@ -351,8 +429,8 @@ async function exportImage(toClipboard = false) {
   right: 0; top: 4px; bottom: 4px;
   width: 5px;
   background: repeating-linear-gradient(180deg,
-    rgba(22, 22, 22, 0.26) 0 1px,
-    transparent 1px 5px);
+    rgba(22, 22, 22, 0.26) 0, rgba(22, 22, 22, 0.26) 1px,
+    transparent 1px, transparent 5px);
   pointer-events: none;
 }
 .pr-ef .pr-content::after {
@@ -361,8 +439,8 @@ async function exportImage(toClipboard = false) {
   right: 12px; bottom: 0;
   width: 104px; height: 104px;
   background: repeating-linear-gradient(-45deg,
-    rgba(22, 22, 22, 0.1) 0 1px,
-    transparent 1px 7px);
+    rgba(22, 22, 22, 0.1) 0, rgba(22, 22, 22, 0.1) 1px,
+    transparent 1px, transparent 7px);
   pointer-events: none;
 }
 /* 抬头：一行小字 + 细线 */
@@ -394,8 +472,8 @@ async function exportImage(toClipboard = false) {
   padding: 9px 12px 9px 11px;
   background-color: #ffffff;
   background-image: repeating-linear-gradient(-45deg,
-    rgba(22, 22, 22, 0.024) 0 1px,
-    transparent 1px 8px);
+    rgba(22, 22, 22, 0.024) 0, rgba(22, 22, 22, 0.024) 1px,
+    transparent 1px, transparent 8px);
   border: 1px solid #161616;
   box-shadow: inset 3px 0 0 #b8ff3d;
 }
@@ -415,8 +493,8 @@ async function exportImage(toClipboard = false) {
   right: 14px; bottom: 7px;
   width: 46px; height: 4px;
   background: repeating-linear-gradient(90deg,
-    rgba(22, 22, 22, 0.32) 0 1px,
-    transparent 1px 4px);
+    rgba(22, 22, 22, 0.32) 0, rgba(22, 22, 22, 0.32) 1px,
+    transparent 1px, transparent 4px);
   pointer-events: none;
 }
 /* 卡片头：编号 + 名称 + 右侧 lime 刻度 */
@@ -510,8 +588,8 @@ async function exportImage(toClipboard = false) {
 .pr-wrap.pr-ef {
   background-color: #f4f4f2;
   background-image:
-    linear-gradient(90deg, rgba(22, 22, 22, 0.032) 0 1px, transparent 1px),
-    linear-gradient(180deg, rgba(22, 22, 22, 0.032) 0 1px, transparent 1px);
+    linear-gradient(90deg, rgba(22, 22, 22, 0.032) 0, rgba(22, 22, 22, 0.032) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(22, 22, 22, 0.032) 0, rgba(22, 22, 22, 0.032) 1px, transparent 1px);
   background-size: 24px 24px, 24px 24px;
   background-position: 0 0, 0 0;
   background-repeat: repeat, repeat;
@@ -525,8 +603,8 @@ async function exportImage(toClipboard = false) {
   left: 0; right: 0; bottom: -5px;
   height: 3px;
   background: repeating-linear-gradient(90deg,
-    rgba(22, 22, 22, 0.24) 0 1px,
-    transparent 1px 6px);
+    rgba(22, 22, 22, 0.24) 0, rgba(22, 22, 22, 0.24) 1px,
+    transparent 1px, transparent 6px);
   pointer-events: none;
 }
 /* 卡片底缘墨线（与左缘 lime 条同一套 inset 语言） */
@@ -562,7 +640,7 @@ async function exportImage(toClipboard = false) {
 
    ⚠ 这里的坑：**不要用多层 background-image 定位实心色块**。
    html2canvas 不认 `background-size` / `background-position` 的列表写法，
-   层数一多就整层回落到 auto —— `linear-gradient(90deg, #161616 0 100%)`
+   层数一多就整层回落到 auto —— `linear-gradient(90deg, #161616 0, #161616 100%)`
    于是铺满整张画布，导出的 PNG 变成一整块黑（卡片、空白全都 #161616）。
    所以：平铺纹理（网格 / 斜线）才用 background-image，
    需要定位的色块一律用绝对定位的真实元素或伪元素。
@@ -578,8 +656,8 @@ async function exportImage(toClipboard = false) {
 .pr-ef .pr-ef-rail {
   left: 0; top: 50px; bottom: 22px; width: 4px;
   background: repeating-linear-gradient(180deg,
-    rgba(22, 22, 22, 0.22) 0 1px,
-    transparent 1px 10px);
+    rgba(22, 22, 22, 0.22) 0, rgba(22, 22, 22, 0.22) 1px,
+    transparent 1px, transparent 10px);
 }
 /* 左上坐标十字 */
 .pr-ef .pr-ef-cross { left: 20px; top: 20px; width: 13px; height: 13px; }
@@ -601,8 +679,8 @@ async function exportImage(toClipboard = false) {
   position: absolute;
   right: 6px; top: 0; bottom: 0; width: 4px;
   background: repeating-linear-gradient(180deg,
-    rgba(22, 22, 22, 0.18) 0 1px,
-    transparent 1px 12px);
+    rgba(22, 22, 22, 0.18) 0, rgba(22, 22, 22, 0.18) 1px,
+    transparent 1px, transparent 12px);
 }
 .pr-ef .pr-ef-card-deco::after {
   content: '';
@@ -617,8 +695,8 @@ async function exportImage(toClipboard = false) {
   right: 20px; top: 2px;
   width: 34px; height: 7px;
   background: repeating-linear-gradient(90deg,
-    rgba(22, 22, 22, 0.34) 0 1px,
-    transparent 1px 3px);
+    rgba(22, 22, 22, 0.34) 0, rgba(22, 22, 22, 0.34) 1px,
+    transparent 1px, transparent 3px);
   pointer-events: none;
 }
 /* 条目：行尾 lime 标记已停用（同项的行首/行尾装饰改到编号列与价格列上） */

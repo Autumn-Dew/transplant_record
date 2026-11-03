@@ -44,6 +44,20 @@ function legacyList(raw) {
  * 旧结构 → 「每游戏一份」的映射；已是新结构则原样规整。
  * migrated=true 表示发生过迁移（调用方应落盘一次，幂等）。
  */
+// 游戏 id → 价格表 key（key 名）；店铺信息与价格表用同一套 key
+function idToKeyMap() {
+  const m = {}
+  try {
+    const games = readJSON(KEYS.GAMES, []) || []
+    for (const g of games) {
+      if (!g || !g.id) continue
+      const key = String(g.short || '').trim()
+      if (key && key !== g.id) m[g.id] = key
+    }
+  } catch { /* ignore */ }
+  return m
+}
+
 export function migrateShopMap(raw, gameKeys) {
   const keys = (Array.isArray(gameKeys) ? gameKeys : []).map(String).filter(Boolean)
 
@@ -56,8 +70,14 @@ export function migrateShopMap(raw, gameKeys) {
 
   const map = {}
   if (raw && typeof raw === 'object') Object.keys(raw).forEach(k => { map[k] = normalizeShopList(raw[k]) })
+  // 旧数据以游戏 id 作 key → 搬到 key 名（幂等）
+  let moved = false
+  for (const [from, to] of Object.entries(idToKeyMap())) {
+    if (map[from] && !map[to]) { map[to] = map[from]; delete map[from]; moved = true }
+    else if (map[from] && map[to]) { delete map[from]; moved = true }
+  }
   keys.forEach(k => { if (!map[k]) map[k] = defaultShopList() })
-  return { map, migrated: false }
+  return { map, migrated: moved }
 }
 
 /** 读取当前游戏的店铺信息（必要时先迁移并落盘） */
@@ -65,6 +85,20 @@ export function readShopForGame(game, gameKeys) {
   const { map, migrated } = migrateShopMap(readJSON(KEYS.SHOP_INFO, null), gameKeys)
   if (migrated) writeJSON(KEYS.SHOP_INFO, map)
   return { map, list: map[game] || defaultShopList() }
+}
+
+/** 游戏改了 key 名后，把店铺信息从旧 key 搬到新 key（幂等） */
+export function renameShopKey(from, to) {
+  const a = String(from || '').trim()
+  const b = String(to || '').trim()
+  if (!a || !b || a === b) return false
+  const raw = readJSON(KEYS.SHOP_INFO, null)
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !raw[a]) return false
+  const next = { ...raw }
+  if (!next[b]) next[b] = next[a]
+  delete next[a]
+  writeJSON(KEYS.SHOP_INFO, next)
+  return true
 }
 
 /** 只写当前游戏那一份（其他游戏保持不动） */

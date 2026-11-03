@@ -253,7 +253,7 @@
   left: 0; top: 0; bottom: 0;
   width: 56px;
   background: linear-gradient(var(--p3r-slant),
-    var(--p3r-blue) 0 26px,
+    var(--p3r-blue) 0, var(--p3r-blue) 26px,
     transparent 26px);
   pointer-events: none;
 }

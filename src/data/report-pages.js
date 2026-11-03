@@ -7,7 +7,7 @@
 
 import { KEYS, readJSON, writeJSON } from './storage.js'
 
-export const MAX_REPORT_PAGES = 8
+export const MAX_REPORT_PAGES = 20
 
 let fallbackSeq = 0
 // 保存的数据缺 id 时补一个（保证每页都有稳定 key）

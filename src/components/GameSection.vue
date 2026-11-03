@@ -63,8 +63,8 @@
             <input v-model="current.name" @change="saveGame({ name: current.name })" />
           </label>
           <label class="gm-field">
-            <span>简称</span>
-            <input v-model="current.short" @change="saveGame({ short: current.short })" />
+            <span>key 名</span>
+            <input v-model="current.short" placeholder="如 EF / AK" title="价格表与店铺信息以它为 key；改了以后旧数据会自动搬到新 key 上" @change="saveGame({ short: current.short })" />
           </label>
           <div class="gm-field gm-field-btns">
             <button class="gm-act" :class="{ active: current.enabled && !current.archived }" @click="toggleGame(current.id)">
@@ -76,43 +76,15 @@
           </div>
         </div>
 
+        <!-- 服务项目不再在这里维护：每日汇报里已经能直接管理（新增 / 改名 / 调价 / 删除），
+             两处都能改容易改出不一致，这里只留一句指引。 -->
         <div class="gm-detail-head">
           <span class="gm-detail-title">服务项目</span>
-          <button class="gm-add" @click="addService(current.id)">+ 新增服务项目</button>
+          <span class="gm-detail-id">已移到「每日汇报」里管理</span>
         </div>
-
-        <div class="gm-svc-head">
-          <span style="width:44px"></span>
-          <span class="w-name">名称</span>
-          <span class="w-price">默认价格</span>
-          <span class="w-unit">单位</span>
-          <span class="w-note">备注 / 描述</span>
-          <span class="w-en">启用</span>
-          <span style="width:30px"></span>
-        </div>
-
-        <TransitionGroup name="mv-list" tag="div" class="gm-svc-list">
-          <div v-for="(s, i) in current.services" :key="s.id" class="gm-svc">
-          <span class="gm-svc-sort">
-            <button class="gm-btn" @click="moveService(current.id, s.id, -1)" :disabled="i === 0">↑</button>
-            <button class="gm-btn" @click="moveService(current.id, s.id, 1)" :disabled="i === current.services.length - 1">↓</button>
-          </span>
-          <input class="gm-inp w-name" v-model="s.name" @change="saveService(s, { name: s.name })" />
-          <input class="gm-inp w-price" type="number" step="any" v-model="s.price" @change="saveService(s, { price: s.price })" />
-          <input class="gm-inp w-unit" v-model="s.unit" placeholder="—" @change="saveService(s, { unit: s.unit })" />
-          <input class="gm-inp w-note" v-model="s.note" placeholder="—" @change="saveService(s, { note: s.note })" />
-          <label class="gm-en">
-            <input type="checkbox" :checked="s.enabled" @change="saveService(s, { enabled: $event.target.checked })" />
-          </label>
-          <button class="gm-del" @click="removeService(current.id, s.id)" title="删除服务项目（不影响历史记录）">×</button>
-          </div>
-          <div class="empty" v-if="!current.services || !current.services.length" key="svc-empty">
-            <p>该游戏还没有服务项目</p>
-          </div>
-        </TransitionGroup>
-
         <p class="gm-hint">
-          服务项目修改只影响后续新建的项目；已经生成的执行记录保留当时的名称快照，不会被改写。
+          服务项目（名称 / 默认价格 / 单位 / 备注）请在「每日汇报」里新增与修改；
+          这里的改动只影响以后新建的项目，已生成的执行记录保留当时的名称快照。
         </p>
 
         <!-- 日报模板（任务项 / 资源项 / 卡片与布局 / 汇报人）已全部挪到
@@ -149,6 +121,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { gamesRepo } from '@/data/repos.js'
+import { renamePriceKey } from '@/composables/usePrices.js'
+import { renameShopKey } from '@/data/shop-info.js'
 import {
   addGame, updateGame, removeGame, archiveGame, restoreGame, toggleGame, moveGame,
   addService, updateService, removeService, moveService, gameStats, gameUsage,
@@ -169,7 +143,27 @@ function addNew() {
   const g = addGame({ name: '新游戏' })
   currentId.value = g.id
 }
-function saveGame(patch) { if (current.value) updateGame(current.value.id, patch) }
+// 记住当前游戏上一次的 key 名：v-model 会先改掉 current.short，
+// 所以「旧值」只能来自快照，不能从 current 里读（否则 before === after，永远不搬迁）。
+const keySnapshot = ref('')
+watch(() => (current.value ? current.value.id : ''), (id) => {
+  keySnapshot.value = id ? (String(current.value.short || '').trim() || id) : ''
+}, { immediate: true })
+
+// 保存游戏；如果改的是 key 名（简称），把价格表与店铺信息一起搬到新 key，
+// 否则这里改完 key 名，价格页会变成一张空表。
+function saveGame(patch) {
+  if (!current.value) return
+  const id = current.value.id
+  const before = keySnapshot.value
+  const after = String(current.value.short || '').trim() || id
+  updateGame(id, patch)
+  if (before && after && before !== after) {
+    try { renamePriceKey(before, after) } catch { /* ignore */ }
+    try { renameShopKey(before, after) } catch { /* ignore */ }
+  }
+  keySnapshot.value = after
+}
 function archiveCurrent() { if (current.value) archiveGame(current.value.id) }
 
 // 删除：有引用则只能归档（二次确认在弹窗内完成）

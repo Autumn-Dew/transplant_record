@@ -1,22 +1,59 @@
 <template>
   <div class="rp-sheet" @paste="onPaste">
-    <div class="local-toolbar">
-      <button class="rc-global-btn" @click="exportImage(false)">{{ templateText('btnExport', '导出图片') }}</button>
-      <button class="rc-global-btn" @click="exportImage(true)">{{ templateText('btnCopy', '复制到剪切板') }}</button>
-      <button
-        class="rc-global-btn rp-confirm-btn"
-        data-sfx-overcharge
-        :disabled="!selectedTask || selectedConfirmedToday"
-        :style="getConfirmStyle()"
-        :title="confirmBtnTitle"
-        @click="handleConfirm"
-      >{{ confirmBtnText }}</button>
-      <button class="rc-global-btn" @click="shareImage">{{ templateText('btnShare', '分享') }}</button>
-      <button class="rc-global-btn" @click="resetAll">{{ templateText('btnReset', '重置') }}</button>
-      <label class="rc-global-btn" style="cursor:pointer">
-        <span>{{ templateText('btnAddImage', '+ 图片') }}</span>
-        <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
-      </label>
+    <div class="local-toolbar rp-toolbar">
+      <!-- 第一排：主要操作 -->
+      <div class="rp-toolbar-rows">
+        <div class="rp-toolbar-row">
+          <button class="rc-global-btn" :disabled="!!busy" @click="exportImage(false)">{{ busy === 'export' ? '导出中…' : templateText('btnExport', '导出图片') }}</button>
+          <button class="rc-global-btn" :disabled="!!busy" @click="exportImage(true)">{{ busy === 'copy' ? '复制中…' : templateText('btnCopy', '复制到剪切板') }}</button>
+          <span v-if="lastError" class="rp-export-err">{{ lastError }}</span>
+          <button
+            class="rc-global-btn rp-confirm-btn"
+            data-sfx-overcharge
+            :disabled="!selectedTask || selectedConfirmedToday"
+            :style="getConfirmStyle()"
+            :title="confirmBtnTitle"
+            @click="handleConfirm"
+          >{{ confirmBtnText }}</button>
+          <button class="rc-global-btn" @click="shareImage">{{ templateText('btnShare', '分享') }}</button>
+        </div>
+        <!-- 第二排：编辑与外观 -->
+        <div class="rp-toolbar-row">
+          <button class="rc-global-btn" @click="resetAll">{{ templateText('btnReset', '重置') }}</button>
+          <label class="rc-global-btn" style="cursor:pointer">
+            <span>{{ templateText('btnAddImage', '+ 图片') }}</span>
+            <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
+          </label>
+          <span class="rp-look-btn">
+            <button
+              class="rc-global-btn"
+              title="每日汇报的主题与背景（与当前应用主题无关，可自由组合）"
+              @click="stylePanelOpen = true"
+            >{{ templateText('btnAppearance', '外观') }} · {{ reportTheme.label }} / {{ reportBg.label }}</button>
+          </span>
+          <button class="rc-global-btn" title="编辑日报模板（临时修改，可存为全局预设）" @click="templatePanelOpen = true">{{ templateText('btnTemplate', '模板') }}</button>
+          <span class="rp-hint">{{ templateText('hintPaste', 'Ctrl+V 粘贴截图') }}</span>
+        </div>
+      </div>
+
+      <!-- 右侧：备注（上）+ 日期 / 周几（下，周几可配 tip 与颜色） -->
+      <div class="rp-toolbar-side">
+        <span class="rp-note" v-if="selectedTask && selectedTask.note" :title="selectedTask.note">
+          备注：{{ selectedTask.note }}
+        </span>
+        <!-- 7 天一排方框：不写字，配了颜色的当天会多一层框 -->
+        <span class="rp-week-row">
+          <span
+            v-for="i in WEEKDAY_ORDER"
+            :key="i"
+            class="rp-week-box"
+            :class="{ now: i === todayIdx }"
+            :style="weekdayBoxStyle(i)"
+            :title="weekdayMarks[i].tip || (WEEKDAY_NAMES[i] + (i === todayIdx ? '（今天）' : ''))"
+          ></span>
+        </span>
+      </div>
+
       <!-- 日报模板面板：改的是当前草稿，"存为全局预设"才写回目录配置 -->
     <ReportTemplatePanel
       v-if="templatePanelOpen"
@@ -34,20 +71,6 @@
 
     <!-- 汇报外观：点击后从右侧滑出侧边弹窗（版式与「项目详情」窗口一致），
            主题与背景两个选择互相独立，也都与应用主题无关 -->
-      <span class="rp-look-btn">
-        <button
-          class="rc-global-btn"
-          title="每日汇报的主题与背景（与当前应用主题无关，可自由组合）"
-          @click="stylePanelOpen = true"
-        >{{ templateText('btnAppearance', '外观') }} · {{ reportTheme.label }} / {{ reportBg.label }}</button>
-      </span>
-      <button class="rc-global-btn" title="编辑日报模板（临时修改，可存为全局预设）" @click="templatePanelOpen = true">{{ templateText('btnTemplate', '模板') }}</button>
-      <div class="toolbar-spacer"></div>
-      <!-- 当前选中托管项目的备注（显示在控件右侧，过长省略、悬停看全文） -->
-      <span class="rp-note" v-if="selectedTask && selectedTask.note" :title="selectedTask.note">
-        备注：{{ selectedTask.note }}
-      </span>
-      <span class="rp-hint">{{ templateText('hintPaste', 'Ctrl+V 粘贴截图') }}</span>
     </div>
 
     <div class="rp-body">
@@ -312,6 +335,28 @@
             @click="applyClassicLook"
           >经典外观</button>
         </div>
+        <!-- 周几提示：给每一天配一句提示与一个颜色，显示在工具栏右上角 -->
+        <p class="detail-section">周几提示 · 工具栏右上角显示的「周几」可以每天单独配色、加一句提示</p>
+        <div class="rp-week-grid">
+          <div class="rp-week-item" v-for="i in WEEKDAY_ORDER" :key="i" :class="{ active: i === todayIdx }">
+            <span class="rp-week-name" :style="weekdayMarks[i].color ? { color: weekdayMarks[i].color } : {}">{{ WEEKDAY_NAMES[i] }}</span>
+            <input
+              class="rp-week-tip"
+              :value="weekdayMarks[i].tip"
+              placeholder="提示（可空）"
+              maxlength="40"
+              @input="setWeekdayTip(i, $event.target.value)"
+            />
+            <input
+              type="color"
+              class="rp-week-color"
+              :value="weekdayMarks[i].color || '#0878E8'"
+              title="这一天的文字颜色"
+              @input="setWeekdayColor(i, $event.target.value)"
+            />
+            <button class="rp-week-clear" :disabled="!weekdayMarks[i].color" title="清空颜色" @click="clearWeekdayColor(i)">清除</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -334,6 +379,7 @@ import { REPORT_TEXT_FIELDS } from '@/domain/report-template.js'
 import { updateGame } from '@/services/gameService.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
 import { REPORT_BACKGROUNDS, CLASSIC_REPORT_BG, readReportBg, writeReportBg, findReportBg, bgTone } from '@/data/report-backgrounds.js'
+import { readWeekdayMarks, writeWeekdayMarks, WEEKDAY_NAMES, WEEKDAY_ORDER, todayWeekday, todayDateText } from '@/data/report-weekday.js'
 import { REPORT_THEMES, CLASSIC_REPORT_THEME, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
 import { useConfirmClick } from '@/composables/useConfirmClick.js'
 import { APP_SIGN } from '@/data/app-info.js'
@@ -372,6 +418,31 @@ const currentAuthor = computed(() => {
 // 否则 immediate watch 会在初始化阶段读到未定义变量（TDZ）—— 见下方「标题」段。
 
 // ── 汇报外观：主题（内容皮肤）与背景（画布底层）各自独立持久化，互不改写 ──
+// ── 周几标记：工具栏右上角「日期 + 周几」，每一天可配一句提示与颜色 ──
+const weekdayMarks = ref(readWeekdayMarks())
+const todayIdx = todayWeekday()
+const todayDate = todayDateText()
+const todayWeekName = WEEKDAY_NAMES[todayIdx] || ''
+// 方块里只放一个字（一 / 二 / … / 日）
+const WEEKDAY_SHORT = ['日', '一', '二', '三', '四', '五', '六']
+// 每一格的颜色：配了就用配置色（边框 + 内部小方块 + 今天的外圈），没配就跟随主题
+function weekdayBoxStyle(i) {
+  const c = (weekdayMarks.value[i] || {}).color
+  return c ? { '--wk': c } : {}
+}
+const weekdayTip = computed(() => (weekdayMarks.value[todayIdx] || {}).tip || '')
+const weekdayStyle = computed(() => {
+  const c = (weekdayMarks.value[todayIdx] || {}).color
+  return c ? { color: c } : {}
+})
+function patchWeekday(i, patch) {
+  const next = { ...weekdayMarks.value, [i]: { ...(weekdayMarks.value[i] || {}), ...patch } }
+  weekdayMarks.value = writeWeekdayMarks(next)
+}
+function setWeekdayTip(i, v) { patchWeekday(i, { tip: String(v || '') }) }
+function setWeekdayColor(i, v) { patchWeekday(i, { color: v }) }
+function clearWeekdayColor(i) { patchWeekday(i, { color: '' }) }
+
 const reportBgId = ref(readReportBg())
 const reportBg = computed(() => findReportBg(reportBgId.value))
 const reportThemeId = ref(readReportTheme())
@@ -895,7 +966,7 @@ onMounted(() => window.addEventListener('tr-daily-reset-changed', refreshHosting
 
 // 导出流程（空字段填充 / 控件替换 / html2canvas / 下载与剪贴板）统一在
 // composables/useReportExport.js；组件只提供画布引用、资源行与「日常是否全未完成」。
-const { exportImage, shareImage } = useReportExport({
+const { exportImage, shareImage, busy, lastError } = useReportExport({
   wrapRef, noteRef, planRef,
   resources,
   dailyAllUndone,
@@ -907,6 +978,83 @@ defineExpose({ refreshHosting })
 </script>
 
 <style scoped>
+/* ── 工具栏：左侧按钮分两排，右侧备注 + 日期 / 周几上下排列 ── */
+.rp-toolbar { align-items: flex-start; gap: 6px 12px; }
+.rp-toolbar-rows { flex: 0 1 auto; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rp-toolbar-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* 右侧一块：与左侧两排等高，备注居中于第一排、方框居中于第二排。
+   宽度取按钮之后的全部剩余空间 —— 备注可以一直延伸到按钮右侧。 */
+.rp-toolbar-side {
+  flex: 1 1 auto; min-width: 0; margin-left: 12px;
+  align-self: stretch; display: grid; grid-template-rows: 1fr 1fr;
+  align-items: center; justify-items: end; gap: 6px; text-align: right;
+}
+
+/* 7 天：与画布里的单选框同一套样式（2px 外框 + 中间实心方块），不写字 */
+/* 备注固定在第一行、方框固定在第二行：没有备注时方框也贴第二排居中 */
+/* 备注：从按钮右侧一直延伸到右边缘，放不下才省略 */
+.rp-toolbar-side .rp-note {
+  grid-row: 1; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 整块加底色 + 双层细框：方框在有色底上才显得出来（浅色主题尤其明显） */
+.rp-week-row {
+  grid-row: 2; display: flex; align-items: center; gap: 4px;
+  padding: 3px 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 1px var(--bg-primary);
+}
+/* 方框：深色外框 + 主题色实心块 —— 框与块不同色才有层次，浅色主题下也清楚 */
+.rp-week-box {
+  position: relative; box-sizing: border-box;
+  width: 17px; height: 17px;
+  border: 2px solid var(--wk, var(--text-primary));
+  background: var(--bg-primary);
+}
+/* 中间的实心方块：单选框被选中时的样子 */
+.rp-week-box::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 9px; height: 9px; transform: translate(-50%, -50%);
+  background: var(--wk, var(--accent));
+}
+/* 当天：用主题配色里的霓虹品红 #FF00F0 —— 整格填色 + 内块反白即可，不再加外圈
+   （某天单独配了颜色时，仍以配置色为准） */
+.rp-week-box.now {
+  background: var(--wk, #FF00F0);
+  border-color: var(--wk, #FF00F0);
+}
+.rp-week-box.now::after { background: var(--bg-primary); }
+
+/* ── 外观面板：周几提示配置 ── */
+.rp-week-grid {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px; margin-bottom: 8px;
+}
+.rp-week-item { display: flex; align-items: center; gap: 6px; padding: 2px 6px; }
+.rp-week-item.active { background: var(--bg-secondary); outline: 1px solid var(--accent); }
+.rp-week-name { flex: 0 0 34px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
+.rp-week-tip {
+  flex: 1; min-width: 0; height: 24px; padding: 0 8px;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
+}
+.rp-week-tip:focus { outline: none; border-color: var(--accent); }
+.rp-week-color {
+  flex: 0 0 26px; width: 26px; height: 24px; padding: 0;
+  border: 1px solid var(--border-color); background: none; cursor: pointer;
+}
+.rp-week-clear {
+  flex: 0 0 auto; height: 24px; padding: 0 6px;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-secondary); font-size: 10px; cursor: pointer;
+}
+.rp-week-clear:disabled { opacity: 0.35; cursor: default; }
+/* 导出/复制的失败提示（进行中由按钮文字体现） */
+.rp-export-err {
+  font-family: var(--font-mono); font-size: 11px; color: #d00;
+  align-self: center; margin-left: 6px;
+}
 .rp-sheet { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-primary); color: var(--text-primary); }
 .rp-sheet .rp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .rp-sheet .rp-body::-webkit-scrollbar { display: none; }
@@ -1220,8 +1368,8 @@ defineExpose({ refreshHosting })
   left: 13px; top: 20px; bottom: 20px;
   width: 5px;
   background: linear-gradient(180deg,
-    #d87938 0 118px,
-    rgba(20, 27, 34, 0.18) 118px 100%);
+    #d87938 0, #d87938 118px,
+    rgba(20, 27, 34, 0.18) 118px, rgba(20, 27, 34, 0.18) 100%);
   pointer-events: none;
 }
 /* 档头：标题行下一条深墨线（inset shadow，不增加高度） */
@@ -1368,10 +1516,10 @@ defineExpose({ refreshHosting })
   --rt-ink: #0a1f42;
   --rt-ink-dim: rgba(10, 31, 66, 0.5);
   --rt-title-bg: linear-gradient(102deg,
-    #071b3a 0 58%,
-    #0f3a7a 58% 82%,
-    #28b8f2 82% 92%,
-    #FFB01F 92% 100%);
+    #071b3a 0, #071b3a 58%,
+    #0f3a7a 58%, #0f3a7a 82%,
+    #28b8f2 82%, #28b8f2 92%,
+    #FFB01F 92%, #FFB01F 100%);
   --rt-title-fg: #f4f6fa;
   --rt-tab-edge: rgba(244, 246, 250, 0.45);
   --rt-tab-fg: #f4f6fa;
@@ -1462,8 +1610,8 @@ defineExpose({ refreshHosting })
   width: 12px; height: 12px;
   border-radius: 0;
   background: radial-gradient(circle at 70% 50%,
-    transparent 0 42%,
-    rgba(40, 184, 242, 0.75) 43% 100%);
+    transparent 0, transparent 42%,
+    rgba(40, 184, 242, 0.75) 43%, rgba(40, 184, 242, 0.75) 100%);
   pointer-events: none;
 }
 /* 卡片：左侧青色细条（在 14px 内边距里，不压字）+ 极轻轮廓 */
@@ -1576,9 +1724,9 @@ defineExpose({ refreshHosting })
   left: 24px; right: 24px; top: 6px;
   height: 3px;
   background: linear-gradient(90deg,
-    #FF00F0 0 33.33%,
-    #B8FF3D 33.33% 66.66%,
-    #00FFA2 66.66% 100%);
+    #FF00F0 0, #FF00F0 33.33%,
+    #B8FF3D 33.33%, #B8FF3D 66.66%,
+    #00FFA2 66.66%, #00FFA2 100%);
   pointer-events: none;
 }
 /* 眉标：`//` + 宽体大写字距（8px 小字，落在标题行上方） */
@@ -1656,9 +1804,9 @@ defineExpose({ refreshHosting })
   left: 24px; right: 24px; top: 6px;
   height: 3px;
   background: linear-gradient(90deg,
-    #FF00F0 0 33.33%,
-    #B8FF3D 33.33% 66.66%,
-    #00FFA2 66.66% 100%);
+    #FF00F0 0, #FF00F0 33.33%,
+    #B8FF3D 33.33%, #B8FF3D 66.66%,
+    #00FFA2 66.66%, #00FFA2 100%);
   pointer-events: none;
 }
 .rp-theme-ef-nightshift .rp-title { font-weight: 800; letter-spacing: 0.4px; }
@@ -1717,9 +1865,9 @@ defineExpose({ refreshHosting })
   left: 24px; right: 24px; top: 6px;
   height: 3px;
   background: linear-gradient(90deg,
-    #FF00F0 0 33.33%,
-    #B8FF3D 33.33% 66.66%,
-    #00FFA2 66.66% 100%);
+    #FF00F0 0, #FF00F0 33.33%,
+    #B8FF3D 33.33%, #B8FF3D 66.66%,
+    #00FFA2 66.66%, #00FFA2 100%);
   pointer-events: none;
 }
 /* 眉标：工单 / 编号栏 */
@@ -1788,8 +1936,8 @@ defineExpose({ refreshHosting })
   left: 0; right: 0; bottom: -5px;
   height: 2px;
   background: repeating-linear-gradient(90deg,
-    rgba(43, 108, 176, 0.55) 0 1px,
-    transparent 1px 8px);
+    rgba(43, 108, 176, 0.55) 0, rgba(43, 108, 176, 0.55) 1px,
+    transparent 1px, transparent 8px);
   pointer-events: none;
 }
 
@@ -1801,8 +1949,8 @@ defineExpose({ refreshHosting })
   right: 0; top: 0; bottom: 0;
   width: 20px;
   background: repeating-linear-gradient(90deg,
-    rgba(242, 244, 242, 0.45) 0 1px,
-    transparent 1px 4px);
+    rgba(242, 244, 242, 0.45) 0, rgba(242, 244, 242, 0.45) 1px,
+    transparent 1px, transparent 4px);
   pointer-events: none;
 }
 
@@ -1814,8 +1962,8 @@ defineExpose({ refreshHosting })
   right: 0; top: 0;
   width: 22px; height: 22px;
   background: linear-gradient(225deg,
-    #FFB01F 0 50%,
-    rgba(255, 176, 31, 0.28) 50% 62%,
+    #FFB01F 0, #FFB01F 50%,
+    rgba(255, 176, 31, 0.28) 50%, rgba(255, 176, 31, 0.28) 62%,
     transparent 62%);
   pointer-events: none;
 }
@@ -1827,8 +1975,8 @@ defineExpose({ refreshHosting })
   right: 0; bottom: -6px;
   width: 64px; height: 2px;
   background: repeating-linear-gradient(90deg,
-    rgba(16, 35, 63, 0.35) 0 1px,
-    transparent 1px 5px);
+    rgba(16, 35, 63, 0.35) 0, rgba(16, 35, 63, 0.35) 1px,
+    transparent 1px, transparent 5px);
   pointer-events: none;
 }
 
@@ -2017,7 +2165,7 @@ defineExpose({ refreshHosting })
 .rp-theme-ls-manifest .rp-card-head::after {
   content: ''; position: absolute; right: 12px; top: 6px;
   width: 44px; height: 8px;
-  background: repeating-linear-gradient(90deg, rgba(22,27,31,0.45) 0 1px, transparent 1px 4px);
+  background: repeating-linear-gradient(90deg, rgba(22,27,31,0.45) 0, rgba(22,27,31,0.45) 1px, transparent 1px, transparent 4px);
   pointer-events: none;
 }
 
@@ -2065,7 +2213,7 @@ defineExpose({ refreshHosting })
   pointer-events: none;
 }
 .rp-theme-ls-terminal .rp-task-row {
-  background-image: repeating-linear-gradient(180deg, rgba(232,226,211,0.03) 0 1px, transparent 1px 3px);
+  background-image: repeating-linear-gradient(180deg, rgba(232,226,211,0.03) 0, rgba(232,226,211,0.03) 1px, transparent 1px, transparent 3px);
 }
 
 /* ── P3R · 夜间数据：深海军蓝承载面 + 青色刻度 + 琥珀只标关键数字 ──
@@ -2078,7 +2226,7 @@ defineExpose({ refreshHosting })
   --rt-canvas: #06162c;
   --rt-ink: #e8f1fb;
   --rt-ink-dim: rgba(232,241,251,0.6);
-  --rt-title-bg: linear-gradient(90deg, #071b3a 0 66%, #0f3a7a 66% 100%);
+  --rt-title-bg: linear-gradient(90deg, #071b3a 0%, #071b3a 66%, #0f3a7a 66%, #0f3a7a 100%);
   --rt-title-fg: #f4f6fa;
   --rt-tab-edge: rgba(232,241,251,0.45);
   --rt-tab-fg: #e8f1fb;
@@ -2146,7 +2294,7 @@ defineExpose({ refreshHosting })
 .rp-theme-ef-manifest .rp-card-head::before {
   content: ''; position: absolute; left: 6px; top: calc(50% - 5px);
   width: 3px; height: 10px;
-  background: linear-gradient(180deg, #FF00F0 0 33%, #B8FF3D 33% 66%, #00FFA2 66% 100%);
+  background: linear-gradient(180deg, #FF00F0 0%, #FF00F0 33%, #B8FF3D 33%, #B8FF3D 66%, #00FFA2 66%, #00FFA2 100%);
   pointer-events: none;
 }
 
@@ -2197,8 +2345,8 @@ defineExpose({ refreshHosting })
   right: 10px; bottom: 10px;
   width: 11px; height: 11px;
   background:
-    linear-gradient(180deg, rgba(17, 17, 17, 0.55) 0 1px, transparent 1px),
-    linear-gradient(90deg, rgba(17, 17, 17, 0.55) 0 1px, transparent 1px);
+    linear-gradient(180deg, rgba(17, 17, 17, 0.55) 0, rgba(17, 17, 17, 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.55) 0, rgba(17, 17, 17, 0.55) 1px, transparent 1px);
   pointer-events: none;
 }
 /* 标题行中央的红色「格心」 */
@@ -2730,8 +2878,8 @@ defineExpose({ refreshHosting })
 /* 卡片：极淡的 12 栏竖线（0.05 的 1px，压在文字后面也不糊）+ 1px 轮廓 */
 .rp-theme-swiss-rule .rp-card {
   background-image: repeating-linear-gradient(90deg,
-    rgba(22, 22, 22, 0.05) 0 1px,
-    transparent 1px 8.3333%);
+    rgba(22, 22, 22, 0.05) 0, rgba(22, 22, 22, 0.05) 1px,
+    transparent 1px, transparent 8.3333%);
   box-shadow: inset 0 0 0 1px rgba(22, 22, 22, 0.35);
 }
 .rp-wrap.rp-theme-swiss-rule .rp-task-label { font-weight: 400; letter-spacing: 0.01em; }
@@ -2867,8 +3015,8 @@ defineExpose({ refreshHosting })
   right: 0; bottom: -8px;
   width: 72px; height: 3px;
   background: repeating-linear-gradient(90deg,
-    rgba(40, 184, 242, 0.7) 0 1px,
-    transparent 1px 6px);
+    rgba(40, 184, 242, 0.7) 0, rgba(40, 184, 242, 0.7) 1px,
+    transparent 1px, transparent 6px);
   pointer-events: none;
 }
 .rp-theme-p3r-cut .rp-meta { font-family: var(--font-mono); letter-spacing: 0.04em; }
@@ -2905,7 +3053,7 @@ defineExpose({ refreshHosting })
 /* 索引版式：卡片左缘一条红色索引条 + 编号右对齐（墨底上的索引页） */
 .rp-theme-swiss-index .rp-card {
   background: #181818;
-  background-image: linear-gradient(90deg, rgba(218,41,28,0.85) 0 5px, transparent 5px);
+  background-image: linear-gradient(90deg, rgba(218,41,28,0.85) 0, rgba(218,41,28,0.85) 5px, transparent 5px);
   box-shadow: inset 0 0 0 1px rgba(242,239,233,0.4);
 }
 

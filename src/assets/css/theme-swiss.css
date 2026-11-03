@@ -25,7 +25,7 @@
   --font-ui: var(--ch-font);
   /* 12 栏网格：每栏 8.3333%，栏线 1px */
   --ch-cols: repeating-linear-gradient(90deg,
-    var(--ch-grid-line) 0 1px,
+    var(--ch-grid-line) 0, var(--ch-grid-line) 1px,
     transparent 1px var(--ch-col));
   /* 红色编号：01 / 02 …… 只做小字标注，不做大面积填充 */
   --ch-index: var(--ch-red);

@@ -53,11 +53,11 @@
                   @click="patch(card.id, { width: card.width === 'half' ? 'full' : 'half' })"
                 >{{ card.width === 'half' ? '半宽' : '整行' }}</button>
                 <button
-                  class="rp-tpl-mini"
+                  class="rp-tpl-mini rp-tpl-hide"
                   :class="{ off: card.visible === false }"
-                  :title="card.visible === false ? '已隐藏：点一下在画布上重新显示' : '隐藏这张卡（配置与内容保留，画布上不显示）'"
+                  :title="card.visible === false ? '当前状态：已隐藏（画布上不显示）。点一下改为显示' : '当前状态：显示中。点一下改为隐藏（配置与内容保留，画布上不显示）'"
                   @click="patch(card.id, { visible: card.visible === false })"
-                >{{ card.visible === false ? '已隐藏' : '隐藏' }}</button>
+                >{{ card.visible === false ? '隐藏' : '显示' }}</button>
                 <button v-if="card.kind === 'custom'" class="rp-tpl-mini is-del" @click="remove(card.id)" title="删除这张自定义卡片">删除</button>
               </div>
             </div>
@@ -72,11 +72,11 @@
                   @click="setRowKind(card.kind, ri, item.kind === 'text' ? 'check' : 'text')"
                 >{{ item.kind === 'text' ? '文本' : '按钮' }}</button>
                 <button
-                  class="rp-tpl-mini"
+                  class="rp-tpl-mini rp-tpl-hide"
                   :class="{ off: item.visible === false }"
-                  :title="item.visible === false ? '已隐藏：点一下在日报里重新显示' : '隐藏这一项（配置保留，日报里不显示）'"
+                  :title="item.visible === false ? '当前状态：已隐藏（日报里不显示）。点一下改为显示' : '当前状态：显示中。点一下改为隐藏（配置保留，日报里不显示）'"
                   @click="toggleRowHidden(card.kind, ri)"
-                >{{ item.visible === false ? '已隐藏' : '隐藏' }}</button>
+                >{{ item.visible === false ? '隐藏' : '显示' }}</button>
                 <button class="rp-tpl-del" @click="removeRow(card.kind, ri)" title="删除这一项">×</button>
               </div>
               <button class="rp-tpl-add" @click="addRow(card.kind)">+ 添加{{ card.kind === 'daily' ? '日常任务' : '周常' }}</button>
@@ -111,11 +111,11 @@
                   @click="setLine(card.id, li, 'kind', line.kind === 'text' ? 'check' : 'text')"
                 >{{ line.kind === 'text' ? '文本' : '按钮' }}</button>
                 <button
-                  class="rp-tpl-mini"
+                  class="rp-tpl-mini rp-tpl-hide"
                   :class="{ off: line.visible === false }"
-                  :title="line.visible === false ? '已隐藏：点一下在画布上重新显示' : '隐藏这一行（内容保留，画布上不显示）'"
+                  :title="line.visible === false ? '当前状态：已隐藏（画布上不显示）。点一下改为显示' : '当前状态：显示中。点一下改为隐藏（内容保留，画布上不显示）'"
                   @click="toggleLineHidden(card.id, li)"
-                >{{ line.visible === false ? '已隐藏' : '隐藏' }}</button>
+                >{{ line.visible === false ? '隐藏' : '显示' }}</button>
                 <button class="rp-tpl-del" @click="removeLine(card.id, li)" title="删除这一行">×</button>
               </div>
               <button class="rp-tpl-add" @click="addLine(card.id)">+ 添加一行</button>
@@ -363,14 +363,25 @@ function removeLine(id, index) {
 .rp-tpl-card-title { height: 24px; }
 .rp-tpl-card-tools { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .rp-tpl-mini {
-  height: 22px; padding: 0 7px;
-  border: 1px solid var(--border-color); background: none;
-  color: var(--text-primary); font-family: var(--font-mono); font-size: 10px; cursor: pointer;
+  height: 24px; padding: 0 9px;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; font-weight: 600; cursor: pointer;
 }
 .rp-tpl-mini:hover { background: var(--btn-hover-bg, var(--border-color)); color: var(--btn-hover-fg, #fff); }
 .rp-tpl-mini:disabled { opacity: 0.3; cursor: default; }
 .rp-tpl-mini.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); }
-.rp-tpl-mini.off { opacity: 0.5; }
+/* 显示中：主题主色实心（开）——文字写的是当前状态，颜色也对应状态 */
+.rp-tpl-mini.rp-tpl-hide {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff);
+  font-weight: 700; box-shadow: inset 0 0 0 2px var(--bg-secondary);
+}
+.rp-tpl-mini.rp-tpl-hide:hover { filter: brightness(1.12); }
+/* 已隐藏：素色（关），点一下恢复 */
+.rp-tpl-mini.rp-tpl-hide.off {
+  background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-secondary);
+  font-weight: 600; box-shadow: none;
+}
+.rp-tpl-mini.rp-tpl-hide.off:hover { background: var(--btn-hover-bg, var(--border-color)); color: var(--btn-hover-fg, #fff); }
 .rp-tpl-mini.is-del:hover { background: #d00; border-color: #d00; color: #fff; }
 .rp-tpl-lines { margin: 4px 0 0 8px; }
 .rp-tpl-sub-title {

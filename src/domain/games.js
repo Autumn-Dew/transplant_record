@@ -159,6 +159,19 @@ export function gameKeyOf(games, keyOrName) {
   return g ? g.id : str(keyOrName).trim()
 }
 
+// ── 价格表 key = 游戏的「key 名」（简称 short）──
+// 没填 key 名时回落到游戏 id，保证永远有一个可用的键。
+export function priceKeyOf(games, keyOrName) {
+  const g = findGame(games, keyOrName)
+  if (!g) return str(keyOrName).trim()
+  return str(g.short).trim() || g.id
+}
+
+// 价格页 / 数据管理的游戏选项：value 是价格表 key（key 名），label 仍是游戏名
+export function priceGameOptions(games) {
+  return usableGames(games).map(g => ({ value: str(g.short).trim() || g.id, label: g.name }))
+}
+
 // 任意输入 → 展示名；找不到则原样返回输入
 export function gameNameOf(games, keyOrName) {
   const g = findGame(games, keyOrName)
