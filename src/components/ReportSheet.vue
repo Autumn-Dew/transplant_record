@@ -1,56 +1,70 @@
 <template>
   <div class="rp-sheet" @paste="onPaste">
     <div class="local-toolbar rp-toolbar">
-      <!-- 第一排：主要操作 -->
-      <div class="rp-toolbar-rows">
-        <div class="rp-toolbar-row">
-          <button class="rc-global-btn" :disabled="!!busy" @click="exportImage(false)">{{ busy === 'export' ? '导出中…' : templateText('btnExport', '导出图片') }}</button>
-          <button class="rc-global-btn" :disabled="!!busy" @click="exportImage(true)">{{ busy === 'copy' ? '复制中…' : templateText('btnCopy', '复制到剪切板') }}</button>
-          <span v-if="lastError" class="rp-export-err">{{ lastError }}</span>
-          <button
-            class="rc-global-btn rp-confirm-btn"
-            data-sfx-overcharge
-            :disabled="!selectedTask || selectedConfirmedToday"
-            :style="getConfirmStyle()"
-            :title="confirmBtnTitle"
-            @click="handleConfirm"
-          >{{ confirmBtnText }}</button>
-          <button class="rc-global-btn" @click="shareImage">{{ templateText('btnShare', '分享') }}</button>
-        </div>
-        <!-- 第二排：编辑与外观 -->
-        <div class="rp-toolbar-row">
-          <button class="rc-global-btn" @click="resetAll">{{ templateText('btnReset', '重置') }}</button>
-          <label class="rc-global-btn" style="cursor:pointer">
-            <span>{{ templateText('btnAddImage', '+ 图片') }}</span>
-            <input type="file" accept="image/*" multiple hidden @change="onImgFiles" />
-          </label>
-          <span class="rp-look-btn">
-            <button
-              class="rc-global-btn"
-              title="每日汇报的主题与背景（与当前应用主题无关，可自由组合）"
-              @click="stylePanelOpen = true"
-            >{{ templateText('btnAppearance', '外观') }} · {{ reportTheme.label }} / {{ reportBg.label }}</button>
+      <!-- 上半：所有按钮并排一行 -->
+      <div class="rp-toolbar-buttons">
+        <button class="rc-global-btn" :disabled="!!busy" @click="exportImage(false)">{{ busy === 'export' ? '导出中…' : templateText('btnExport', '导出图片') }}</button>
+        <button class="rc-global-btn" :disabled="!!busy" @click="exportImage(true)">{{ busy === 'copy' ? '复制中…' : templateText('btnCopy', '复制到剪切板') }}</button>
+        <span v-if="lastError" class="rp-export-err">{{ lastError }}</span>
+        <button
+          class="rc-global-btn rp-confirm-btn"
+          data-sfx-overcharge
+          :disabled="!selectedTask || selectedConfirmedToday"
+          :style="getConfirmStyle()"
+          :title="confirmBtnTitle"
+          @click="handleConfirm"
+        >{{ confirmBtnText }}</button>
+        <button class="rc-global-btn" @click="resetAll">{{ templateText('btnReset', '重置') }}</button>
+        <button class="rc-global-btn" :title="'每日汇报的主题与背景（当前：' + reportTheme.label + ' / ' + reportBg.label + '）'" @click="stylePanelOpen = true">{{ templateText('btnAppearance', '外观') }}</button>
+        <button class="rc-global-btn" title="编辑日报模板（临时修改，可存为全局预设）" @click="templatePanelOpen = true">{{ templateText('btnTemplate', '模板') }}</button>
+        <button v-if="copyTextEnabled" class="rc-global-btn" title="把当天日报拼成一段文字（发微信/QQ 用）" @click="copyTextReport">复制文字</button>
+        <!-- 托管进度：放在按钮右侧 -->
+        <span v-if="taskProgress" class="rp-progress" :title="taskProgress.title">
+          <span class="rp-progress-text">{{ taskProgress.text }}</span>
+          <span class="rp-progress-bar">
+            <span
+              v-for="n in 10"
+              :key="n"
+              class="rp-progress-seg"
+              :class="{ on: n <= taskProgress.segments }"
+              :style="n <= taskProgress.segments ? { background: taskProgress.color, borderColor: taskProgress.color } : null"
+            ></span>
           </span>
-          <button class="rc-global-btn" title="编辑日报模板（临时修改，可存为全局预设）" @click="templatePanelOpen = true">{{ templateText('btnTemplate', '模板') }}</button>
-          <span class="rp-hint">{{ templateText('hintPaste', 'Ctrl+V 粘贴截图') }}</span>
-        </div>
+        </span>
       </div>
 
-      <!-- 右侧：备注（上）+ 日期 / 周几（下，周几可配 tip 与颜色） -->
-      <div class="rp-toolbar-side">
-        <span class="rp-note" v-if="selectedTask && selectedTask.note" :title="selectedTask.note">
-          备注：{{ selectedTask.note }}
-        </span>
-        <!-- 7 天一排方框：不写字，配了颜色的当天会多一层框 -->
-        <span class="rp-week-row">
-          <span
-            v-for="i in WEEKDAY_ORDER"
-            :key="i"
-            class="rp-week-box"
-            :class="{ now: i === todayIdx }"
-            :style="weekdayBoxStyle(i)"
-            :title="weekdayMarks[i].tip || (WEEKDAY_NAMES[i] + (i === todayIdx ? '（今天）' : ''))"
-          ></span>
+      <!-- 下半：备注左对齐，提示与日期右对齐 -->
+      <div class="rp-toolbar-meta">
+      <!-- 备注：和「今天的提示」同款输入框，不带标签；改动立刻写回项目 -->
+      <input
+        v-if="selectedTask"
+        class="rp-note-inp"
+        :value="selectedTask.note || ''"
+        placeholder="备注…"
+        maxlength="80"
+        :title="selectedTask.note || '备注会保存到这个项目上'"
+        @change="setTaskNote($event.target.value)"
+      />
+        <span class="rp-toolbar-right">
+      <!-- 7 天一排方框：不写字；今天用主题反色显示 -->
+      <span class="rp-week-row">
+        <!-- 自定义提示：和备注一样，直接点着改（无边框，悬停/聚焦才出现底线） -->
+        <input
+          class="rp-week-tip-inp"
+          :value="weekdayMarks[todayIdx].tip"
+          placeholder="今天的提示…"
+          maxlength="40"
+          title="当天的提示：显示在日期左边"
+          @change="setWeekdayTip(todayIdx, $event.target.value)"
+        />
+        <span
+          v-for="i in WEEKDAY_ORDER"
+          :key="i"
+          class="rp-week-box"
+          :class="{ now: i === todayIdx }"
+          :title="WEEKDAY_NAMES[i] + (i === todayIdx ? '（今天）' : '')"
+        ></span>
+      </span>
         </span>
       </div>
 
@@ -335,11 +349,11 @@
             @click="applyClassicLook"
           >经典外观</button>
         </div>
-        <!-- 周几提示：给每一天配一句提示与一个颜色，显示在工具栏右上角 -->
-        <p class="detail-section">周几提示 · 工具栏右上角显示的「周几」可以每天单独配色、加一句提示</p>
+        <!-- 周几提示：给每一天配一句提示，当天的会显示在工具栏右上角方框左边 -->
+        <p class="detail-section">周几提示 · 当天那一句会显示在工具栏右上角的方框左边</p>
         <div class="rp-week-grid">
           <div class="rp-week-item" v-for="i in WEEKDAY_ORDER" :key="i" :class="{ active: i === todayIdx }">
-            <span class="rp-week-name" :style="weekdayMarks[i].color ? { color: weekdayMarks[i].color } : {}">{{ WEEKDAY_NAMES[i] }}</span>
+            <span class="rp-week-name">{{ WEEKDAY_NAMES[i] }}</span>
             <input
               class="rp-week-tip"
               :value="weekdayMarks[i].tip"
@@ -347,14 +361,6 @@
               maxlength="40"
               @input="setWeekdayTip(i, $event.target.value)"
             />
-            <input
-              type="color"
-              class="rp-week-color"
-              :value="weekdayMarks[i].color || '#0878E8'"
-              title="这一天的文字颜色"
-              @input="setWeekdayColor(i, $event.target.value)"
-            />
-            <button class="rp-week-clear" :disabled="!weekdayMarks[i].color" title="清空颜色" @click="clearWeekdayColor(i)">清除</button>
           </div>
         </div>
       </div>
@@ -370,6 +376,7 @@ import { maskAccount, getDisplayName } from '@/composables/useMask'
 import { fmtDate as toDateStr, addMonth, isYmd, todayLocal, gameNow } from '@/utils/date'
 import { completeTaskById, localToday } from '@/utils/taskComplete'
 import { hostProgress, isHosting, isClosed } from '@/domain/project.js'
+import { percentOf, progressColorByPercent, segmentsByPercent } from '@/utils/progress.js'
 import { projectsRepo, gamesRepo } from '@/data/repos.js'
 import { findGame, gameKeyOf, gameNameOf, usableGames } from '@/domain/games.js'
 import { reportPresetFor } from '@/domain/report-presets.js'
@@ -377,11 +384,15 @@ import { normalizeReportLayout, normalizeRows } from '@/domain/report-layout.js'
 import { readReportDrafts, writeReportDrafts, clearReportDraft } from '@/data/report-draft.js'
 import { REPORT_TEXT_FIELDS } from '@/domain/report-template.js'
 import { updateGame } from '@/services/gameService.js'
+import { updateProject } from '@/services/projectService.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
 import { REPORT_BACKGROUNDS, CLASSIC_REPORT_BG, readReportBg, writeReportBg, findReportBg, bgTone } from '@/data/report-backgrounds.js'
 import { readWeekdayMarks, writeWeekdayMarks, WEEKDAY_NAMES, WEEKDAY_ORDER, todayWeekday, todayDateText } from '@/data/report-weekday.js'
+import { copyText as copyToClipboard } from '@/utils/clipboard.js'
+import { readCopyTextEnabled, COPY_BTN_EVENT } from '@/data/report-copy-btn.js'
+import { warn } from '@/utils/devlog.js'
 import { REPORT_THEMES, CLASSIC_REPORT_THEME, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
-import { useConfirmClick } from '@/composables/useConfirmClick.js'
+import { useConfirmClick, CONFIRM_TIMES } from '@/composables/useConfirmClick.js'
 import { APP_SIGN } from '@/data/app-info.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
 import { useReportExport } from '@/composables/useReportExport.js'
@@ -418,30 +429,100 @@ const currentAuthor = computed(() => {
 // 否则 immediate watch 会在初始化阶段读到未定义变量（TDZ）—— 见下方「标题」段。
 
 // ── 汇报外观：主题（内容皮肤）与背景（画布底层）各自独立持久化，互不改写 ──
-// ── 周几标记：工具栏右上角「日期 + 周几」，每一天可配一句提示与颜色 ──
+// ── 周几标记：工具栏右上角「日期 + 周几」，每一天可配一句提示 ──
 const weekdayMarks = ref(readWeekdayMarks())
 const todayIdx = todayWeekday()
 const todayDate = todayDateText()
-const todayWeekName = WEEKDAY_NAMES[todayIdx] || ''
-// 方块里只放一个字（一 / 二 / … / 日）
-const WEEKDAY_SHORT = ['日', '一', '二', '三', '四', '五', '六']
-// 每一格的颜色：配了就用配置色（边框 + 内部小方块 + 今天的外圈），没配就跟随主题
-function weekdayBoxStyle(i) {
-  const c = (weekdayMarks.value[i] || {}).color
-  return c ? { '--wk': c } : {}
+
+// 「复制文字」按钮默认隐藏，在设置里打开才显示
+const copyTextEnabled = ref(readCopyTextEnabled())
+function onCopyBtnChanged() { copyTextEnabled.value = readCopyTextEnabled() }
+onMounted(() => window.addEventListener(COPY_BTN_EVENT, onCopyBtnChanged))
+onUnmounted(() => window.removeEventListener(COPY_BTN_EVENT, onCopyBtnChanged))
+
+// ── 纯文字版日报（紧凑版）──
+//   抬头一行、任务各一行内联，不用分隔线也不留空行，粘贴到聊天窗口更省屏。
+function textOfEl(el) {
+  return el && el.textContent ? String(el.textContent).replace(/\s+/g, ' ').trim() : ''
 }
+function buildTextReport() {
+  const game = reportGames.value.find(g => g.id === reportGame.value) || null
+  const gameName = (game && game.name) || ''
+  const task = selectedTask.value
+  const lines = []
+
+  // 抬头：日期 · 游戏 · 项目（账号）
+  const head = ['【代肝日报】' + todayDate]
+  if (gameName) head.push(gameName)
+  if (task) {
+    const name = getDisplayName(task) || maskAccount(task.account) || ''
+    const acc = maskAccount(task.account) || ''
+    head.push(acc ? name + '（' + acc + '）' : name)
+  }
+  lines.push(head.join(' · '))
+
+  // 汇报人 / 托管进度（各一行）
+  lines.push('汇报人：' + (currentAuthor.value || '—'))
+  if (task) {
+    const p = hostProgress(task)
+    const host = task.host || {}
+    const seg = []
+    if (p && p.planned) seg.push('进度 ' + p.completed + '/' + p.planned + ' 次')
+    if (host.startDate && host.endDate) seg.push(host.startDate + ' ~ ' + host.endDate)
+    if (seg.length) lines.push('托管：' + seg.join(' · '))
+  }
+
+  // 任务：每段一行内联，完成打 ✓、未完成打 ✗、文本型给内容
+  const inline = (label, rows) => {
+    const parts = (rows || [])
+      .filter(r => r && r.visible !== false)
+      .map(r => (r.kind === 'text' ? r.label + ' ' + (r.value || '—') : r.label + (r.done ? '✓' : '✗')))
+    if (parts.length) lines.push(label + '：' + parts.join(' '))
+  }
+  inline('日常', currentRows.value.daily)
+  inline('周常', currentRows.value.weekly)
+
+  // 游戏专属项并进同一行
+  const extra = []
+  const pushExtra = (v, label) => {
+    if (v !== '' && v != null) extra.push(label + ' ' + v)
+  }
+  if (reportGame.value === 'ak') pushExtra(sanityLeft.value, templateText('rowSanity', '理智剩余'))
+  else if (reportGame.value === 'endfield') pushExtra(efSanityLeft.value, templateText('rowSanity', '理智剩余'))
+  else if (reportGame.value === 'nte') pushExtra(ntePixelLeft.value, templateText('rowPixel', '本性像素剩余'))
+  if (clueValue.value) extra.push(templateText('rowClue', '线索传递') + ' ' + clueValue.value)
+  if (extra.length) lines.push('进度：' + extra.join(' · '))
+
+  // 今日获取：A 1200→1500 · B 80→120
+  const res = resources
+    .filter(r => r && r.label)
+    .map(r => {
+      const before = r.before === '' || r.before == null ? '—' : r.before
+      const after = r.after === '' || r.after == null ? '—' : r.after
+      return r.label + ' ' + before + '→' + after
+    })
+  if (res.length) lines.push('今日获取：' + res.join(' · '))
+
+  // 计划 / 备注：有内容才出，且各占一行
+  const plan = textOfEl(planRef.value)
+  if (plan) lines.push('明日计划：' + plan)
+  const note = textOfEl(noteRef.value)
+  if (note) lines.push('备注：' + note)
+
+  lines.push('—— ' + (currentAuthor.value || APP_SIGN))
+  return lines.join('\n').trim()
+}
+async function copyTextReport() {
+  try { await copyToClipboard(buildTextReport()) } catch (e) { warn('report:copyText', e) }
+}
+const todayWeekName = WEEKDAY_NAMES[todayIdx] || ''
+// 今天那天的自定义提示：显示在七个方框左边
 const weekdayTip = computed(() => (weekdayMarks.value[todayIdx] || {}).tip || '')
-const weekdayStyle = computed(() => {
-  const c = (weekdayMarks.value[todayIdx] || {}).color
-  return c ? { color: c } : {}
-})
 function patchWeekday(i, patch) {
   const next = { ...weekdayMarks.value, [i]: { ...(weekdayMarks.value[i] || {}), ...patch } }
   weekdayMarks.value = writeWeekdayMarks(next)
 }
 function setWeekdayTip(i, v) { patchWeekday(i, { tip: String(v || '') }) }
-function setWeekdayColor(i, v) { patchWeekday(i, { color: v }) }
-function clearWeekdayColor(i) { patchWeekday(i, { color: '' }) }
 
 const reportBgId = ref(readReportBg())
 const reportBg = computed(() => findReportBg(reportBgId.value))
@@ -552,6 +633,7 @@ function gameNameOfRecord(t) {
   return gameNameOf(gamesRepo.state.value, (t && t.game) || '')
 }
 // 页签始终指向一个真实存在的游戏（被停用 / 归档 / 删除后自动切到第一个）
+// 页签始终指向一个真实存在的游戏（被停用 / 归档 / 删除后自动切到第一个）
 watch(reportGames, (list) => {
   if (!list.length) return
   if (!list.some(g => g.id === reportGame.value)) reportGame.value = list[0].id
@@ -594,6 +676,31 @@ watch(hostingOptions, (opts) => {
 
 // ── 确认完成（同代肝代办）──
 const selectedTask = computed(() => hostingTasks.value.find(t => String(t.id) === String(selectedTaskId.value)) || null)
+
+// 画布里的托管进度（次数口径，与「代肝代办」一致）
+const taskProgress = computed(() => {
+  const t = selectedTask.value
+  if (!t) return null
+  const p = hostProgress(t)
+  const pct = percentOf(p && p.completed, p && p.planned)
+  if (!p || !p.planned) return null
+  const tip = pct >= 90 ? '，快结束了，注意续费/收尾' : pct >= 75 ? '，即将结束' : ''
+  return {
+    pct,
+    segments: segmentsByPercent(pct),
+    color: progressColorByPercent(pct),
+    text: p.completed + '/' + p.planned + ' 次 ' + pct + '%',
+    title: '已完成 ' + p.completed + '/' + p.planned + ' 次（' + pct + '%）' + tip,
+  }
+})
+// 备注：直接在日报里改，写回项目本身（新增记录与日报看到的是同一份）
+function setTaskNote(v) {
+  const t = selectedTask.value
+  if (!t) return
+  const note = String(v || '').trim()
+  if (note === String(t.note || '')) return
+  try { updateProject(t.id, { note }) } catch { /* ignore */ }
+}
 const selectedConfirmedToday = computed(() => {
   const t = selectedTask.value
   return !!(t && t.status === 2 && t.lastConfirmDate === localToday())
@@ -606,7 +713,14 @@ const confirmBtnTitle = computed(() => {
 // ── 确认完成（同代肝代办：多次点击机制见 composables/useConfirmClick + 逐层音效）──
 const confirmCfm = useConfirmClick()
 const confirmStage = computed(() => (selectedTaskId.value ? confirmCfm.countOf(selectedTaskId.value) : 0))
-const confirmBtnText = computed(() => confirmCfm.titleOf(selectedTaskId.value || 'unselected', '确认完成'))
+const confirmBtnText = computed(() => {
+  // 文字 = 还差几次（倒计时），全部 4 个字以内
+  const left = CONFIRM_TIMES - confirmStage.value
+  if (left === 3) return '再点三次'
+  if (left === 2) return '再点两次'
+  if (left === 1) return '再点一次'
+  return '确认完成'
+})
 function getConfirmStyle() { return confirmCfm.styleOf(selectedTaskId.value || 'unselected') }
 function handleConfirm() {
   const id = selectedTaskId.value
@@ -695,6 +809,7 @@ function draftFor(gameId) {
 }
 
 const currentTpl = computed(() => draftFor(reportGame.value))
+
 const tplText = computed(() => currentTpl.value.text || {})
 
 // 渲染用卡片清单：直接取草稿里的对象（同引用），行内 v-model 改动会落到草稿并触发落盘。
@@ -859,6 +974,16 @@ watch(reportGame, (game) => {
   resetResourcesForGame(game, roll)
 })
 
+// 重启后首次进日报时，游戏目录（gamesRepo）可能还没 hydrate 完，
+// reportPresetFor 取不到预设 → 资源被初始化成空，之后不会再补。
+// 这里等目录就绪后再补一次；只在资源仍为空时补，不覆盖草稿里已有的内容。
+watch(() => gamesRepo.state.value.length, (n) => {
+  if (!n || resources.length) return
+  const g = reportGame.value || (reportGames.value[0] ? reportGames.value[0].id : '')
+  if (!g) return
+  resetResourcesForGame(g, {})
+})
+
 // ── 资源数值即时记忆（300ms 防抖）──
 // 以前只有「导出图片 / 复制到剪贴板」成功后才写 tr-report-roll：
 // 用「分享」导出、或者忘了导出，下次选中同一项目就没有数据可回填。
@@ -978,34 +1103,54 @@ defineExpose({ refreshHosting })
 </script>
 
 <style scoped>
+/* 工具栏里的托管进度：次数 + 10 格刻度，贴按钮右侧 */
+.rp-progress { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.rp-progress-text { font-family: var(--font-mono); font-size: 11px; }
+.rp-progress-bar { display: flex; gap: 1px; width: 60px; }
+.rp-progress-seg {
+  flex: 1 1 0; height: 7px;
+  border: 1px solid var(--border-color); opacity: 0.3;
+}
+.rp-progress-seg.on { opacity: 1; }
 /* ── 工具栏：左侧按钮分两排，右侧备注 + 日期 / 周几上下排列 ── */
 .rp-toolbar { align-items: flex-start; gap: 6px 12px; }
 .rp-toolbar-rows { flex: 0 1 auto; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .rp-toolbar-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* 右侧一块：与左侧两排等高，备注居中于第一排、方框居中于第二排。
-   宽度取按钮之后的全部剩余空间 —— 备注可以一直延伸到按钮右侧。 */
-.rp-toolbar-side {
-  flex: 1 1 auto; min-width: 0; margin-left: 12px;
-  align-self: stretch; display: grid; grid-template-rows: 1fr 1fr;
-  align-items: center; justify-items: end; gap: 6px; text-align: right;
+/* 工具栏纵向两段：上＝按钮一行，下＝备注（左）+ 提示与日期（右） */
+.rp-toolbar { flex-direction: column; align-items: stretch; gap: 6px; }
+.rp-toolbar-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rp-toolbar-meta {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+}
+.rp-toolbar-right {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
 }
 
 /* 7 天：与画布里的单选框同一套样式（2px 外框 + 中间实心方块），不写字 */
 /* 备注固定在第一行、方框固定在第二行：没有备注时方框也贴第二排居中 */
-/* 备注：从按钮右侧一直延伸到右边缘，放不下才省略 */
-.rp-toolbar-side .rp-note {
-  grid-row: 1; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* 备注：和「今天的提示」同款 2px 边框；宽度按内容自适应（field-sizing），太长才封顶 */
+.rp-note-inp {
+  grid-row: 1; justify-self: end;
+  width: auto; min-width: 72px; max-width: 100%; height: 26px; padding: 0 8px;
+  field-sizing: content;
+  border: 2px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; text-align: right;
 }
-/* 整块加底色 + 双层细框：方框在有色底上才显得出来（浅色主题尤其明显） */
-.rp-week-row {
-  grid-row: 2; display: flex; align-items: center; gap: 4px;
-  padding: 3px 6px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  box-shadow: inset 0 0 0 1px var(--bg-primary);
-}
+.rp-note-inp::placeholder { color: var(--text-primary); opacity: 0.35; }
+.rp-note-inp:focus { outline: none; border-color: var(--accent); }
+/* 一排方框 + 左侧提示，不加底板 */
+.rp-week-row { grid-row: 2; display: flex; align-items: center; gap: 4px; }
 /* 方框：深色外框 + 主题色实心块 —— 框与块不同色才有层次，浅色主题下也清楚 */
+/* 当天提示：和备注同一套大边框，宽度同样按内容自适应 */
+.rp-week-tip-inp {
+  flex: 0 0 auto; width: auto; min-width: 66px; max-width: 220px; height: 26px; padding: 0 8px;
+  margin-right: 6px;
+  field-sizing: content;
+  border: 2px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; text-align: right;
+}
+.rp-week-tip-inp::placeholder { color: var(--text-primary); opacity: 0.35; }
+.rp-week-tip-inp:focus { outline: none; border-color: var(--accent); }
 .rp-week-box {
   position: relative; box-sizing: border-box;
   width: 17px; height: 17px;
@@ -1018,11 +1163,10 @@ defineExpose({ refreshHosting })
   width: 9px; height: 9px; transform: translate(-50%, -50%);
   background: var(--wk, var(--accent));
 }
-/* 当天：用主题配色里的霓虹品红 #FF00F0 —— 整格填色 + 内块反白即可，不再加外圈
-   （某天单独配了颜色时，仍以配置色为准） */
+/* 当天：主题反色 —— 用正文色填充、内块换成底色，与其余格反差最大 */
 .rp-week-box.now {
-  background: var(--wk, #FF00F0);
-  border-color: var(--wk, #FF00F0);
+  background: var(--text-primary);
+  border-color: var(--text-primary);
 }
 .rp-week-box.now::after { background: var(--bg-primary); }
 
@@ -1040,16 +1184,6 @@ defineExpose({ refreshHosting })
   color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
 }
 .rp-week-tip:focus { outline: none; border-color: var(--accent); }
-.rp-week-color {
-  flex: 0 0 26px; width: 26px; height: 24px; padding: 0;
-  border: 1px solid var(--border-color); background: none; cursor: pointer;
-}
-.rp-week-clear {
-  flex: 0 0 auto; height: 24px; padding: 0 6px;
-  border: 1px solid var(--border-color); background: var(--bg-secondary);
-  color: var(--text-secondary); font-size: 10px; cursor: pointer;
-}
-.rp-week-clear:disabled { opacity: 0.35; cursor: default; }
 /* 导出/复制的失败提示（进行中由按钮文字体现） */
 .rp-export-err {
   font-family: var(--font-mono); font-size: 11px; color: #d00;
@@ -2256,6 +2390,233 @@ defineExpose({ refreshHosting })
 }
 
 /* ── 终末地 · 舱单：表头铭牌 + 三色短线 ── */
+.rp-theme-ef-coldstore {
+  position: relative;
+  color: #102836;
+  --rt-ink: #102836;
+  --rt-ink-dim: rgba(16, 40, 54, 0.55);
+  --rt-title-fg: #102836;
+  --rt-tab-edge: rgba(16, 40, 54, 0.30);
+  --rt-tab-fg: #102836;
+  --rt-tab-on-bg: #102836;
+  --rt-tab-on-fg: #F2F8FA;
+  --rt-card-bg: #FFFFFF;
+  --rt-card-edge: #CBD9DE;
+  --rt-head-bg: #102836;
+  --rt-head-fg: #E8F2F6;
+  --rt-head-rule: #7DE6FF;
+  --rt-meta-bg: #102836;
+  --rt-meta-fg: #E8F2F6;
+  --rt-meta-edge: #102836;
+  --rt-meta-bar: #7DE6FF;
+  --rt-inp-bg: #FFFFFF;
+  --rt-inp-fg: #102836;
+  --rt-inp-edge: #CBD9DE;
+  --rt-radio: #102836;
+  --rt-radio-checked: #102836;
+  --rt-accent: #7DE6FF;
+  --rt-row-rule: #DCE7EB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #CBD9DE;
+  --rt-btn-edge: #102836;
+  --rt-btn-on-bg: #102836;
+  --rt-btn-on-fg: #F2F8FA;
+}
+/* 屏幕开始的三色条 */
+.rp-wrap.rp-theme-ef-coldstore::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg, #FF00F0 0, #FF00F0 33.33%, #7DE6FF 33.33%, #7DE6FF 66.66%, #00FFA2 66.66%, #00FFA2 100%);
+  pointer-events: none;
+}
+/* 眉标 */
+.rp-theme-ef-coldstore .rp-title-row::before {
+  content: '// DAILY RECORD';
+  position: absolute;
+  left: 0; top: -11px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.4px;
+  color: #5A707C;
+  pointer-events: none;
+}
+.rp-theme-ef-coldstore .rp-meta { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.rp-theme-ef-coldstore .rp-meta .rp-inp { font-variant-numeric: tabular-nums; font-weight: 900; }
+.rp-theme-ef-coldstore .rp-title { font-weight: 800; letter-spacing: 0.4px; }
+
+.rp-theme-ef-hatch {
+  position: relative;
+  color: #3C2C14;
+  --rt-ink: #3C2C14;
+  --rt-ink-dim: rgba(60, 44, 20, 0.58);
+  --rt-title-fg: #3C2C14;
+  --rt-tab-edge: rgba(60, 44, 20, 0.30);
+  --rt-tab-fg: #3C2C14;
+  --rt-tab-on-bg: #3C2C14;
+  --rt-tab-on-fg: #FBF8F1;
+  --rt-card-bg: #FFFDF7;
+  --rt-card-edge: #D8CDB6;
+  --rt-head-bg: #3C2C14;
+  --rt-head-fg: #F5EDDD;
+  --rt-head-rule: #FFB31F;
+  --rt-meta-bg: #3C2C14;
+  --rt-meta-fg: #F5EDDD;
+  --rt-meta-edge: #3C2C14;
+  --rt-meta-bar: #FFB31F;
+  --rt-inp-bg: #FFFDF7;
+  --rt-inp-fg: #3C2C14;
+  --rt-inp-edge: #D8CDB6;
+  --rt-radio: #3C2C14;
+  --rt-radio-checked: #3C2C14;
+  --rt-accent: #FFB31F;
+  --rt-row-rule: #E7DECB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #D8CDB6;
+  --rt-btn-edge: #3C2C14;
+  --rt-btn-on-bg: #3C2C14;
+  --rt-btn-on-fg: #FBF8F1;
+}
+/* 屏幕开始的三色条 */
+.rp-wrap.rp-theme-ef-hatch::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg, #FF00F0 0, #FF00F0 33.33%, #FFB31F 33.33%, #FFB31F 66.66%, #00FFA2 66.66%, #00FFA2 100%);
+  pointer-events: none;
+}
+/* 眉标 */
+.rp-theme-ef-hatch .rp-title-row::before {
+  content: '// DAILY RECORD';
+  position: absolute;
+  left: 0; top: -11px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.4px;
+  color: #7A6A4E;
+  pointer-events: none;
+}
+.rp-theme-ef-hatch .rp-meta { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.rp-theme-ef-hatch .rp-meta .rp-inp { font-variant-numeric: tabular-nums; font-weight: 900; }
+.rp-theme-ef-hatch .rp-title { font-weight: 800; letter-spacing: 0.4px; }
+
+.rp-theme-ef-contour {
+  position: relative;
+  color: #1A1A1A;
+  --rt-ink: #1A1A1A;
+  --rt-ink-dim: rgba(26, 26, 26, 0.55);
+  --rt-title-fg: #1A1A1A;
+  --rt-tab-edge: rgba(26, 26, 26, 0.30);
+  --rt-tab-fg: #1A1A1A;
+  --rt-tab-on-bg: #1A1A1A;
+  --rt-tab-on-fg: #FAFAF7;
+  --rt-card-bg: #FFFFFF;
+  --rt-card-edge: #D6D6D0;
+  --rt-head-bg: #1A1A1A;
+  --rt-head-fg: #F0F0EA;
+  --rt-head-rule: #FFFA00;
+  --rt-meta-bg: #1A1A1A;
+  --rt-meta-fg: #F0F0EA;
+  --rt-meta-edge: #1A1A1A;
+  --rt-meta-bar: #FFFA00;
+  --rt-inp-bg: #FFFFFF;
+  --rt-inp-fg: #1A1A1A;
+  --rt-inp-edge: #D6D6D0;
+  --rt-radio: #1A1A1A;
+  --rt-radio-checked: #1A1A1A;
+  --rt-accent: #FFFA00;
+  --rt-row-rule: #E2E2DB;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #D6D6D0;
+  --rt-btn-edge: #1A1A1A;
+  --rt-btn-on-bg: #1A1A1A;
+  --rt-btn-on-fg: #FAFAF7;
+}
+/* 屏幕开始的三色条 */
+.rp-wrap.rp-theme-ef-contour::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg, #FF00F0 0, #FF00F0 33.33%, #FFFA00 33.33%, #FFFA00 66.66%, #00FFA2 66.66%, #00FFA2 100%);
+  pointer-events: none;
+}
+/* 眉标 */
+.rp-theme-ef-contour .rp-title-row::before {
+  content: '// DAILY RECORD';
+  position: absolute;
+  left: 0; top: -11px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.4px;
+  color: #5E5E58;
+  pointer-events: none;
+}
+.rp-theme-ef-contour .rp-meta { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.rp-theme-ef-contour .rp-meta .rp-inp { font-variant-numeric: tabular-nums; font-weight: 900; }
+.rp-theme-ef-contour .rp-title { font-weight: 800; letter-spacing: 0.4px; }
+
+.rp-theme-ef-console {
+  position: relative;
+  color: #DCE8C8;
+  --rt-ink: #DCE8C8;
+  --rt-ink-dim: rgba(220, 232, 200, 0.55);
+  --rt-title-fg: #DCE8C8;
+  --rt-tab-edge: rgba(184, 255, 61, 0.35);
+  --rt-tab-fg: #C6D6B0;
+  --rt-tab-on-bg: #B8FF3D;
+  --rt-tab-on-fg: #12140F;
+  --rt-card-bg: #171A12;
+  --rt-card-edge: #2E3626;
+  --rt-head-bg: #0B0D09;
+  --rt-head-fg: #B8FF3D;
+  --rt-head-rule: #B8FF3D;
+  --rt-meta-bg: #0B0D09;
+  --rt-meta-fg: #B8FF3D;
+  --rt-meta-edge: #2E3626;
+  --rt-meta-bar: #B8FF3D;
+  --rt-inp-bg: #1C2016;
+  --rt-inp-fg: #DCE8C8;
+  --rt-inp-edge: #2E3626;
+  --rt-radio: #DCE8C8;
+  --rt-radio-checked: #DCE8C8;
+  --rt-accent: #B8FF3D;
+  --rt-row-rule: #232A1D;
+  --rt-row-alt: transparent;
+  --rt-img-edge: #2E3626;
+  --rt-btn-edge: #DCE8C8;
+  --rt-btn-on-bg: #DCE8C8;
+  --rt-btn-on-fg: #12140F;
+}
+/* 屏幕开始的三色条 */
+.rp-wrap.rp-theme-ef-console::before {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; top: 6px;
+  height: 3px;
+  background: linear-gradient(90deg, #FF00F0 0, #FF00F0 33.33%, #B8FF3D 33.33%, #B8FF3D 66.66%, #00FFA2 66.66%, #00FFA2 100%);
+  pointer-events: none;
+}
+/* 眉标 */
+.rp-theme-ef-console .rp-title-row::before {
+  content: '// DAILY RECORD';
+  position: absolute;
+  left: 0; top: -11px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 2.4px;
+  color: #6F7F5A;
+  pointer-events: none;
+}
+.rp-theme-ef-console .rp-meta { font-family: var(--font-mono); letter-spacing: 0.06em; }
+.rp-theme-ef-console .rp-meta .rp-inp { font-variant-numeric: tabular-nums; font-weight: 900; }
+.rp-theme-ef-console .rp-title { font-weight: 800; letter-spacing: 0.4px; }
 .rp-theme-ef-manifest {
   position: relative;
   color: #161616;

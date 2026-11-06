@@ -94,7 +94,20 @@
             <span v-else-if="isLocked(item)">待激活</span>
             <span v-else-if="isConfirmedToday(item)">今日已确认</span>
             <span v-else-if="item.state === 'paused'">暂停中</span>
-            <span v-else-if="isHosting(item)">{{ hostProgress(item).completed }}/{{ hostProgress(item).planned }}次</span>
+            <span v-else-if="isHosting(item)" class="pr-cell" :title="progressTitle(item)">
+              <span class="pr-text">{{ hostProgress(item).completed }}/{{ hostProgress(item).planned }}次
+                <span class="pr-pct" :style="{ color: progressColor(item) }">{{ progressPercent(item) }}%</span>
+              </span>
+              <span class="pr-bar">
+                <span
+                  v-for="n in 10"
+                  :key="n"
+                  class="pr-seg"
+                  :class="{ on: n <= progressSegments(item) }"
+                  :style="n <= progressSegments(item) ? { background: progressColor(item), borderColor: progressColor(item) } : null"
+                ></span>
+              </span>
+            </span>
             <span v-else>单次</span>
           </div>
 
@@ -189,6 +202,7 @@ import {
 import { buildProjectDetail } from '@/services/projectDetail.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
 import { isHosting, hostProgress, isClosed, isCompleted, isArchived } from '@/domain/project.js'
+import { percentOf, progressColorByPercent, segmentsByPercent } from '@/utils/progress.js'
 import { typeColor, feeColor } from '@/utils/fee.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
 
@@ -380,6 +394,19 @@ const gameChips = computed(() => {
 const activeRecords = computed(() => records.value.filter(r => r.status !== 0))
 const pendingCount = computed(() => records.value.filter(r => r.status === 1).length)
 const hostingCount = computed(() => records.value.filter(r => r.status === 2).length)
+// ── 托管进度：百分比 / 色阶 / 刻度都走 utils/progress，与日报共用 ──
+function progressPercent(item) {
+  const p = hostProgress(item)
+  return percentOf(p && p.completed, p && p.planned)
+}
+function progressColor(item) { return progressColorByPercent(progressPercent(item)) }
+function progressSegments(item) { return segmentsByPercent(progressPercent(item)) }
+function progressTitle(item) {
+  const p = hostProgress(item)
+  const pct = progressPercent(item)
+  const tip = pct >= 90 ? '，快结束了，注意续费/收尾' : pct >= 75 ? '，即将结束' : ''
+  return `已完成 ${p.completed}/${p.planned} 次（${pct}%）${tip}`
+}
 const totalFeeSum = computed(() => activeRecords.value.reduce((s, r) => s + (Number(r.totalFee) || 0), 0))
 
 // ══════ 项目详情抽屉（数据组装见 services/projectDetail.js）══════
@@ -449,6 +476,16 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
+/* ── 托管进度：次数 + 10 格刻度条 ── */
+.pr-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.pr-text { font-family: var(--font-mono); font-size: 11px; display: flex; align-items: baseline; gap: 4px; }
+.pr-pct { font-size: 10px; font-weight: 700; }
+.pr-bar { display: flex; gap: 1px; width: 62px; }
+.pr-seg {
+  flex: 1 1 0; height: 7px;
+  border: 1px solid var(--border-color); background: transparent; opacity: 0.35;
+}
+.pr-seg.on { opacity: 1; }
 .today-wrap { padding: 0 12px 16px; }
 .view-switch { margin-right: 4px; }
 

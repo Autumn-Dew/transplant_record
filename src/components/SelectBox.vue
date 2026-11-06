@@ -15,9 +15,21 @@
       </svg>
     </button>
     <div v-if="open" class="sb-panel" ref="panelRef" :style="panelStyle" @click.stop>
-      <div v-if="!(options && options.length)" class="sb-empty">无可选项</div>
+      <!-- 可搜索：输入关键字就地筛选 -->
+      <div v-if="searchable" class="sb-search-wrap">
+        <input
+          ref="searchRef"
+          v-model="keyword"
+          class="sb-search"
+          type="text"
+          :placeholder="searchPlaceholder"
+          @keydown.esc.stop="open = false"
+          @keydown.enter.prevent="pickFirst"
+        />
+      </div>
+      <div v-if="!filteredOptions.length" class="sb-empty">{{ searchable && keyword ? '没有匹配项' : '无可选项' }}</div>
       <div
-        v-for="(opt, i) in (options || [])"
+        v-for="(opt, i) in filteredOptions"
         :key="i"
         class="sb-option"
         :class="{ active: opt.value === modelValue }"
@@ -36,6 +48,9 @@ const props = defineProps({
   placeholder: { type: String, default: '请选择' },
   width: { type: String, default: '100%' },
   disabled: { type: Boolean, default: false },
+  // 可搜索：面板顶部多一个输入框，按 label 实时筛选
+  searchable: { type: Boolean, default: false },
+  searchPlaceholder: { type: String, default: '输入关键字筛选…' },
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 
@@ -43,6 +58,15 @@ const open = ref(false)
 const triggerRef = ref(null)
 const panelRef = ref(null)
 const panelStyle = ref({})
+const keyword = ref('')
+const searchRef = ref(null)
+const filteredOptions = computed(() => {
+  const list = props.options || []
+  const kw = keyword.value.trim().toLowerCase()
+  if (!props.searchable) return list
+  if (!kw) return list
+  return list.filter(o => String(o.label || '').toLowerCase().includes(kw))
+})
 
 const selectedLabel = computed(() => {
   const o = (props.options || []).find(x => x.value === props.modelValue)
@@ -69,8 +93,15 @@ function toggle() {
   if (props.disabled) return
   if (open.value) { open.value = false; return }
   updatePos()
+  keyword.value = ''
   open.value = true
-  nextTick(updatePos)
+  nextTick(() => {
+    updatePos()
+    if (props.searchable && searchRef.value) searchRef.value.focus()
+  })
+}
+function pickFirst() {
+  if (filteredOptions.value.length) pick(filteredOptions.value[0])
 }
 function pick(opt) {
   emit('update:modelValue', opt.value)
@@ -101,6 +132,14 @@ onUnmounted(() => {
 </script>
 
 <style>
+/* 可搜索下拉：顶部输入框 */
+.sb-search-wrap { padding: 4px; border-bottom: 1px solid var(--border-color); }
+.sb-search {
+  width: 100%; height: 26px; padding: 0 8px; box-sizing: border-box;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
+}
+.sb-search:focus { outline: none; border-color: var(--accent); }
 .sb-wrap { position: relative; display: inline-block; max-width: 100%; }
 .sb-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;

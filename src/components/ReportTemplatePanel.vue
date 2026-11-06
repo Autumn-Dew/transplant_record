@@ -130,6 +130,10 @@
         <!-- 文案字段（较长，放在最后，两列排版） -->
         <div class="rp-tpl-group" v-for="grp in visibleFields" :key="grp.group">
           <div class="rp-tpl-group-title">{{ grp.group }}</div>
+          <!-- 粘贴截图是固定行为，不需要配置 -->
+          <p v-if="grp.group === '按钮与新增项'" class="rp-tpl-hint-fixed">
+            粘贴截图：在日报画布上按 Ctrl+V 即可添加，不需要在这里配置。
+          </p>
           <div class="rp-tpl-grid2">
             <label class="rp-tpl-field" v-for="item in grp.items" :key="item.key">
               <span class="rp-tpl-label">{{ item.label }}</span>
@@ -318,6 +322,11 @@ function removeLine(id, index) {
 </script>
 
 <style scoped>
+/* 固定说明文字（不可编辑） */
+.rp-tpl-hint-fixed {
+  font-family: var(--font-mono); font-size: 10px; line-height: 1.6;
+  opacity: 0.55; margin: 2px 0 6px;
+}
 .rp-tpl-popup { max-width: 760px; width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; }
 .rp-tpl-hint { font-size: 11px; opacity: 0.55; line-height: 1.6; margin: 4px 0 12px; }
 .rp-tpl-body { flex: 1; min-height: 0; overflow: auto; padding-right: 4px; }

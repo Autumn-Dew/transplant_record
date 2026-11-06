@@ -304,7 +304,85 @@ const ENDFIELD_BGS = [
       + 'linear-gradient(180deg, rgba(22,22,22,0.32) 0, rgba(22,22,22,0.32) 1px, transparent 1px) left 0 bottom 12px / 100% 1px no-repeat,'
       + 'linear-gradient(180deg, #fafaf8 0%, #f3f4f2 100%)',
   },
-]
+  /* ── 追加四套：按 endfield-ui 的「底纹 / 强调色 / 纸色」维度各取一路 ──
+     共同规则：3px 三色条只贴在页顶、极淡细线分区、只用一个强调色。 */
+  {
+    id: 'ef-coldstore',
+    label: '冷库格栅',
+    hint: '冷灰白 + 16px 格栅 + 冰蓝三色条 + 左侧基准线',
+    style: 'endfield',
+    base: '#f0f4f5',
+    bg:
+      // 顶边三色条（冰蓝为强调色）
+      'linear-gradient(90deg, rgba(255,0,240,0.85) 0, rgba(255,0,240,0.85) 12%, rgba(125,230,255,0.95) 12%, rgba(125,230,255,0.95) 24%, rgba(0,255,162,0.85) 24%, rgba(0,255,162,0.85) 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
+      // 库位分隔：25% / 50% / 75% 三条粗竖线
+      + 'linear-gradient(90deg, rgba(16,40,54,0.20) 0, rgba(16,40,54,0.20) 1px, transparent 1px) 25% 0 / 1px 100% no-repeat,'
+      + 'linear-gradient(90deg, rgba(16,40,54,0.20) 0, rgba(16,40,54,0.20) 1px, transparent 1px) 50% 0 / 1px 100% no-repeat,'
+      + 'linear-gradient(90deg, rgba(16,40,54,0.20) 0, rgba(16,40,54,0.20) 1px, transparent 1px) 75% 0 / 1px 100% no-repeat,'
+      // 16px 细格
+      + 'linear-gradient(90deg, rgba(16,40,54,0.055) 0, rgba(16,40,54,0.055) 1px, transparent 1px) 0 0 / 16px 16px repeat,'
+      + 'linear-gradient(180deg, rgba(16,40,54,0.055) 0, rgba(16,40,54,0.055) 1px, transparent 1px) 0 0 / 16px 16px repeat,'
+      // 顶部刻度尺（8px 一格，只占顶部 10px）
+      + 'linear-gradient(90deg, rgba(16,40,54,0.30) 0, rgba(16,40,54,0.30) 1px, transparent 1px) 0 0 / 8px 10px repeat-x,'
+      // 左侧竖尺（24px 一格）
+      + 'linear-gradient(180deg, rgba(16,40,54,0.30) 0, rgba(16,40,54,0.30) 1px, transparent 1px) 0 0 / 10px 24px repeat-y,'
+      + 'linear-gradient(180deg, #f7fafb 0%, #eef4f6 60%, #e6eef1 100%)',
+  },
+  {
+    id: 'ef-hatch',
+    label: '工地斜纹',
+    hint: '暖米底 + 45° 斜线纹 + 琥珀三色条 + 底部双线',
+    style: 'endfield',
+    base: '#f6f2e8',
+    bg:
+      // 顶边三色条（琥珀为强调色）
+      'linear-gradient(90deg, rgba(255,0,240,0.80) 0, rgba(255,0,240,0.80) 12%, rgba(255,179,31,0.95) 12%, rgba(255,179,31,0.95) 24%, rgba(0,255,162,0.80) 24%, rgba(0,255,162,0.80) 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
+      // 左侧警示斜条（黄黑相间，10px 宽）
+      + 'repeating-linear-gradient(45deg, rgba(255,179,31,0.55) 0, rgba(255,179,31,0.55) 6px, rgba(60,44,20,0.55) 6px, rgba(60,44,20,0.55) 12px) left 0 top 0 / 10px 100% no-repeat,'
+      // 右侧警示斜条
+      + 'repeating-linear-gradient(-45deg, rgba(255,179,31,0.55) 0, rgba(255,179,31,0.55) 6px, rgba(60,44,20,0.55) 6px, rgba(60,44,20,0.55) 12px) right 0 top 0 / 10px 100% no-repeat,'
+      // 中部极淡斜纹
+      + 'repeating-linear-gradient(45deg, rgba(60,44,20,0.045) 0, rgba(60,44,20,0.045) 1px, transparent 1px, transparent 9px),'
+      // 底部粗线
+      + 'linear-gradient(180deg, transparent 0, transparent calc(100% - 5px), rgba(60,44,20,0.26) calc(100% - 5px), rgba(60,44,20,0.26) 100%),'
+      + 'linear-gradient(180deg, #fcf9f2 0%, #f6f2e8 60%, #efe9dc 100%)',
+  },
+  {
+    id: 'ef-contour',
+    label: '等高线',
+    hint: '中性纸 + 双角度细线（等高线感）+ 明黄三色条 + 右上角标',
+    style: 'endfield',
+    base: '#f7f7f4',
+    bg:
+      // 顶边三色条（明黄为强调色）
+      'linear-gradient(90deg, rgba(255,0,240,0.85) 0, rgba(255,0,240,0.85) 12%, rgba(255,250,0,0.92) 12%, rgba(255,250,0,0.92) 24%, rgba(0,255,162,0.85) 24%, rgba(0,255,162,0.85) 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
+      // 同心环：两组不等距的径向细环，做出等高线的疏密
+      + 'radial-gradient(circle at 74% 22%, transparent 33.6%, rgba(26,26,26,0.075) 33.8%, transparent 34.2%, transparent 41%, rgba(26,26,26,0.055) 41.2%, transparent 41.6%),'
+      + 'radial-gradient(circle at 22% 78%, transparent 27.6%, rgba(26,26,26,0.07) 27.8%, transparent 28.2%, transparent 35%, rgba(26,26,26,0.05) 35.2%, transparent 35.6%, transparent 44%, rgba(26,26,26,0.04) 44.2%, transparent 44.6%),'
+      // 极淡斜纹打底
+      + 'repeating-linear-gradient(31deg, rgba(26,26,26,0.022) 0, rgba(26,26,26,0.022) 1px, transparent 1px, transparent 22px),'
+      // 右上角标
+      + 'linear-gradient(90deg, rgba(26,26,26,0.85) 0, rgba(26,26,26,0.85) 100%) right 24px top 24px / 22px 2px no-repeat,'
+      + 'linear-gradient(180deg, #fbfbf8 0%, #f7f7f4 60%, #f2f2ed 100%)',
+  },
+  {
+    id: 'ef-console',
+    label: '终端扫描线',
+    hint: '墨黑底 + 3px 扫描线 + lime 三色条 + 底部基准线',
+    style: 'endfield',
+    base: '#12140f',
+    bg:
+      // 顶边三色条（lime 为强调色）
+      'linear-gradient(90deg, rgba(255,0,240,0.70) 0, rgba(255,0,240,0.70) 12%, rgba(184,255,61,0.95) 12%, rgba(184,255,61,0.95) 24%, rgba(0,255,162,0.70) 24%, rgba(0,255,162,0.70) 36%, transparent 36%) 0 0 / 100% 3px no-repeat,'
+      // 8px 点阵（不是线，和另外三套一眼区分）
+      + 'radial-gradient(circle, rgba(184,255,61,0.16) 1px, transparent 1.3px) 0 0 / 8px 8px repeat,'
+      // 四角 L 形括号
+      + 'linear-gradient(90deg, rgba(184,255,61,0.42) 0, rgba(184,255,61,0.42) 100%) 16px 16px / 26px 1px no-repeat,'
+      + 'linear-gradient(180deg, rgba(184,255,61,0.42) 0, rgba(184,255,61,0.42) 100%) 16px 16px / 1px 26px no-repeat,'
+      + 'linear-gradient(90deg, rgba(184,255,61,0.42) 0, rgba(184,255,61,0.42) 100%) right 16px top 16px / 26px 1px no-repeat,'
+      + 'linear-gradient(180deg, rgba(184,255,61,0.42) 0, rgba(184,255,61,0.42) 100%) right 16px top 16px / 1px 26px no-repeat,'
+      + 'linear-gradient(180deg, #1a1d14 0%, #12140f 60%, #0b0d09 100%)',
+  },]
 
 /* ── 瑞士风格：12 栏网格 / 米白 / 墨底（国际主义平面设计）──
    只有三种颜色与细线：网格线一律 1px，不叠纹理、不做渐变底。 */

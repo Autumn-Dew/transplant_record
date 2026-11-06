@@ -45,6 +45,7 @@
         <span class="summary-chip">已完成 <strong>{{ completedCount }}</strong></span>
         <span class="summary-chip">累计入账 <strong>¥{{ allIncome }}</strong></span>
         <span class="summary-chip">本月入账 <strong>¥{{ monthIncome }}</strong></span>
+        <span class="summary-chip" :class="{ 'chip-warn': unpaidTotal > 0 }" title="仍在托管中、尚未收齐的金额">未收 <strong>¥{{ unpaidTotal }}</strong><template v-if="unpaidCount">（{{ unpaidCount }} 单）</template></span>
         <span class="income-inline" v-if="monthlyIncome.length">
           <span class="income-title">收入统计</span>
           <span v-for="m in monthlyIncome" :key="m.month" class="income-chip">
@@ -160,6 +161,7 @@ import { maskAccount, getDisplayName, maskPassword } from '@/domain/mask.js'
 import { RESULT_LABEL } from '@/domain/completion.js'
 import { completionsRepo, projectsRepo } from '@/data/repos.js'
 import { revenueStats, finishedProjectIds } from '@/services/projectService.js'
+import { isHosting } from '@/domain/project.js'
 import { todayLocal } from '@/utils/date.js'
 import { typeColor, feeColor } from '@/utils/fee.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
@@ -174,6 +176,22 @@ const { entered, replay, staggerStyle } = usePageEnter()
 // ══════ 数据（统一经由 Repository）══════
 // 数据补齐统一在 src/main.js 的 hydrateAll() 里做，页面不再各自 hydrate
 const records = completionsRepo.state
+
+// ── 未收款：仍在托管中的项目，总费用减去已收金额 ──
+const unpaidStat = computed(() => {
+  let due = 0
+  let count = 0
+  for (const r of projectsRepo.state.value) {
+    if (!r || !isHosting(r)) continue
+    const total = Number(r.totalFee) || 0
+    if (total <= 0) continue
+    const got = (r.payments || []).reduce((sum, p) => sum + (Number(p && p.amount) || 0), 0)
+    if (total > got) { due += total - got; count++ }
+  }
+  return { due, count }
+})
+const unpaidTotal = computed(() => unpaidStat.value.due)
+const unpaidCount = computed(() => unpaidStat.value.count)
 
 // 实际完成日期（v2）；兼容 v1 的 date 字段
 function doneDate(item) { return item.completedDate || item.date || '' }
@@ -339,6 +357,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
+/* 有未收款时用暖色提醒 */
+.summary-chip.chip-warn { color: #d9534f; font-weight: 700; }
 .fee-dim { opacity: 0.35; }
 /* ── 统计条：与「代肝代办」一致，一行不换行；收入统计贴在右侧 ── */
 .wd-summary { flex-wrap: nowrap; overflow-x: auto; align-items: center; }

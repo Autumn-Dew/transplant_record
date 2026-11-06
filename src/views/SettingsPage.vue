@@ -27,6 +27,21 @@
             </button>
           </div>
 
+          <!-- 日报「复制文字」按钮：默认隐藏，需要时打开 -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">日报「复制文字」按钮</span>
+              <span class="setting-hint">在每日汇报工具栏显示「复制文字」，一键把当天日报拼成纯文本</span>
+            </div>
+            <button
+              class="tl-entry-btn"
+              :class="{ active: copyTextOn }"
+              @click="toggleCopyText"
+            >
+              {{ copyTextOn ? '已开启' : '已关闭' }}
+            </button>
+          </div>
+
           <!-- 每日刷新时间：托管的「今天」跨过这个时间点才翻页（默认 00:00） -->
           <div class="setting-row">
             <div class="setting-info">
@@ -243,6 +258,13 @@ import { resetTime as readResetTime, writeResetTime } from '@/utils/date.js'
 import { isSoundEnabled, setSoundEnabled } from '@/utils/sound.js'
 import { downloadSnapshot, restoreSnapshot, clearAllData } from '@/services/backupService.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
+import { readCopyTextEnabled, writeCopyTextEnabled } from '@/data/report-copy-btn.js'
+
+// 日报「复制文字」按钮开关（默认关闭，打开后日报工具栏才显示该按钮）
+const copyTextOn = ref(readCopyTextEnabled())
+function toggleCopyText() {
+  copyTextOn.value = writeCopyTextEnabled(!copyTextOn.value)
+}
 import { copyText } from '@/utils/clipboard.js'
 import {
   APP_NAME_CN, APP_NAME, APP_AUTHOR, APP_TAGLINE, APP_REPO, APP_REPO_LABEL, APP_COPYRIGHT,
