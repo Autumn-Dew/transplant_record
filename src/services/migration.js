@@ -72,7 +72,31 @@ export function runStartupMigration() {
       report.gamesNormalized = gameFixed
     }
 
-    // ── 5. 记录数据版本 ──
+    // ── 5.1 新键快照：价格 / 日报草稿 / 页签 / 周几 / 店铺 ──
+  //      这些是后期新增的键，之前的备份只覆盖项目与执行记录；
+  //      升级到新版本前先各存一份原始快照（幂等：已有备份就不再覆盖）。
+  const EXTRA_SNAPSHOT = [
+    ['prices', KEYS.PRICES],
+    ['report-draft', KEYS.REPORT_DRAFT],
+    ['report-pages', KEYS.REPORT_PAGES],
+    ['report-weekday', KEYS.REPORT_WEEKDAY],
+    ['shop-info', KEYS.SHOP_INFO],
+  ]
+  for (const [name, key] of EXTRA_SNAPSHOT) {
+    try {
+      const raw = readJSON(key, null)
+      if (raw == null) continue
+      const bkey = backupKey(name)
+      const existed = readJSON(bkey, null)
+      if (existed && existed.___backup === true) continue
+      writeJSON(bkey, { ___backup: true, label: name, savedAt: new Date().toISOString(), data: raw })
+      report.backups.push(bkey)
+    } catch (e) {
+      report.errors.push(name + ': ' + String(e && e.message ? e.message : e))
+    }
+  }
+
+  // ── 5. 记录数据版本 ──
     writeJSON(KEYS.SCHEMA, SCHEMA_VERSION)
   } catch (e) {
     report.errors.push(String(e && e.message ? e.message : e))

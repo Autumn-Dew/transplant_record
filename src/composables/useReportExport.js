@@ -12,7 +12,12 @@
 
 import { ref } from 'vue'
 import html2canvas from 'html2canvas'
+// modern-screenshot 用浏览器原生渲染（SVG foreignObject）：
+// repeating-linear-gradient / filter / calc 都能正确出图，
+// 而 html2canvas 会把含 repeating 渐变的整条 background-image 丢掉（背景细线丢失）。
+import { domToCanvas } from 'modern-screenshot'
 import { copyPngBlob, downloadBlob, timestampName } from '../utils/clipboard.js'
+import { warn } from '../utils/devlog.js'
 
 // 输入框替换成 span 时的宽度补偿（按原控件的 class 给）
 const FIELD_WIDTHS = [
@@ -179,12 +184,18 @@ export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAll
   }
 
   async function renderImage() {
-    // 画布不可见时 html2canvas 会抛错或渲染成空白，这里先拦下来给出可读的原因
+    // 画布不可见时渲染会抛错或得到空白，这里先拦下来给出可读的原因
     const el = wrapRef.value
     if (!el) throw new Error('画布还没准备好')
     if (!el.offsetWidth || !el.offsetHeight) throw new Error('画布尺寸为 0（日报页面可能未显示）')
     // 背景由画布自身 CSS 承担；backgroundColor 只作为边缘兜底
-    return html2canvas(el, { backgroundColor: backgroundBase(), scale: 3 })
+    try {
+      return await domToCanvas(el, { scale: 3, backgroundColor: backgroundBase() })
+    } catch (e) {
+      // 极端情况下（字体/图片加载异常）回落到 html2canvas，至少能出图
+      warn('report:render-ms', e)
+      return html2canvas(el, { backgroundColor: backgroundBase(), scale: 3 })
+    }
   }
 
   async function exportImage(toClipboard) {

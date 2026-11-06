@@ -72,6 +72,10 @@ const ENDFIELD_THEMES = [
   { id: 'ef-nightshift', label: '夜班', family: 'endfield', tone: 'dark', hint: '石墨黑面板 · 浅墨文字 · lime 收口' },
   { id: 'ef-workorder', label: '工单', family: 'endfield', tone: 'light', hint: '白纸表格 · 墨色实线 · 编号栏' },
   { id: 'ef-manifest', label: '运输舱单', family: 'endfield', tone: 'light', hint: '黑色舱单铭牌 · 三色校验条 · 编号分项' },
+  { id: 'ef-coldstore', label: '冷库', family: 'endfield', tone: 'light', hint: '冷灰白面板 · 冰蓝标记 · 细格分区' },
+  { id: 'ef-hatch', label: '工地', family: 'endfield', tone: 'light', hint: '暖米纸面 · 琥珀标记 · 斜纹底' },
+  { id: 'ef-contour', label: '等高线', family: 'endfield', tone: 'light', hint: '中性纸 · 明黄标记 · 双角度细线' },
+  { id: 'ef-console', label: '终端', family: 'endfield', tone: 'dark', hint: '墨黑面板 · lime 扫描线 · 等宽数字' },
 ]
 
 /* ── 瑞士风格：国际主义平面设计（只有墨 / 米白 / 红，全部平涂）── */

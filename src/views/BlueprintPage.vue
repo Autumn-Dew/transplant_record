@@ -10,12 +10,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span>新增</span>
         </button>
-        <span class="view-tabs">
-          <span class="tl-entry-btn" :class="{ active: sortMode === 'group' }" @click="setSortMode('group')">分组</span>
-          <span class="tl-entry-btn" :class="{ active: sortMode === 'color' }" @click="setSortMode('color')">颜色</span>
-          <span class="tl-entry-btn" :class="{ active: sortMode === 'code' }" @click="setSortMode('code')">蓝图码</span>
-          <span class="tl-entry-btn" :class="{ active: sortMode === 'name' }" @click="setSortMode('name')">名称</span>
-        </span>
         <label class="select-limit-box" title="最多可同时选中的记录数">
           <span>选中</span>
           <input type="number" min="1" v-model.number="selectLimit" />
@@ -221,7 +215,7 @@ function commitRename(oldName) {
 const { isSelected, toggleSelect, selectLimit } = useRowSelect()
 
 const searchQuery = ref('')
-const sortMode = ref('group') // group | color | code | name
+const sortMode = ref('group') // 固定按分组展示（排序切换已取消）
 const listKey = ref(0)
 function setSortMode(mode) {
   if (sortMode.value === mode) return

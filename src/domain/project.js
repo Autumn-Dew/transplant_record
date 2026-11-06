@@ -122,6 +122,16 @@ export function isClosed(p) {
 }
 
 // 托管是否已到期（派生判定，不改写存储状态）
+/**
+ * 距托管结束还有几天（含当天）：正数=还剩几天，0=今天到期，负数=已过期几天。
+ * 没有 host.endDate 时返回 null。
+ */
+export function daysLeftTo(p, today = todayLocal()) {
+  const end = p && p.host && p.host.endDate
+  if (!isYmd(end)) return null
+  return diffDays(today, end)
+}
+
 export function isExpired(p, today = todayLocal()) {
   if (!isHosting(p)) return false
   const end = p.host?.endDate

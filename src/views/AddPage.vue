@@ -22,7 +22,7 @@
         <div class="form-section-title">老板信息</div>
         <div class="form-row" v-if="!editingId">
           <label>从已有选择</label>
-          <SelectBox style="flex:1;min-width:0" v-model="selectedTemplate" :options="templateOptions" placeholder="— 手动填写 —" @change="applyTemplate" />
+          <SelectBox style="flex:1;min-width:0" searchable search-placeholder="输入名字 / 账号筛选记录…" v-model="selectedTemplate" :options="templateOptions" placeholder="— 手动填写 —" @change="applyTemplate" />
         </div>
         <div class="form-row"><label>账号</label><input :type="showAccountInput ? 'text' : 'password'" v-model="taskForm.account" placeholder="11位手机号格式" /><button class="pwd-toggle" @click="showAccountInput = !showAccountInput">{{ showAccountInput ? '隐藏' : '显示' }}</button></div>
         <div class="form-row"><label>游戏</label><SelectBox style="flex:1;min-width:0" v-model="taskForm.game" :options="gameOptions" /></div>
@@ -265,10 +265,26 @@ function onSvcDocClick(e) {
 const gameOptions = computed(() => buildGameOptions(gamesRepo.state.value))
 const statusOptions = [{ value: 1, label: '未完成（单次）' }, { value: 2, label: '托管' }]
 const platformOptions = PLATFORM_OPTIONS
-const templateOptions = computed(() => [
-  ...existingTasks.value.map(t => ({ value: 'task:' + t.id, label: '[代办] ' + (getDisplayName(t) || '未命名') + ' | ' + maskAccount(t.account) })),
-  ...existingCompletions.value.map(c => ({ value: 'completion:' + c.id, label: '[记录] ' + (c.displayName || getDisplayName(c) || '未命名') + ' | ' + maskAccount(c.account) })),
-])
+// 补全下拉：同一账号 + 同一游戏只留最新一条 —— 否则一个账号开过多期托管，
+// 列表里会堆出一堆「[代办] 某某 | 138****0001」，看着完全一样，根本分不清。
+const templateOptions = computed(() => {
+  const out = []
+  const seen = new Set()
+  const add = (value, label, key) => {
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ value, label })
+  }
+  // 最近创建的排前面，去重时留下最新的那条
+  const tasks = [...existingTasks.value].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+  for (const t of tasks) {
+    add('task:' + t.id, '[代办] ' + (getDisplayName(t) || '未命名') + ' | ' + maskAccount(t.account), 't|' + (t.account || '') + '|' + (t.game || ''))
+  }
+  for (const c of existingCompletions.value) {
+    add('completion:' + c.id, '[记录] ' + (c.displayName || getDisplayName(c) || '未命名') + ' | ' + maskAccount(c.account), 'c|' + (c.account || '') + '|' + (c.game || ''))
+  }
+  return out
+})
 function applyTemplate() {
   if (!selectedTemplate.value) return
   const [type, id] = selectedTemplate.value.split(':')

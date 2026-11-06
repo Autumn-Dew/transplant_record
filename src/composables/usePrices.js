@@ -101,7 +101,7 @@ function gamesById() {
   try {
     const games = readJSON(KEYS.GAMES, []) || []
     for (const g of games) if (g && g.id) map[g.id] = g
-  } catch { /* ignore */ }
+  } catch (e) { warn('prices:load', e) }
   return map
 }
 

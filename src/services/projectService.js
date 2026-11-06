@@ -410,14 +410,22 @@ export function addHostingPeriod(projectId, { days, amount, paidAt, note } = {})
   const host = { ...(cur.host || {}) }
   const start = isYmd(host.startDate) ? host.startDate : fmtDate(cur.createdAt)
   const base = isYmd(host.endDate) ? host.endDate : addMonth(start)
+  // 断档续费：客户在上期到期之后才付钱（例：2/1 到期、2/3 才续），
+  // 新一期从**付款日**重新起算，而不是从上期到期日顺延 ——
+  // 否则中间空档那几天会被并进新周期，客户实际拿到的天数就少了。
+  const payDate = isYmd(paidAt) ? paidAt : todayLocal()
+  const brokeGap = diffDays(base, payDate) > 0
   // 默认「加多少天」必须用原周期的**日历跨度**（结束日 − 开始日），而不是 cycleDays。
   // cycleDays 是「含首尾」的天数（10/12→11/11 = 31），直接拿它去 addDays 会多加 1 天
   // （11/11 + 31 = 12/12，比一个自然月多一天）。
   const spanDays = Math.max(1, diffDays(start, base))
   const n = Math.max(1, Math.round(Number(days) || spanDays || 30))
-  host.startDate = start
-  host.endDate = addDays(base, n)
-  host.cycleDays = Math.max(1, daysBetween(start, host.endDate))
+  // 断档时：startDate 也跟着前移到付款日，新一期从「第 1 天」重新计数
+  const from = brokeGap ? payDate : base
+  const newStart = brokeGap ? payDate : start
+  host.startDate = newStart
+  host.endDate = addDays(from, n)
+  host.cycleDays = Math.max(1, daysBetween(newStart, host.endDate))
   host.plannedTimes = Math.max(Number(host.completedTimes) || 0, plannedTimesFor(host.plan, host.cycleDays), 1)
 
   const payment = normalizePayment({

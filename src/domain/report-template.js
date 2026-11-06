@@ -46,7 +46,7 @@ export const REPORT_TEXT_FIELDS = [
     { key: 'btnAddResource', label: '添加资源', def: '+ 添加资源' },
     { key: 'btnSaveGlobal', label: '存为全局预设', def: '存为全局预设' },
     { key: 'btnTemplate', label: '模板按钮', def: '模板' },
-    { key: 'hintPaste', label: '粘贴提示', def: 'Ctrl+V 粘贴截图' },
+
   ] },
 ]
 

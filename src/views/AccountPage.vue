@@ -94,7 +94,20 @@
             <span v-else-if="isLocked(item)">待激活</span>
             <span v-else-if="isConfirmedToday(item)">今日已确认</span>
             <span v-else-if="item.state === 'paused'">暂停中</span>
-            <span v-else-if="isHosting(item)">{{ hostProgress(item).completed }}/{{ hostProgress(item).planned }}次</span>
+            <span v-else-if="isHosting(item)" class="pr-cell" :class="dueClass(item)" :title="progressTitle(item) + dueTitleSuffix(item)">
+              <span class="pr-text">{{ hostProgress(item).completed }}/{{ hostProgress(item).planned }}次
+                <span class="pr-pct" :style="{ color: progressColor(item) }">{{ progressPercent(item) }}%</span>
+              </span>
+              <span class="pr-bar">
+                <span
+                  v-for="n in SEGMENT_TOTAL"
+                  :key="n"
+                  class="pr-seg"
+                  :class="{ on: n <= progressSegments(item) }"
+                  :style="n <= progressSegments(item) ? { background: progressColor(item), borderColor: progressColor(item) } : null"
+                ></span>
+              </span>
+            </span>
             <span v-else>单次</span>
           </div>
 
@@ -188,7 +201,8 @@ import {
 } from '@/services/projectService.js'
 import { buildProjectDetail } from '@/services/projectDetail.js'
 import { gameOptions as buildGameOptions } from '@/domain/games.js'
-import { isHosting, hostProgress, isClosed, isCompleted, isArchived } from '@/domain/project.js'
+import { isHosting, hostProgress, isClosed, isCompleted, isArchived, daysLeftTo } from '@/domain/project.js'
+import { percentOf, progressColorByPercent, segmentsByPercent, SEGMENT_TOTAL } from '@/utils/progress.js'
 import { typeColor, feeColor } from '@/utils/fee.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
 
@@ -380,6 +394,60 @@ const gameChips = computed(() => {
 const activeRecords = computed(() => records.value.filter(r => r.status !== 0))
 const pendingCount = computed(() => records.value.filter(r => r.status === 1).length)
 const hostingCount = computed(() => records.value.filter(r => r.status === 2).length)
+// ── 托管进度：百分比 / 色阶 / 刻度都走 utils/progress，与日报共用 ──
+function progressPercent(item) {
+  const p = hostProgress(item)
+  return percentOf(p && p.completed, p && p.planned)
+}
+function progressColor(item) { return progressColorByPercent(progressPercent(item)) }
+function progressSegments(item) { return segmentsByPercent(progressPercent(item)) }
+// 临期提醒：剩余 ≤3 天（含今天到期）时亮出来，提醒续费/收尾
+const DUE_WARN_DAYS = 3
+// 临期：剩余 ≤3 天（含已过期）→ 进度条加红边框，不再写字
+// 分级：3 天普通边框 / 2 天顶部中间加粗 / 1 天顶部两侧加粗
+function dueClass(item) {
+  const left = daysLeftTo(item)
+  if (left == null) return ''
+  if (left <= 1) return 'is-due due-1'
+  if (left === 2) return 'is-due due-2'
+  if (left <= DUE_WARN_DAYS) return 'is-due due-3'
+  return ''
+}
+function dueSoon(item) {
+  const left = daysLeftTo(item)
+  return left != null && left <= DUE_WARN_DAYS
+}
+function dueBadgeText(item) {
+  const left = daysLeftTo(item)
+  if (left == null) return ''
+  if (left < 0) return '已过期'
+  if (left === 0) return '今天到期'
+  if (left <= DUE_WARN_DAYS) return '剩 ' + left + ' 天'
+  return ''
+}
+// 悬停才显示的临期说明（版面上不写字）
+function dueTitleSuffix(item) {
+  const left = daysLeftTo(item)
+  if (left == null) return ''
+  if (left < 0) return '｜已过期 ' + Math.abs(left) + ' 天，记得跟客户确认续费'
+  if (left === 0) return '｜今天到期，记得跟客户确认续费'
+  return left <= DUE_WARN_DAYS ? '｜还剩 ' + left + ' 天到期，记得提醒客户续费' : ''
+}
+
+function dueBadgeTitle(item) {
+  const left = daysLeftTo(item)
+  if (left == null) return ''
+  if (left < 0) return '已过期 ' + Math.abs(left) + ' 天，记得跟客户确认续费'
+  if (left === 0) return '今天到期，记得跟客户确认续费'
+  return '还剩 ' + left + ' 天到期，记得提前提醒客户续费'
+}
+
+function progressTitle(item) {
+  const p = hostProgress(item)
+  const pct = progressPercent(item)
+  const tip = pct >= 90 ? '，快结束了，注意续费/收尾' : pct >= 75 ? '，即将结束' : ''
+  return `已完成 ${p.completed}/${p.planned} 次（${pct}%）${tip}`
+}
 const totalFeeSum = computed(() => activeRecords.value.reduce((s, r) => s + (Number(r.totalFee) || 0), 0))
 
 // ══════ 项目详情抽屉（数据组装见 services/projectDetail.js）══════
@@ -449,6 +517,41 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
+/* 临期提醒：进度条加红边框（剩余 ≤3 天 / 已过期） */
+/* 临期：细红边框包裹内容；顶部用「分段加粗」表达紧急度 */
+/*   剩 3 天 → 普通边框
+     剩 2 天 → 顶部中间一段加粗
+     剩 1 天 → 顶部左右两段加粗、中间保持细线 */
+.pr-cell.is-due {
+  position: relative;
+  border: 1px solid #d9534f;
+  padding: 3px 6px;
+  width: fit-content;
+}
+.pr-cell.is-due::before {
+  content: '';
+  position: absolute;
+  top: -1px; height: 3px;
+  display: none;
+  background: #d9534f;
+}
+/* 剩 2 天：中间加粗 */
+.pr-cell.due-2::before { display: block; left: 30%; right: 30%; }
+/* 剩 1 天：两侧加粗，中间露出细线 */
+.pr-cell.due-1::before {
+  display: block; left: 0; right: 0;
+  background: linear-gradient(90deg, #d9534f 0 30%, transparent 30% 70%, #d9534f 70% 100%);
+}
+/* ── 托管进度：次数 + 10 格刻度条 ── */
+.pr-cell { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.pr-text { font-family: var(--font-mono); font-size: 11px; display: flex; align-items: baseline; gap: 4px; }
+.pr-pct { font-size: 10px; font-weight: 700; }
+.pr-bar { display: flex; gap: 1px; width: 82px; }
+.pr-seg {
+  flex: 1 1 0; height: 7px;
+  border: 1px solid var(--border-color); background: transparent; opacity: 0.35;
+}
+.pr-seg.on { opacity: 1; }
 .today-wrap { padding: 0 12px 16px; }
 .view-switch { margin-right: 4px; }
 
