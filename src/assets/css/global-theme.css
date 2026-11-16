@@ -421,3 +421,50 @@ html[data-theme] .rc-main-container :is(button, [tabindex]):focus-visible { clip
         transition-duration: 0.01ms;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   交互语义层 —— 由上面 6 套主题的基色派生，主题切换自动跟随
+
+   背景 / 文字 / 线条这些「静态」令牌各主题自己定义；
+   这一层只补「hover · 按下 · 选中 · 焦点 · 浮层」这类交互态，
+   让所有页面用同一套名字，不必各自混色导致深浅主题表现不一致。
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+    /* 悬停底：压在当前表面上的一层极薄墨色（深色主题自动反向） */
+    --hover-bg: color-mix(in srgb, var(--text-primary) 7%, transparent);
+    --hover-bg-soft: color-mix(in srgb, var(--text-primary) 4%, transparent);
+    --hover-bg-strong: color-mix(in srgb, var(--text-primary) 12%, transparent);
+
+    /* 按下 / 选中 */
+    --active-bg: color-mix(in srgb, var(--accent) 16%, transparent);
+    --selected-bg: var(--accent);
+    --selected-fg: var(--accent-ink);
+
+    /* 焦点环 */
+    --focus-ring: var(--accent);
+    --focus-ring-soft: color-mix(in srgb, var(--accent) 38%, transparent);
+
+    /* 浮层投影 */
+    --shadow-pop: 0 2px 10px -4px rgba(0, 0, 0, 0.35);
+    --shadow-drawer: -22px 0 54px -26px rgba(0, 0, 0, 0.6);
+
+    /* 进度 / 状态 */
+    --state-done: #3C9D6E;
+    --state-active: var(--accent);
+
+    /* 统一过渡：所有交互元素默认引用这两个 */
+    --transition-ui: var(--motion-duration-fast, 0.15s) var(--motion-easing-standard, cubic-bezier(0.2, 0, 0.2, 1));
+    --transition-surface: var(--motion-duration-medium, 0.18s) var(--motion-easing-standard, cubic-bezier(0.2, 0, 0.2, 1));
+}
+
+/* 通用交互基类：给需要一致手感的元素挂上即可 */
+.ui-hover-surface {
+    transition: background-color var(--transition-ui), border-color var(--transition-ui), color var(--transition-ui);
+}
+.ui-hover-surface:hover {
+    background-color: var(--hover-bg-soft);
+}
+.ui-focus-ring:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}

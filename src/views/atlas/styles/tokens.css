@@ -1,0 +1,1415 @@
+/* ═══════════════════════════════════════════════════════════════════
+   resource-atlas 的 token 层：全部映射到本项目的主题变量
+
+   · 原来这套是 endfield-ui 的独立配色（--paper / --ink / --accent …）
+   · 现在改成读本项目的 --bg-primary / --text-primary / --accent / --border-color，
+     于是它会跟着应用的六套主题与明暗模式一起变，而不是固定黄色。
+   · 全部挂在 .atlas-root 下，避免和主应用的全局变量互相覆盖。
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root {
+  /* 纸面 / 面板 / 文字 */
+  --paper: var(--bg-primary);
+  --panel: var(--bg-secondary);
+  --ink: var(--text-primary);
+  --muted: color-mix(in srgb, var(--text-primary) 58%, transparent);
+  --rule: var(--border-color);
+  --chip: var(--bg-secondary);
+
+  /* 强调色：跟随主题主色（只做填充，上面写反白字） */
+  /* --accent 直接继承全局（自引用会造成 CSS 变量循环）(--accent); */
+  --on-accent: var(--accent-ink, #fff);
+
+  /* 删除/危险：保持红色语义 */
+  --danger: #d9534f;
+
+  /* 深色命令条 / 遮罩 / 三色条 */
+  --command: var(--text-primary);
+  --command-text: var(--bg-primary);
+  --scrim: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+  --tri-a: #ff00f0;
+  --tri-c: #00ffa2;
+  --hatch-color: color-mix(in srgb, var(--text-primary) 14%, transparent);
+
+  /* 切角与字体：字体统一用本项目，不再加载 Saira */
+  --cut: 8px;
+  /* --font-ui 直接继承全局（自引用会造成 CSS 变量循环）(--font-ui); */
+  --font-text: var(--font-ui);
+  /* --font-mono 直接继承全局（自引用会造成 CSS 变量循环）(--font-mono); */
+
+  /* 字号与节奏 */
+  --t-h1: 20px;
+  --t-title: 16px;
+  --t-h2: 14px;
+  --t-body: 13px;
+  --t-ui: 12px;
+  --t-field: 11px;
+  --t-eyebrow: 10px;
+  --page-pad: 12px;
+  --gap: 12px;
+  --line: 1px;
+
+  /* 动效（沿用本项目的短促手感） */
+  --snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --mech: cubic-bezier(0.7, 0, 0.2, 1);
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --press: 100ms;
+  --move: 240ms;
+  --enter: 240ms;
+  --exit: 160ms;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   布局与控件覆盖：把它从「独立站点」改造成本项目的内嵌页面
+
+   · 侧栏缩窄、去掉大号品牌块（全局导航已有本项目的左侧栏）
+   · 顶栏压到一行，和本项目的工具栏同高
+   · 按钮 / 输入框改成直角 + 2px 边框，与 .rc-global-btn 一致
+   · 去掉 clip-path 切角（本项目不用切角）
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 骨架 ── */
+.atlas-root .app-shell {
+  display: block;  /* 侧栏已移出模板，单列铺满 */
+  min-height: 0;
+}
+.atlas-root .sidebar {
+  padding: 10px 8px 0;
+  border-right: 1px solid var(--rule);
+}
+.atlas-root .brand { display: none; }
+.atlas-root .sidebar-label { margin: 4px 6px 8px; }
+.atlas-root .workspace { min-width: 0; width: 100%; }
+
+/* ── 顶栏：一行、紧凑 ── */
+.atlas-root .topbar {
+  height: 36px; padding: 0 12px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; gap: 10px;
+}
+.atlas-root .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.atlas-root .breadcrumb { font-size: 11px; font-family: var(--font-mono); }
+.atlas-root .edition { font-size: 10px; opacity: 0.6; }
+
+/* ── 页面内边距与标题 ── */
+.atlas-root main { padding: 0; }
+.atlas-root .page-heading { padding: 12px 12px 0; gap: 10px; }
+.atlas-root .page-heading h1 { font-size: var(--t-h1); font-weight: 800; letter-spacing: 0.3px; }
+.atlas-root .subtitle { font-size: 11px; }
+.atlas-root .eyebrow { font-size: 9px; letter-spacing: 1.6px; }
+.atlas-root .page-footer { padding: 10px 12px; font-size: 10px; }
+
+/* ── 按钮：直角 + 2px 边框，与主应用 .rc-global-btn 同款 ── */
+.atlas-root .btn {
+  min-height: 26px;
+  padding: 0 10px;
+  clip-path: none;
+  gap: 6px;
+  border: 2px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 160ms var(--mech), color 160ms var(--mech), border-color 160ms var(--mech);
+}
+.atlas-root .btn:hover:not(:disabled) {
+  background: var(--accent); border-color: var(--accent); color: var(--on-accent);
+}
+.atlas-root .btn.primary {
+  background: var(--ink); border-color: var(--ink); color: var(--paper);
+}
+.atlas-root .btn.primary:hover:not(:disabled) {
+  background: var(--accent); border-color: var(--accent); color: var(--on-accent);
+}
+.atlas-root .btn.small { min-height: 24px; padding: 0 8px; font-size: 10px; }
+.atlas-root .btn.danger { color: var(--danger); border-color: var(--danger); }
+.atlas-root .text-button { min-height: 24px; font-size: 11px; text-underline-offset: 3px; }
+.atlas-root .icon-button { border: 2px solid var(--rule); min-height: 24px; min-width: 24px; }
+
+/* ── 表单：小而紧凑，直角 ── */
+.atlas-root input, .atlas-root textarea, .atlas-root select {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 2px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink);
+}
+.atlas-root input:focus, .atlas-root textarea:focus, .atlas-root select:focus {
+  outline: none; border-color: var(--accent);
+}
+.atlas-root textarea { font-size: 11px; line-height: 1.7; }
+.atlas-root .field > span { font-size: 10px; }
+
+/* ── 区块与表格：贴紧、细线 ── */
+.atlas-root .section-head { margin-bottom: 8px; }
+.atlas-root .mode-strip { padding: 6px 12px; }
+.atlas-root .owner-toolbar { padding: 8px 12px; }
+.atlas-root table { font-size: 11px; }
+.atlas-root th, .atlas-root td { padding: 4px 6px; }
+
+/* ── 弹窗：与主应用一致的方形弹层 ── */
+.atlas-root .modal, .atlas-root .modal-card { border-radius: 0; }
+.atlas-root .modal-card { border: 2px solid var(--rule); }
+
+/* ── 三色条：细一点，别抢视线 ── */
+.atlas-root .tri { height: 2px; }
+
+/* ── 内容区：去掉 atlas 自己的超大留白，贴合本项目密度 ── */
+.atlas-root main > *:first-child { margin-top: 0; }
+.atlas-root .page-heading { padding: 10px 12px 0; }
+.atlas-root .page-heading .heading-actions { gap: 6px; flex-wrap: wrap; }
+.atlas-root .mode-strip { margin: 8px 12px 0; padding: 6px 10px; border: 1px solid var(--rule); }
+.atlas-root .notice { margin: 8px 12px 0; padding: 6px 10px; font-size: 11px; }
+.atlas-root .owner-toolbar { margin: 8px 12px 0; padding: 8px 10px; border: 1px solid var(--rule); }
+.atlas-root footer.page-footer {
+  margin-top: 10px; padding: 8px 12px;
+  border-top: 1px solid var(--rule); font-size: 10px; opacity: 0.6;
+}
+
+/* ── 统计卡片：本项目用「细边方块 + 等宽数字」，去掉圆角/阴影/切角 ── */
+.atlas-root .card, .atlas-root .stat, .atlas-root .totals, .atlas-root .mix, .atlas-root .matrix {
+  border-radius: 0; box-shadow: none; clip-path: none;
+}
+
+/* ── 加载/空状态：跟其他页面的空列表文案同风格 ── */
+.atlas-root .loading-screen { padding: 32px 16px; text-align: left; }
+.atlas-root .empty { padding: 24px 12px; }
+.atlas-root .empty p { font-size: 12px; }
+
+/* ── 页内大标题：宿主的 .local-header 已经有「资源账簿」，这里只留事实行 + 操作按钮 ── */
+.atlas-root .page-heading {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap;
+}
+.atlas-root .page-heading h1,
+.atlas-root .page-heading .subtitle,
+.atlas-root .page-heading .eyebrow,
+.atlas-root .page-heading .title-dot { display: none; }
+.atlas-root .page-heading .ledger-facts {
+  margin: 0; font-size: 10px; gap: 4px 14px; opacity: 0.75;
+}
+.atlas-root .page-heading .heading-actions {
+  margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+
+/* ── 所有零散按钮统一成 .rc-global-btn 的样子（白底 2px 边框 / 直角 / 等宽）── */
+.atlas-root .heading-actions .btn,
+.atlas-root .mode-strip .btn,
+.atlas-root .mode-strip button:not(.text-button),
+.atlas-root .owner-toolbar .btn,
+.atlas-root .empty .btn {
+  min-height: 26px !important;
+  padding: 0 10px !important;
+  border: 2px solid var(--rule) !important;
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  clip-path: none !important;
+}
+.atlas-root .heading-actions .btn:hover,
+.atlas-root .mode-strip button:hover:not(.text-button),
+.atlas-root .owner-toolbar .btn:hover,
+.atlas-root .empty .btn:hover {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--on-accent) !important;
+}
+.atlas-root .heading-actions .btn.primary,
+.atlas-root .owner-toolbar .btn.primary,
+.atlas-root .empty .btn.primary {
+  background: var(--ink) !important; border-color: var(--ink) !important; color: var(--paper) !important;
+}
+
+/* ── 文字按钮：与项目的行内链接同款（等宽、细下划线、无大间距）── */
+.atlas-root .text-button {
+  min-height: 22px; padding: 0 2px; font-size: 11px;
+  font-family: var(--font-mono); text-underline-offset: 3px; background: none;
+}
+.atlas-root .text-button:hover { background: none; color: var(--accent); }
+
+/* ── 模式条：一个信息条，别做成色块 ── */
+.atlas-root .mode-strip {
+  margin: 0; padding: 6px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+  border-left: none; border-right: none; border-top: none;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 11px;
+}
+.atlas-root .mode-strip .state {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 6px; border: 1px solid var(--rule);
+  background: var(--bg-secondary); color: var(--ink);
+}
+.atlas-root .mode-description { font-size: 10px; opacity: 0.6; }
+
+/* ── 空状态：去掉斜纹装饰，和项目其他空列表一样朴素 ── */
+.atlas-root .empty {
+  background: none !important;
+  background-image: none !important;
+  border: 1px dashed var(--rule);
+  padding: 20px 12px; text-align: left;
+}
+.atlas-root .empty p { font-size: 11px; opacity: 0.7; }
+
+/* ── 精简版新增：工具栏按钮的激活态、事实行、提示条 ── */
+.atlas-root .local-toolbar { padding: 10px 12px; }
+.atlas-root .rc-global-btn.is-on {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-ink, #fff) !important;
+}
+.atlas-root .atlas-facts {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  padding: 8px 12px; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 10px; opacity: 0.7;
+}
+.atlas-root .notice {
+  margin: 0; padding: 6px 12px; border-bottom: 1px solid var(--rule);
+  background: var(--bg-secondary); color: var(--ink); font-size: 11px;
+}
+.atlas-root .loading-screen { padding: 32px 16px; text-align: left; }
+.atlas-root .loading-screen p { font-size: 12px; opacity: 0.7; }
+
+/* ── 主按钮改为主题强调色（本项目的主操作按钮都用 accent，不用白底）── */
+.atlas-root .btn.primary,
+.atlas-root .empty .btn.primary {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-ink, #fff) !important;
+}
+.atlas-root .btn.primary:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+/* 编辑器里的分区标题收敛一点 */
+.atlas-root .editor-section h2,
+.atlas-root .editor-section h3 { font-size: 13px; }
+.atlas-root .section-head h2 { font-size: 13px; }
+
+/* ── 选项卡：直接复用项目的 .view-tabs / .tl-entry-btn（全局样式）── */
+.atlas-root .local-toolbar > .view-tabs { flex-shrink: 0; }
+.atlas-root .local-toolbar .tl-entry-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink, #fff);
+}
+/* 数据管理页：编辑区滚动，别被外层撑高 */
+.atlas-root .atlas-editor-wrap { padding: 0; min-height: 0; }
+.atlas-root .atlas-editor-wrap section { padding-left: 12px; padding-right: 12px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   数据管理（SourceEditor）美化
+
+   原来是整页流式表单，字段挤在一行里、分区靠大标题隔开。
+   这里改成：分区 = 细线卡片，字段 = 自适应小格，条目 = 可折叠框。
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root .data-editor {
+  display: grid; gap: 10px;
+  padding: 12px; align-content: start;
+}
+
+/* 分区卡片 */
+.atlas-root .editor-section {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 10px 12px 12px;
+  min-width: 0;
+}
+.atlas-root .editor-section > h2,
+.atlas-root .editor-section > h3 {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* 字段：自适应网格，不再一行塞满 */
+.atlas-root .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+.atlas-root .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.atlas-root .field > span { font-size: 10px; opacity: 0.62; letter-spacing: 0.3px; }
+.atlas-root .field input, .atlas-root .field select { width: 100%; }
+
+/* 条目：可折叠框，标题行一眼看清是什么 */
+.atlas-root details.edit-row {
+  border: 1px solid var(--rule);
+  background: var(--bg-secondary);
+  margin: 0 0 6px;
+}
+.atlas-root details.edit-row > summary {
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  list-style: none;
+  display: flex; align-items: center; gap: 8px;
+}
+.atlas-root details.edit-row > summary::-webkit-details-marker { display: none; }
+.atlas-root details.edit-row > summary::before {
+  content: '▸'; font-size: 9px; opacity: 0.6;
+  transition: transform 0.16s;
+}
+.atlas-root details.edit-row[open] > summary {
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}
+.atlas-root details.edit-row[open] > summary::before { transform: rotate(90deg); }
+.atlas-root details.edit-row > summary:hover { background: var(--chip); }
+.atlas-root details.edit-row > *:not(summary) { padding: 9px; }
+
+/* 操作行 */
+.atlas-root .editor-controls,
+.atlas-root .actions {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.atlas-root .editor-controls { padding-top: 9px; }
+.atlas-root .actions .btn { min-height: 24px !important; font-size: 10px !important; }
+
+/* 产出行：资源 + 数量并排 */
+.atlas-root .requirement-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  gap: 6px; align-items: end;
+}
+.atlas-root .notice { font-size: 11px; }
+
+/* 导入用的隐藏 file input（和「数据管理」页一致） */
+.atlas-import-file { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   资源一览密度：从「每张卡占一整行、42px 大数字」改成紧凑网格
+
+   原版是给公开站点做的大版式（卡片 22px 内距、数字 42px、分区间隔 32px），
+   放进桌面工具里就变成「又空又大」。这里统一压到项目的密度。
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 分区间距 */
+.atlas-root .section-head { margin-bottom: 6px !important; }
+.atlas-root .section-head h2 { font-size: 12px !important; font-weight: 700 !important; }
+.atlas-root .section-head .eyebrow { font-size: 9px !important; letter-spacing: 1.4px !important; }
+.atlas-root .section-head .muted { font-size: 10px !important; }
+
+/* 资源卡：自适应小网格（一行能放 4~6 个） */
+.atlas-root .resource-total-list {
+  grid-template-columns: repeat(auto-fill, minmax(186px, 1fr)) !important;
+  gap: 8px !important;
+}
+
+/* 卡片头：勾选框 + 色块 + 名称，右边百分比 */
+.atlas-root .resource-total-heading { gap: 6px !important; align-items: center !important; }
+.atlas-root .resource-total-heading h3 { font-size: 13px !important; font-weight: 700 !important; gap: 6px !important; }
+.atlas-root .resource-total-heading .muted { font-size: 9px !important; }
+.atlas-root .resource-total-heading .muted b { font-size: 10px !important; }
+.atlas-root .resource-swatch { width: 9px !important; height: 9px !important; }
+.atlas-root .obtain-box { width: 12px !important; height: 12px !important; font-size: 9px !important; border-width: 2px !important; }
+
+/* 主体：数字一行搞定，不再左右两栏 */
+.atlas-root .resource-total-body {
+  grid-template-columns: 1fr !important;
+  gap: 3px !important;
+  margin: 5px 0 4px !important;
+  align-items: start !important;
+}
+.atlas-root .resource-total-primary { display: flex; align-items: baseline; gap: 6px; }
+.atlas-root .resource-total-primary .eyebrow { display: none !important; }
+.atlas-root .resource-total-primary > div { gap: 5px !important; }
+.atlas-root .resource-total-primary strong {
+  font-size: 19px !important; line-height: 1.2 !important; font-weight: 700 !important;
+}
+.atlas-root .resource-total-primary > div > span { font-size: 10px !important; }
+
+/* 附带信息：覆盖来源 / 主要来源，改成一行小字 */
+.atlas-root .resource-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important; padding: 0 !important; border: 0 !important;
+}
+.atlas-root .resource-facts dt { font-size: 9px !important; opacity: .7; }
+.atlas-root .resource-facts dd { font-size: 10px !important; margin: 0 !important; font-weight: 600 !important; }
+.atlas-root .resource-facts small { font-size: 9px !important; margin-left: 3px !important; }
+
+/* 进度条：细一点，标题行收进一行 */
+.atlas-root .resource-progress-heading { margin-bottom: 3px !important; font-size: 9px !important; }
+.atlas-root .resource-progress-heading b { font-size: 10px !important; }
+.atlas-root .progress-track { height: 3px !important; }
+
+/* 来源类型构成：每行压扁 */
+
+/* 来源明细：行内更紧 */
+.atlas-root .source-group { margin-bottom: 8px; }
+.atlas-root .source-group-total { font-size: 10px !important; }
+.atlas-root .source-group-total b { font-size: 12px !important; }
+
+/* ── 第二轮收紧：卡片里的「主要来源」和头部百分比是同一件事，只留一处 ── */
+.atlas-root .resource-total-list {
+  grid-template-columns: repeat(auto-fill, minmax(206px, 1fr)) !important;
+}
+/* 头部的「主要来源 78%」已经是结论，卡片里再写一遍占比+进度条就啰嗦了 */
+.atlas-root .resource-progress-heading { display: none !important; }
+/* facts 只留「覆盖来源」一行 */
+.atlas-root .resource-facts { grid-template-columns: auto !important; }
+.atlas-root .resource-facts > div:nth-child(2) { display: none !important; }
+.atlas-root .resource-facts dt { display: inline !important; font-size: 9px !important; }
+.atlas-root .resource-facts dd { display: inline !important; margin-left: 4px !important; }
+/* 数字行与 facts 合成紧凑两行 */
+.atlas-root .resource-total-body { margin: 3px 0 2px !important; gap: 2px !important; }
+/* 进度条贴底，细到 2px，只作为视觉提示 */
+/* 名称不允许换行，放不下就省略 */
+.atlas-root .resource-total-heading h3 { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; }
+
+/* 来源类型构成：时间跨度那行太长，收小 */
+
+/* ── 第三轮微调：进度条颜色/高度、来源构成单行 ── */
+/* 来源构成：时间跨度并到名字那行，不再单独占一行 */
+
+/* 卡片内的进度条去掉：右上角已经有百分比，3px 细条看着像下划线 */
+/* 卡片底部收一点，两行信息刚好 */
+
+/* ═══ 一次性资源汇总条 ═══ */
+.atlas-root .stone-summary {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 12px; border-bottom: 1px solid var(--rule);
+}
+.atlas-root .stone-card {
+  min-width: 220px; flex: 0 1 auto;
+  border: 1px solid var(--rule); background: var(--panel); padding: 6px 10px;
+}
+.atlas-root .sc-row { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono); }
+.atlas-root .sc-row > i { width: 8px; height: 8px; flex-shrink: 0; align-self: center; }
+.atlas-root .sc-row > b { font-size: 12px; font-weight: 700; }
+.atlas-root .sc-row > strong { font-size: 20px; font-weight: 800; line-height: 1.2; }
+.atlas-root .sc-row > .sc-of { font-size: 11px; opacity: .6; }
+.atlas-root .sc-row > em { margin-left: auto; font-style: normal; font-size: 11px; font-weight: 700; opacity: .85; }
+.atlas-root .sc-bar { height: 3px; background: var(--bg-primary); margin-top: 4px; overflow: hidden; }
+.atlas-root .sc-bar > i { display: block; height: 100%; background: var(--accent); transition: width .18s; }
+.atlas-root .stone-actions { display: flex; gap: 6px; margin-left: auto; }
+
+/* 进度跳转输入条 */
+.atlas-root .progress-jump {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-bottom: 1px solid var(--rule);
+  background: var(--bg-secondary);
+}
+.atlas-root .pj-label { font-family: var(--font-mono); font-size: 10px; opacity: .7; }
+.atlas-root .pj-input {
+  width: 78px; height: 24px; padding: 0 6px;
+  border: 2px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .pj-input:focus { outline: none; border-color: var(--accent); }
+.atlas-root .pj-hint { font-family: var(--font-mono); font-size: 9px; opacity: .45; margin-left: 4px; }
+
+/* 只看未完成筛选 */
+.atlas-root .stone-filter {
+  display: flex; align-items: center; gap: 5px; margin-left: auto;
+  font-family: var(--font-mono); font-size: 10px; opacity: .75; cursor: pointer;
+}
+.atlas-root .stone-filter input { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
+
+/* ═══ 数据管理 · 来源分页表格 ═══ */
+.atlas-root .src-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 6px 0; margin-bottom: 4px; border-bottom: 1px solid var(--rule);
+}
+.atlas-root .src-filter { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.atlas-root .src-filter > span { opacity: .65; white-space: nowrap; }
+.atlas-root .src-filter select, .atlas-root .src-filter input {
+  height: 24px; padding: 0 5px; min-width: 100px;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .src-count { font-family: var(--font-mono); font-size: 10px; opacity: .6; margin-left: auto; }
+.atlas-root .src-pager { display: flex; align-items: center; gap: 4px; }
+.atlas-root .src-page-num { font-family: var(--font-mono); font-size: 10px; min-width: 52px; text-align: center; opacity: .8; }
+.atlas-root .src-size { height: 24px; border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary); font-family: var(--font-mono); font-size: 10px; }
+.atlas-root .src-table { display: grid; }
+.atlas-root .src-row {
+  display: grid; grid-template-columns: 34px minmax(80px, 1.1fr) minmax(70px, .9fr) minmax(100px, 1.3fr) 170px;
+  gap: 6px; align-items: center;
+  padding: 3px 4px; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .src-row:hover { background: var(--bg-secondary); }
+.atlas-root .src-row.editing { background: var(--bg-secondary); border-bottom-color: var(--accent); }
+.atlas-root .src-head {
+  font-size: 9px; opacity: .55; letter-spacing: .04em;
+  border-bottom: 1px solid var(--rule); background: var(--panel);
+}
+.atlas-root .src-idx { opacity: .4; text-align: right; font-size: 10px; }
+.atlas-root .src-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atlas-root .src-type, .atlas-root .src-grants { opacity: .7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.atlas-root .src-ops { display: flex; gap: 3px; justify-content: flex-end; }
+.atlas-root .src-ops .btn { height: 18px; padding: 0 6px; font-size: 10px; }
+.atlas-root .src-edit {
+  padding: 8px 10px 10px; margin: 0 0 6px;
+  border: 1px solid var(--accent); border-top: 0;
+  background: var(--bg-secondary);
+}
+.atlas-root .src-pager-bottom { justify-content: center; padding: 8px 0 2px; }
+
+/* ═══ 数据管理 · 紧凑行 / 游戏选项卡 ═══ */
+.atlas-root .section-ops { display: flex; gap: 4px; align-items: center; }
+.atlas-root .section-ops .btn { height: 20px; padding: 0 7px; font-size: 10px; }
+
+.atlas-root .game-tabs { display: flex; flex-wrap: wrap; gap: 3px; }
+.atlas-root .game-tab {
+  height: 24px; padding: 0 11px; cursor: pointer;
+  border: 2px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .01em;
+}
+.atlas-root .game-tab:hover { border-color: var(--accent); }
+.atlas-root .game-tab.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); font-weight: 700; }
+
+.atlas-root .inline-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.atlas-root .if-field { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; }
+.atlas-root .if-field > span { opacity: .6; white-space: nowrap; }
+.atlas-root .if-field input {
+  height: 22px; padding: 0 5px; min-width: 180px;
+  border: 1px solid var(--rule); background: var(--bg-primary); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px;
+}
+
+/* 紧凑行：一行一条，无折叠 */
+.atlas-root .compact-list {
+  max-height: 300px; overflow-y: auto;
+  border-top: 1px solid var(--rule);
+}
+.atlas-root .compact-row {
+  display: grid; align-items: center; gap: 4px;
+  padding: 2px 3px; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .compact-row:hover { background: var(--bg-secondary); }
+.atlas-root .cr-resource { grid-template-columns: 26px minmax(90px, 1.4fr) minmax(50px, .6fr) 24px minmax(64px, .8fr) 44px 34px; }
+.atlas-root .cr-type { grid-template-columns: 26px minmax(110px, 1.3fr) 24px minmax(64px, .7fr) minmax(90px, 1.4fr) 40px 78px; }
+.atlas-root .cr-idx { font-size: 9px; opacity: .4; text-align: right; }
+.atlas-root .cr-label { font-size: 9px; opacity: .45; }
+.atlas-root .cr-input {
+  height: 21px; min-width: 0; padding: 0 4px;
+  border: 1px solid transparent; background: transparent; color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .cr-input:hover { border-color: var(--rule); }
+.atlas-root .cr-input:focus { outline: none; border-color: var(--accent); background: var(--bg-primary); }
+.atlas-root .cr-code { font-size: 10px; opacity: .7; }
+.atlas-root .cr-color {
+  width: 22px; height: 21px; padding: 0; cursor: pointer;
+  border: 1px solid var(--rule); background: none;
+}
+.atlas-root .cr-usage { font-size: 9px; opacity: .45; white-space: nowrap; text-align: right; }
+.atlas-root .cr-ops { display: flex; gap: 2px; justify-content: flex-end; }
+.atlas-root .cr-ops .btn { height: 19px; padding: 0 4px; font-size: 9px; min-width: 20px; }
+
+/* ═══ 数据管理：整体收紧（app.css 的 section / 控件是按整页表单设计的，这里按工具密度重设） ═══ */
+.atlas-root .data-editor { display: grid; gap: 6px; }
+.atlas-root .editor-section { margin: 0; padding: 9px 11px; }
+.atlas-root .editor-section .section-head { margin-bottom: 5px; gap: 8px; }
+.atlas-root .editor-section .section-head h3 { font-size: 13px; line-height: 1.2; }
+.atlas-root .editor-section .section-head .eyebrow { font-size: 8px; margin-bottom: 1px; }
+.atlas-root .editor-section .btn { min-height: 22px; padding: 0 8px; font-size: 10px; gap: 4px; }
+.atlas-root .editor-section .empty { padding: 10px 12px; margin: 4px 0; font-size: 11px; }
+.atlas-root .editor-section > .muted { font-size: 10px; margin: 2px 0 5px; }
+.atlas-root .editor-section > .notice { margin: 4px 0; padding: 6px 10px; font-size: 11px; }
+
+/* 色块：app.css 里 input[type=color] 带 min-height:46px，不压掉会把整行撑到 51px */
+.atlas-root .cr-color { min-height: 0; height: 21px; width: 22px; padding: 0; }
+
+/* 紧凑列表可见高度 */
+.atlas-root .compact-list { max-height: 272px; }
+
+/* ═══ 数据管理：两栏并排 ═══ */
+.atlas-root .editor-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px; align-items: start;
+}
+.atlas-root .editor-pair > .editor-section { min-width: 0; }
+
+/* 两栏里空间变窄，紧凑行的列宽相应收紧 */
+.atlas-root .editor-pair .cr-resource { grid-template-columns: 22px minmax(60px, 1.3fr) minmax(38px, .6fr) 22px minmax(56px, .8fr) 38px 30px; }
+.atlas-root .editor-pair .cr-type { grid-template-columns: 22px minmax(80px, 1.2fr) 22px minmax(56px, .7fr) minmax(70px, 1.2fr) 32px 68px; }
+.atlas-root .editor-pair .src-row:not(.sr-type):not(.sr-resource) { grid-template-columns: 26px minmax(56px, 1fr) minmax(48px, .8fr) minmax(60px, 1fr) 108px; }
+.atlas-root .editor-pair .src-ops .btn { padding: 0 4px; font-size: 9px; }
+.atlas-root .editor-pair .compact-list { max-height: 240px; }
+.atlas-root .editor-pair .sr-type { grid-template-columns: 24px minmax(66px, 1.2fr) 22px minmax(52px, .7fr) minmax(64px, 1.3fr) 32px 64px; }
+.atlas-root .editor-pair .sr-resource { grid-template-columns: 24px minmax(58px, 1.3fr) minmax(36px, .6fr) 22px minmax(50px, .8fr) 32px 30px; }
+
+/* ═══ 数据管理：四个区块统一成 src-row 表格 ═══ */
+.atlas-root .sr-input {
+  height: 21px; min-width: 0; padding: 0 4px;
+  border: 1px solid transparent; background: transparent; color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .sr-input:hover { border-color: var(--rule); }
+.atlas-root .sr-input:focus { outline: none; border-color: var(--accent); background: var(--bg-primary); }
+.atlas-root .sr-code { font-size: 10px; opacity: .7; }
+.atlas-root .sr-color { min-height: 0; height: 21px; width: 22px; padding: 0; border: 1px solid var(--rule); background: none; cursor: pointer; }
+.atlas-root .sr-resource { grid-template-columns: 26px minmax(70px, 1.3fr) minmax(44px, .6fr) 24px minmax(60px, .8fr) 40px 34px; }
+.atlas-root .sr-type { grid-template-columns: 26px minmax(80px, 1.2fr) 24px minmax(60px, .7fr) minmax(80px, 1.4fr) 40px 70px; }
+
+/* ═══ 数据管理：整页不滚动，只在表格内部滚 ═══ */
+.atlas-root:has(.data-editor) {
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.atlas-root:has(.data-editor) .atlas-editor-wrap {
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+}
+.atlas-root:has(.data-editor) .data-editor {
+  height: 100%; min-height: 0; overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.atlas-root:has(.data-editor) .editor-pair { min-height: 0; }
+.atlas-root:has(.data-editor) .editor-pair:last-child { min-height: 0; }
+.atlas-root:has(.data-editor) .editor-pair > .editor-section {
+  min-height: 0; max-height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.atlas-root:has(.data-editor) .editor-section > .section-head,
+.atlas-root:has(.data-editor) .editor-section > .empty,
+.atlas-root:has(.data-editor) .editor-section > .muted,
+.atlas-root:has(.data-editor) .editor-section > .notice,
+.atlas-root:has(.data-editor) .editor-section > .src-toolbar,
+.atlas-root:has(.data-editor) .editor-section > .src-pager { flex: 0 0 auto; }
+.atlas-root:has(.data-editor) .editor-section > .src-table {
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; align-content: start;
+}
+.atlas-root:has(.data-editor) .editor-section > .compact-list {
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; max-height: none;
+}
+/* 编辑面板在固定高度的区块里展开时，区块内部滚动 */
+.atlas-root:has(.data-editor) .src-edit { overscroll-behavior: contain; }
+
+/* ═══ 数据管理 · 关卡编辑面板（紧凑单列） ═══ */
+.atlas-root .src-edit {
+  padding: 6px 8px 7px; margin: 0 0 4px;
+  border: 1px solid var(--accent); border-top: 0;
+  background: var(--bg-secondary);
+  display: grid; gap: 4px;
+}
+.atlas-root .se-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.atlas-root .se-field {
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .se-field > span { opacity: .6; white-space: nowrap; }
+.atlas-root .se-grow { flex: 1 1 200px; min-width: 0; }
+.atlas-root .se-field input,
+.atlas-root .se-field select {
+  height: 22px; min-width: 0; padding: 0 5px;
+  border: 1px solid var(--rule); background: var(--bg-primary); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .se-field input { flex: 1 1 80px; }
+.atlas-root .se-field select { flex: 0 1 150px; max-width: 150px; }
+.atlas-root .se-field input:focus, .atlas-root .se-field select:focus { outline: none; border-color: var(--accent); }
+.atlas-root .se-hint { font-size: 10px; opacity: .5; }
+.atlas-root .se-grants { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.atlas-root .se-grant { display: flex; align-items: center; gap: 3px; }
+.atlas-root .se-grant select { max-width: 96px; }
+.atlas-root .se-grant input { width: 62px; flex: 0 0 62px; text-align: right; }
+.atlas-root .se-unit { font-size: 10px; opacity: .6; min-width: 12px; }
+.atlas-root .se-x {
+  width: 16px; height: 22px; padding: 0; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--danger);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1;
+}
+.atlas-root .se-x:hover { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+.atlas-root .se-add {
+  width: 20px; height: 22px; padding: 0; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1;
+}
+.atlas-root .se-add:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); }
+.atlas-root .se-add:disabled { opacity: .3; }
+.atlas-root .se-ops { display: flex; gap: 4px; justify-content: flex-end; padding-top: 2px; }
+.atlas-root .se-ops .btn { min-height: 20px; padding: 0 7px; font-size: 10px; }
+
+/* ═══ 资源一览：56 种资源时卡片区自己滚 ═══ */
+.atlas-root .stone-summary {
+  max-height: 132px; overflow-y: auto; align-content: start;
+  scrollbar-width: thin;
+}
+.atlas-root .stone-card { min-width: 176px; }
+.atlas-root .sc-row > strong { font-size: 14px; }
+.atlas-root .sc-row > .sc-of { font-size: 10px; }
+.atlas-root .atlas-facts { align-items: center; }
+.atlas-root .atlas-facts .stone-filter { margin-left: auto; }
+
+/* ═══ 资源详情侧栏 ═══ */
+.atlas-root .atlas-drawer-mask {
+  position: fixed; inset: 0; z-index: 40;
+  background: color-mix(in srgb, var(--text-primary) 42%, transparent);
+  display: flex; justify-content: flex-end;
+}
+.atlas-root .atlas-drawer {
+  width: 50vw; max-width: 94vw; height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg-primary); border-left: 2px solid var(--accent);
+  box-shadow: -18px 0 48px -20px rgba(0,0,0,.55);
+}
+.atlas-root .dr-head {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-bottom: 1px solid var(--rule);
+}
+.atlas-root .dr-head .eyebrow { font-size: 8px; margin-bottom: 2px; }
+.atlas-root .dr-head h3 {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 700; font-family: var(--font-mono);
+}
+.atlas-root .dr-head h3 > i { width: 9px; height: 9px; flex-shrink: 0; }
+.atlas-root .dr-close {
+  margin-left: auto; width: 24px; height: 24px; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1;
+}
+.atlas-root .dr-close:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); }
+.atlas-root .dr-total {
+  flex: 0 0 auto; display: flex; align-items: baseline; gap: 6px;
+  padding: 10px 12px 4px; font-family: var(--font-mono);
+}
+.atlas-root .dr-total > strong { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.atlas-root .dr-total .dr-of { font-size: 11px; opacity: .6; }
+.atlas-root .dr-total > em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 700; opacity: .8; }
+.atlas-root .dr-hint {
+  flex: 0 0 auto; padding: 0 12px 6px;
+  font-family: var(--font-mono); font-size: 9px; opacity: .45;
+}
+.atlas-root .dr-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: 0 8px 12px;
+}
+.atlas-root .dr-row {
+  display: grid; grid-template-columns: 7px minmax(80px, 1.3fr) auto minmax(40px, .9fr) 34px;
+  gap: 6px; align-items: center;
+  padding: 3px 4px; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .dr-row:hover { background: var(--bg-secondary); }
+.atlas-root .dr-swatch { width: 7px; height: 7px; }
+.atlas-root .dr-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atlas-root .dr-amount { white-space: nowrap; font-weight: 700; }
+.atlas-root .dr-amount > em { font-style: normal; opacity: .45; font-weight: 500; }
+.atlas-root .dr-bar { height: 3px; background: var(--panel); overflow: hidden; }
+.atlas-root .dr-bar > i { display: block; height: 100%; background: var(--accent); }
+.atlas-root .dr-pct { text-align: right; opacity: .7; }
+
+/* 资源卡改成按钮后可点 */
+.atlas-root .stone-card { cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.atlas-root .stone-card:hover { border-color: var(--accent); }
+
+/* 游戏管理：每个游戏独占一行 */
+.atlas-root .game-tabs { flex-direction: column; gap: 3px; }
+.atlas-root .game-tab {
+  width: 100%; text-align: left; height: 26px; padding: 0 10px;
+  display: flex; align-items: center;
+}
+
+/* ═══ 数据管理 · 关卡编辑侧栏 ═══ */
+.atlas-root .ed-mask {
+  position: fixed; inset: 0; z-index: 40;
+  background: color-mix(in srgb, var(--text-primary) 42%, transparent);
+  display: flex; justify-content: flex-end;
+}
+.atlas-root .ed-drawer {
+  width: 50vw; max-width: 94vw; height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg-primary); border-left: 2px solid var(--accent);
+  box-shadow: -18px 0 48px -20px rgba(0,0,0,.55);
+}
+.atlas-root .ed-head {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-bottom: 1px solid var(--rule);
+}
+.atlas-root .ed-head .eyebrow { font-size: 8px; margin-bottom: 2px; }
+.atlas-root .ed-head h3 { font-size: 14px; font-weight: 700; font-family: var(--font-mono); }
+.atlas-root .ed-close {
+  margin-left: auto; width: 24px; height: 24px; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1;
+}
+.atlas-root .ed-close:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink, #fff); }
+.atlas-root .ed-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px 14px; }
+
+/* 游戏按钮：宽度随内容自适应（不再是整行） */
+.atlas-root .game-tabs { flex-direction: row; flex-wrap: wrap; gap: 3px; }
+.atlas-root .game-tab { width: auto; min-width: 0; padding: 0 12px; }
+
+/* ═══ 章节编辑侧栏：本章关卡列表 ═══ */
+.atlas-root .ed-stages-head {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 8px 0 4px; padding-top: 8px; border-top: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.atlas-root .ed-stages-head > b { font-size: 11px; }
+.atlas-root .ed-stages-count { font-size: 10px; opacity: .5; }
+.atlas-root .ed-stages-head .se-input {
+  height: 22px; padding: 0 5px; width: 92px; margin-left: auto;
+  border: 1px solid var(--rule); background: var(--bg-primary); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .ed-stages-head .btn { min-height: 22px; padding: 0 8px; font-size: 10px; }
+.atlas-root .ed-empty {
+  padding: 14px 10px; text-align: center;
+  font-family: var(--font-mono); font-size: 10px; opacity: .5;
+  border: 1px dashed var(--rule); margin: 4px 0;
+}
+.atlas-root .ed-stage-list { display: grid; gap: 0; overflow-y: auto; min-height: 0; }
+.atlas-root .ed-stage {
+  display: flex; align-items: center; gap: 4px;
+  padding: 2px 0; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .ed-stage-name {
+  width: 62px; flex: 0 0 62px; height: 21px; padding: 0 4px;
+  border: 1px solid transparent; background: transparent; color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+}
+.atlas-root .ed-stage-name:hover { border-color: var(--rule); }
+.atlas-root .ed-stage-name:focus { outline: none; border-color: var(--accent); background: var(--bg-primary); }
+.atlas-root .ed-hint { font-size: 9px; opacity: .45; flex: 1; }
+.atlas-root .ed-grants { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+.atlas-root .ed-grant { display: flex; align-items: center; gap: 2px; }
+.atlas-root .ed-grant select {
+  height: 21px; max-width: 88px; padding: 0 3px;
+  border: 1px solid var(--rule); background: var(--bg-primary); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .ed-grant input {
+  height: 21px; width: 56px; flex: 0 0 56px; text-align: right; padding: 0 3px;
+  border: 1px solid var(--rule); background: var(--bg-primary); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .ed-unit { font-size: 9px; opacity: .55; min-width: 10px; }
+.atlas-root .ed-stage-ops { display: flex; gap: 2px; flex: 0 0 auto; margin-left: auto; }
+.atlas-root .ed-stage-ops .btn { min-height: 19px; padding: 0 5px; font-size: 9px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   精修层 —— 交互手感 / 动效 / 主题一致性
+
+   全部读 global-theme.css 的交互语义层（--hover-bg / --active-bg /
+   --focus-ring / --state-done / --transition-ui），六套主题自动跟随，
+   本层不再出现任何硬编码颜色。
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 所有可点元素的过渡统一走 --transition-ui ── */
+.atlas-root :is(.stone-card, .stage-card, .sc-face, .src-row, .dr-row, .st-cell, .game-tab, .ch-btn, .sc-btn, .se-x, .se-add, .btn, .game-head, .ed-stage, .cr-input, .sr-input, .se-field input, .se-field select) {
+  transition:
+    background-color var(--transition-ui),
+    border-color var(--transition-ui),
+    color var(--transition-ui),
+    opacity var(--transition-ui),
+    transform var(--transition-ui),
+    box-shadow var(--transition-ui);
+}
+
+/* ── 2. hover 底色：改用全局 --hover-bg-soft（原来拿 --bg-secondary，与面板同色看不出变化） ── */
+.atlas-root .src-row:hover,
+.atlas-root .dr-row:hover,
+.atlas-root .ed-stage:hover,
+.atlas-root .compact-row:hover { background-color: var(--hover-bg-soft); }
+
+.atlas-root .src-row.editing { background-color: var(--active-bg); }
+
+/* 资源卡 / 章节卡：边框点亮 + 微微抬起 */
+.atlas-root .stone-card:hover {
+  border-color: var(--accent);
+  background-color: var(--hover-bg-soft);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-pop);
+}
+.atlas-root .stone-card:active { transform: translateY(0) scale(0.995); }
+
+.atlas-root .stage-card:hover { border-color: var(--accent); }
+.atlas-root .stage-card:active { transform: scale(0.996); }
+.atlas-root .st-cell:active { transform: scale(0.92); }
+.atlas-root .st-cell.cleared:hover {
+  background-color: var(--accent);
+  filter: brightness(1.12);
+}
+
+/* 按钮：hover 反白（沿用主应用 --btn-hover-bg 语义） */
+.atlas-root .btn:hover:not(:disabled),
+.atlas-root .ch-btn:hover:not(:disabled),
+.atlas-root .sc-btn:hover:not(:disabled) {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.atlas-root .btn.danger:hover:not(:disabled) {
+  background-color: var(--warn);
+  border-color: var(--warn);
+  color: var(--bg-primary);
+}
+.atlas-root .btn:active:not(:disabled) { transform: translateY(1px); }
+
+/* 游戏切换按钮 */
+.atlas-root .game-tab:hover { border-color: var(--accent); background-color: var(--hover-bg-soft); }
+.atlas-root .game-tab.active {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+/* ── 3. 焦点环统一（键盘可达性） ── */
+.atlas-root :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.atlas-root input:focus, .atlas-root select:focus, .atlas-root textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background-color: var(--bg-primary);
+}
+
+/* ── 4. 进度条：宽度与颜色同步过渡 ── */
+.atlas-root .sc-bar > i,
+.atlas-root .ch-bar > i,
+.atlas-root .dr-bar > i {
+  transition: width var(--transition-surface), background-color var(--transition-surface);
+}
+/* 完成态统一用全局 --state-done，不再各个区块写死 #3c9d6e */
+.atlas-root .stage-card.all-done,
+.atlas-root .atlas-drawer,
+.atlas-root .ed-drawer { box-shadow: var(--shadow-drawer); }
+
+/* ── 6. 文字层级：统一到 --plate-fg-dim 的手感 ── */
+.atlas-root {
+  --muted: color-mix(in srgb, var(--text-primary) 56%, transparent);
+  --muted-soft: color-mix(in srgb, var(--text-primary) 38%, transparent);
+}
+
+/* ── 7. 表格表头：用铭牌语义，深色主题下自动反白 ── */
+.atlas-root .src-head {
+  background-color: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* ── 8. 空状态 / 提示：统一虚线框与居中 ── */
+.atlas-root .ed-empty,
+.atlas-root .atlas-root .empty {
+  border: 1px dashed var(--rule);
+  background: none;
+  color: var(--muted);
+}
+
+/* ── 9. 滚动条：细、跟随主题 ── */
+.atlas-root :is(.stone-summary, .dr-list, .ed-body, .src-table, .compact-list, .ed-stage-list) {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-primary) 26%, transparent) transparent;
+}
+
+/* ── 10. 响应式：窄窗口下并排改单列 ── */
+@media (max-width: 1180px) {
+  .atlas-root .editor-pair { grid-template-columns: minmax(0, 1fr); }
+  .atlas-root .stage-grid { grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); }
+}
+@media (max-width: 900px) {
+  .atlas-root .stone-summary { max-height: 168px; }
+  .atlas-root .stage-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+  .atlas-root .sc-name { font-size: 10px; }
+}
+
+/* ── 11. 尊重系统的「减少动态效果」 ── */
+@media (prefers-reduced-motion: reduce) {
+  .atlas-root *,
+  .atlas-root *::before,
+  .atlas-root *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   数据管理 · 高度硬约束
+
+   目标：无论窗口多大，这一页都不出现页面级滚动条；
+   内容超出时只在各自的表格区块内部滚动。
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root:has(.data-editor) { overflow: hidden; }
+.atlas-root:has(.data-editor) .atlas-editor-wrap { overflow: hidden; min-height: 0; }
+.atlas-root:has(.data-editor) .data-editor {
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* 两个区块并排时各占一半宽度，高度上限 = 所在行 */
+.atlas-root:has(.data-editor) .editor-pair {
+  min-height: 0; min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.atlas-root:has(.data-editor) .editor-pair > .editor-section {
+  min-height: 0; max-height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* 窄窗口改单列时，两块各占一半高度，避免叠加后把页面顶出滚动条 */
+@media (max-width: 1180px) {
+  .atlas-root:has(.data-editor) .data-editor {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .atlas-root:has(.data-editor) .editor-pair {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .atlas-root:has(.data-editor) .editor-pair > .editor-section { max-height: calc(50% - 3px); }
+}
+
+/* 表格与分页条：表格吸收剩余高度并内部滚动，分页条永远贴底可见 */
+.atlas-root:has(.data-editor) .editor-section > .src-table {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start;
+}
+.atlas-root:has(.data-editor) .editor-section > .src-pager { flex: 0 0 auto; }
+
+/* 最后一道保险：区块自身也裁切，任何尺寸都不产生页面滚动 */
+.atlas-root:has(.data-editor) { max-height: 100vh; }
+.atlas-root:has(.data-editor) .editor-pair { overflow: hidden; }
+.atlas-root:has(.data-editor) .editor-section > .src-table { max-height: 100%; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   数据管理 · 锁定滚动（按最小窗口 1200×800 设计）
+
+   用 overflow: clip 而不是 hidden ——
+   hidden 仍是一个 scroll container（可以 scrollTop、滚轮能挪），
+   clip 直接不是滚动容器，鼠标滚轮 / 程序赋值都动不了。
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root:has(.data-editor) {
+  overflow: clip;
+  overscroll-behavior: none;
+}
+.atlas-root:has(.data-editor) .atlas-editor-wrap { overflow: clip; }
+.atlas-root:has(.data-editor) .data-editor { overflow: clip; }
+.atlas-root:has(.data-editor) .editor-pair { overflow: clip; }
+.atlas-root:has(.data-editor) .editor-pair > .editor-section { overflow: clip; }
+
+/* 表格是唯一允许滚动的内部区域（内容超长时），且不把滚动传给父级 */
+.atlas-root:has(.data-editor) .editor-section > .src-table {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 侧栏同理：只有正文区可滚 */
+.atlas-root .ed-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   数据管理 · 页面根容器（.local-music）也不能滚
+
+   之前的问题：.atlas-root 拿满 100% 高度，没有扣掉上方 74px 的页头，
+   于是 .local-music 的内容比自身高 74px，它自己变成滚动容器 ——
+   滚动时整个 .atlas-root（含页头工具栏）跟着上移，页头就被盖住了。
+
+   改法：把 .local-music 变成纵向 flex，页头 flex:0，内容区吃掉剩余高度。
+   ═══════════════════════════════════════════════════════════════════ */
+.local-music:has(.data-editor) {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+  overscroll-behavior: none;
+}
+.local-music:has(.data-editor) > .local-header {
+  flex: 0 0 auto;
+}
+.local-music:has(.data-editor) > .atlas-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+}
+
+/* 资源一览保持可滚（章节多时需要），只是内容高度由内容决定 */
+.local-music:not(:has(.data-editor)) > .atlas-root {
+  flex: 0 0 auto;
+}
+
+/* ═══ 章节卡片右上角的「全」按钮 ═══ */
+.atlas-root .stage-card { position: relative; }
+/* 已全选：点亮 */
+/* 右键已选为范围起点：呼吸提示 */
+
+/* 卡片面给右上角按钮留出位置 */
+.atlas-root .sc-top { padding-right: 18px; }
+
+/* ═══ 章节详情侧栏 ═══ */
+.atlas-root .dc-color { display: inline-block; width: 7px; height: 7px; margin-left: 5px; vertical-align: middle; }
+.atlas-root .dc-stat {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 8px 0 6px; font-family: var(--font-mono);
+}
+.atlas-root .dc-stat > strong { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.atlas-root .dc-stat .dc-of { font-size: 11px; opacity: .55; }
+.atlas-root .dc-stat > em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 700; opacity: .8; }
+.atlas-root .dc-bar { height: 4px; background: var(--panel); overflow: hidden; margin-bottom: 8px; }
+.atlas-root .dc-bar > i { display: block; height: 100%; background: var(--accent); transition: width var(--transition-surface); }
+.atlas-root .dc-ops { display: flex; align-items: center; gap: 5px; margin-bottom: 10px; }
+.atlas-root .dc-btn {
+  height: 22px; padding: 0 9px; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 10px;
+}
+.atlas-root .dc-btn:hover:not(:disabled) { background-color: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.atlas-root .dc-btn:disabled { opacity: .3; cursor: default; }
+.atlas-root .dc-hint { font-family: var(--font-mono); font-size: 9px; opacity: .4; margin-left: auto; }
+
+/* 侧栏里的关卡格子：更大更好点 */
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   交互零延迟
+
+   之前 --transition-ui 是 0.12s，鼠标移上去颜色要滑一下才到位。
+   现在把交互过渡直接置零：hover / 按下 / 焦点全部瞬时生效。
+   只保留「数据变化」类过渡（进度条宽度、面板滑入）。
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root {
+  --transition-ui: 0s;
+  --transition-surface: 0s;
+}
+.atlas-root :is(.stone-card, .stage-card, .sc-face, .sc-all, .src-row, .dr-row, .ed-stage, .st-cell, .game-tab, .btn, .ch-btn, .sc-btn, .dc-btn, .se-x, .se-add, .cr-input, .sr-input, .sr-color, .sr-swatch, .se-field input, .se-field select, .src-pager button) {
+  transition: none;
+}
+/* 进度条是数据变化，保留过渡 */
+.atlas-root .sc-bar > i,
+.atlas-root .ch-bar > i,
+.atlas-root .dr-bar > i,
+.atlas-root .dc-bar > i {
+  transition: width 0.18s cubic-bezier(0.2, 0, 0.2, 1), background-color 0.18s;
+}
+
+/* 来源类型的只读色块 */
+.atlas-root .sr-swatch {
+  width: 22px; height: 21px; display: block;
+  border: 1px solid var(--rule);
+}
+
+/* 类型表格列宽（去掉「关卡」与「色值」后 5 列） */
+.atlas-root .sr-type { grid-template-columns: 24px minmax(90px, 1.4fr) 24px minmax(90px, 1.6fr) 62px; }
+.atlas-root .editor-pair .sr-type { grid-template-columns: 22px minmax(70px, 1.3fr) 24px minmax(70px, 1.4fr) 58px; }
+.atlas-root .ed-type-ops { margin: 6px 0 10px; justify-content: flex-start; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   侧栏宽度：与项目其他页面（.edit-popup）完全一致 —— 占窗口一半
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root .atlas-drawer,
+.atlas-root .ed-drawer {
+  width: 50vw;
+  max-width: 94vw;
+  height: 100%;
+  max-height: 100vh;
+}
+@media (max-width: 900px) {
+  .atlas-root .atlas-drawer,
+  .atlas-root .ed-drawer { width: 94vw; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   资源一览：工具条 + 资源总览钉在顶部，只有章节网格滚动
+   ═══════════════════════════════════════════════════════════════════ */
+.local-music:has(.atlas-root) {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+.local-music:has(.atlas-root) > .local-header { flex: 0 0 auto; }
+.local-music:has(.atlas-root) > .atlas-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+/* atlas-root 自己变成纵向 flex：工具条 / 资源卡固定，剩余给章节网格 */
+.atlas-root:has(.stage-wrap) {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+.atlas-root:has(.stage-wrap) > .local-toolbar,
+.atlas-root:has(.stage-wrap) > .stone-summary,
+.atlas-root:has(.stage-wrap) > .notice { flex: 0 0 auto; }
+.atlas-root:has(.stage-wrap) > .stage-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 章节排序下拉 */
+.atlas-root .sr-sort {
+  height: 22px; padding: 0 4px;
+  border: 1px solid var(--rule); background: var(--panel); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 10px;
+}
+
+/* 隐藏状态的按钮：虚线 + 半透明，和可用按钮区分 */
+.atlas-root .btn.is-hidden {
+  border-style: dashed;
+  color: var(--muted);
+  opacity: .7;
+}
+
+/* 章节侧栏里的关卡名带「突袭」时给个淡标记 */
+.atlas-root .st-cell-gain .st-name { font-variant-numeric: tabular-nums; }
+
+/* 已隐藏的章节行：整行压暗并加虚线段，和正常行一眼分清 */
+.atlas-root .src-row.row-hidden {
+  opacity: .5;
+  border-left: 2px solid var(--muted);
+  background-image: repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--text-primary) 4%, transparent) 4px 5px);
+}
+.atlas-root .src-row.row-hidden:hover { opacity: .8; }
+
+/* 侧栏标题里的隐藏标签 */
+.atlas-root .ed-hidden-tag {
+  margin-left: 6px; padding: 1px 5px;
+  border: 1px dashed var(--rule);
+  font-size: 9px; font-weight: 400; opacity: .7;
+}
+
+/* 表格内排序按钮：窄一点，和「编辑」区分 */
+.atlas-root .btn.btn-order {
+  min-width: 20px; padding: 0 4px;
+  font-size: 10px; line-height: 1;
+}
+/* 类型行加宽以容纳三颗按钮 */
+.atlas-root .sr-type { grid-template-columns: 24px minmax(80px, 1.3fr) minmax(80px, 1.4fr) 104px; }
+.atlas-root .editor-pair .sr-type { grid-template-columns: 22px minmax(64px, 1.2fr) minmax(64px, 1.3fr) 100px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   页面入场：沿用项目统一机制
+
+   page-common.css 已经为 .local-header h2 / .desc / .view-tabs .tl-entry-btn
+   / .local-toolbar .rc-global-btn 定义了「默认隐藏 → .entered 显示」的过渡。
+   这里只补资源账簿特有的元素，节奏与项目一致：
+   · 默认 opacity 0 + translateY(8px)
+   · .local-music.entered 之后归位
+   · 延迟从 0.24s 起，每项 +0.023s（与 usePageEnter 的 staggerStep 对齐）
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 资源卡 ── */
+.local-music .atlas-root .stone-card {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--motion-duration-medium, .18s) var(--motion-easing-standard, ease),
+              transform var(--motion-duration-medium, .18s) var(--motion-easing-enter, ease-out);
+}
+.local-music .atlas-root .stone-card:nth-child(1) { transition-delay: .24s; }
+.local-music .atlas-root .stone-card:nth-child(2) { transition-delay: .263s; }
+.local-music .atlas-root .stone-card:nth-child(3) { transition-delay: .286s; }
+.local-music .atlas-root .stone-card:nth-child(4) { transition-delay: .309s; }
+.local-music.entered .atlas-root .stone-card { opacity: 1 !important; transform: translateY(0) !important; }
+
+/* ── 章节卡片（前 18 张错开，之后统一） ── */
+.local-music .atlas-root .stage-card {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--motion-duration-medium, .18s) var(--motion-easing-standard, ease),
+              transform var(--motion-duration-medium, .18s) var(--motion-easing-enter, ease-out),
+              border-color var(--motion-duration-fast, .15s) ease;
+}
+.local-music .atlas-root .stage-card:nth-child(1) { transition-delay: .30s; }
+.local-music .atlas-root .stage-card:nth-child(2) { transition-delay: .323s; }
+.local-music .atlas-root .stage-card:nth-child(3) { transition-delay: .346s; }
+.local-music .atlas-root .stage-card:nth-child(4) { transition-delay: .369s; }
+.local-music .atlas-root .stage-card:nth-child(5) { transition-delay: .392s; }
+.local-music .atlas-root .stage-card:nth-child(6) { transition-delay: .415s; }
+.local-music .atlas-root .stage-card:nth-child(7) { transition-delay: .438s; }
+.local-music .atlas-root .stage-card:nth-child(8) { transition-delay: .461s; }
+.local-music .atlas-root .stage-card:nth-child(9) { transition-delay: .484s; }
+.local-music .atlas-root .stage-card:nth-child(10) { transition-delay: .507s; }
+.local-music .atlas-root .stage-card:nth-child(11) { transition-delay: .530s; }
+.local-music .atlas-root .stage-card:nth-child(12) { transition-delay: .553s; }
+.local-music .atlas-root .stage-card:nth-child(13) { transition-delay: .576s; }
+.local-music .atlas-root .stage-card:nth-child(14) { transition-delay: .599s; }
+.local-music .atlas-root .stage-card:nth-child(15) { transition-delay: .622s; }
+.local-music .atlas-root .stage-card:nth-child(16) { transition-delay: .645s; }
+.local-music .atlas-root .stage-card:nth-child(17) { transition-delay: .668s; }
+.local-music .atlas-root .stage-card:nth-child(18) { transition-delay: .691s; }
+.local-music .atlas-root .stage-card:nth-child(n+19) { transition-delay: .70s; }
+.local-music.entered .atlas-root .stage-card { opacity: 1 !important; transform: translateY(0) !important; }
+
+/* ── 数据管理区块 ── */
+.local-music .atlas-root .editor-section {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--motion-duration-medium, .18s) var(--motion-easing-standard, ease),
+              transform var(--motion-duration-medium, .18s) var(--motion-easing-enter, ease-out);
+}
+.local-music .atlas-root .editor-section:nth-of-type(1) { transition-delay: .24s; }
+.local-music .atlas-root .editor-section:nth-of-type(2) { transition-delay: .263s; }
+.local-music .atlas-root .editor-section:nth-of-type(3) { transition-delay: .286s; }
+.local-music.entered .atlas-root .editor-section { opacity: 1 !important; transform: translateY(0) !important; }
+
+/* ── 侧栏：与项目 .edit-popup 同一套（遮罩淡入 + 面板右滑） ── */
+.atlas-root .atlas-drawer-mask,
+.atlas-root .ed-mask { animation: atlas-mask-in var(--motion-duration-fast, .15s) ease-out; }
+.atlas-root .atlas-drawer,
+.atlas-root .ed-drawer { animation: atlas-panel-in var(--motion-duration-normal, .2s) var(--motion-easing-enter, ease-out); }
+@keyframes atlas-mask-in { from { opacity: 0; } }
+@keyframes atlas-panel-in { from { opacity: .5; transform: translateX(24px); } }
+
+/* ── 进度条：数据变化时平滑推进 ── */
+.atlas-root .sc-bar > i,
+.atlas-root .ch-bar > i,
+.atlas-root .dr-bar > i,
+.atlas-root .dc-bar > i { transition: width var(--motion-duration-slower, .28s) var(--motion-easing-standard, ease), background-color var(--motion-duration-medium, .18s); }
+
+/* ── 尊重系统「减少动态效果」 ── */
+@media (prefers-reduced-motion: reduce) {
+  .local-music .atlas-root .stone-card,
+  .local-music .atlas-root .stage-card,
+  .local-music .atlas-root .editor-section { opacity: 1; transform: none; transition: none; }
+  .atlas-root .atlas-drawer,
+  .atlas-root .ed-drawer,
+  .atlas-root .atlas-drawer-mask,
+  .atlas-root .ed-mask { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   来源类型表格 · 操作按钮列（权威定义）
+
+   之前 .sr-type 的列宽规则散在 6 处、互相覆盖，最后一处只给了 100px，
+   四个按钮 [编辑][↑][↓][隐藏] 加上 gap 要 110px 以上，于是文字被挤成竖排。
+   这里统一收口：按钮不换行 + 列宽够放下四个按钮。
+   ═══════════════════════════════════════════════════════════════════ */
+.atlas-root .src-ops .btn {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+/* 类型行：序号 / 名称 / 备注 / 操作 */
+.atlas-root .sr-type {
+  grid-template-columns: 24px minmax(70px, 1.3fr) minmax(70px, 1.4fr) 132px;
+}
+.atlas-root .editor-pair .sr-type {
+  grid-template-columns: 22px minmax(56px, 1.2fr) minmax(56px, 1.2fr) 128px;
+}
+.atlas-root .sr-type .src-ops {
+  gap: 3px;
+}
+.atlas-root .sr-type .src-ops .btn {
+  min-width: 0;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 1;
+}
+/* 上下箭头按钮更窄，把空间留给「编辑」「隐藏」 */
+.atlas-root .sr-type .src-ops .btn-order {
+  min-width: 18px;
+  padding: 0 3px;
+}

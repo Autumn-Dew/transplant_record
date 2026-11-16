@@ -80,6 +80,7 @@ import AddPage from '@/views/AddPage.vue'
 import PricePage from '@/views/PricePage.vue'
 import ReportPage from '@/views/ReportPage.vue'
 import AdminPage from '@/views/AdminPage.vue'
+import ResourceAtlasPage from '@/views/ResourceAtlasPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 
 // 侧栏按钮只管「浅色 / 深色」；配色方案（族）在「设置 → 外观」里选。
@@ -126,19 +127,25 @@ const navItems = [
     label: '数据管理',
     iconPath: 'M12 2C7.6 2 4 3.3 4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5c0-1.7-3.6-3-8-3zM4 5c0 1.7 3.6 3 8 3s8-1.3 8-3M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
   },
+  {
+    key: 'atlas',
+    label: '资源账簿',
+    iconPath: 'M4 19.5V6a2 2 0 012-2h9l5 5v10.5A2 2 0 0118 21H6a2 2 0 01-2-1.5zM15 4v5h5M8 13h8M8 17h5',
+  },
 ]
 
 // ── 页面转场：按页面语义选择动效语法（列表 / 表单 / 文档 / 低频）──
 const pageComponents = {
   accounts: AccountPage, blueprints: BlueprintPage, diary: WorkDiary,
   add: AddPage, prices: PricePage, admin: AdminPage, settings: SettingsPage,
+  atlas: ResourceAtlasPage,
 }
 const currentPage = computed(() => pageComponents[activeTab.value] || null)
 const pageTransition = computed(() => {
   const k = activeTab.value
   if (k === 'accounts') return 'mv-page-list'
   if (k === 'add') return 'mv-page-form'
-  if (k === 'prices' || k === 'admin' || k === 'blueprints') return 'mv-page-doc'
+  if (k === 'prices' || k === 'admin' || k === 'blueprints' || k === 'atlas') return 'mv-page-doc'
   return 'mv-page-quiet'
 })
 
