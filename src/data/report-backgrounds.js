@@ -589,6 +589,8 @@ export const REPORT_BG_IDS = [DEFAULT_BG.id, ...REPORT_BACKGROUNDS.map(b => b.id
 
 export function normalizeReportBgId(value) {
   const raw = String(value == null ? '' : value).trim()
+  // skin- 开头的是导入的自定义皮肤，不在内置白名单里，必须原样保留
+  if (raw.startsWith('skin-')) return raw
   return REPORT_BG_IDS.includes(raw) ? raw : DEFAULT_REPORT_BG
 }
 
@@ -609,13 +611,35 @@ export function bgTone(bg) {
   return lum < 128 ? 'dark' : 'light'
 }
 
-/* ── 持久化（独立键，不与应用主题互相覆盖）── */
-export function readReportBg() {
-  try { return normalizeReportBgId(readJSON(KEYS.REPORT_BG, null)) } catch { return DEFAULT_REPORT_BG }
+/* ── 持久化（独立键，不与应用主题互相覆盖）
+
+   按游戏分开存：{ [gameId]: bgId }。
+   旧版本存的是裸字符串，读到时摊平给所有游戏。
+   ── */
+function readBgMap() {
+  const raw = readJSON(KEYS.REPORT_BG, null)
+  if (typeof raw === 'string') return { __legacy: normalizeReportBgId(raw) }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
 }
 
-export function writeReportBg(id) {
+export function readReportBg(gameId) {
+  try {
+    const map = readBgMap()
+    const own = gameId ? map[gameId] : null
+    if (own != null) return normalizeReportBgId(own)
+    if (map.__legacy) return normalizeReportBgId(map.__legacy)
+    return DEFAULT_REPORT_BG
+  } catch { return DEFAULT_REPORT_BG }
+}
+
+export function writeReportBg(id, gameId) {
   const key = normalizeReportBgId(id)
-  try { writeJSON(KEYS.REPORT_BG, key) } catch { /* 存储失败不影响当前会话 */ }
+  if (!gameId) return key
+  try {
+    const map = readBgMap()
+    delete map.__legacy
+    map[gameId] = key
+    writeJSON(KEYS.REPORT_BG, map)
+  } catch { /* 存储失败不影响当前会话 */ }
   return key
 }

@@ -112,6 +112,9 @@ export const REPORT_THEME_IDS = [CLASSIC.id, ...REPORT_THEMES.map(t => t.id)]
 /* 老用户没有主题记录时回落到经典简报；未知值也回落，不留「无主题」状态 */
 export function normalizeReportThemeId(value) {
   const raw = String(value == null ? '' : value).trim()
+  // skin- 开头的是导入的自定义皮肤，不在内置白名单里，但必须原样保留，
+  // 否则归一化会把它冲回默认主题，导入的皮肤永远套不上。
+  if (raw.startsWith('skin-')) return raw
   return REPORT_THEME_IDS.includes(raw) ? raw : DEFAULT_REPORT_THEME
 }
 
@@ -120,13 +123,35 @@ export function findReportTheme(id) {
   return [CLASSIC, ...REPORT_THEMES].find(t => t.id === key) || CLASSIC
 }
 
-/* ── 持久化（独立键，不读写背景键，也不读写应用主题键）── */
-export function readReportTheme() {
-  try { return normalizeReportThemeId(readJSON(KEYS.REPORT_THEME, null)) } catch { return DEFAULT_REPORT_THEME }
+/* ── 持久化（独立键，不读写背景键，也不读写应用主题键）
+
+   按游戏分开存：{ [gameId]: themeId }。
+   旧版本存的是一个裸字符串，读到时摊平给所有游戏，不丢用户已经选好的外观。
+   ── */
+function readThemeMap() {
+  const raw = readJSON(KEYS.REPORT_THEME, null)
+  if (typeof raw === 'string') return { __legacy: normalizeReportThemeId(raw) }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
 }
 
-export function writeReportTheme(id) {
+export function readReportTheme(gameId) {
+  try {
+    const map = readThemeMap()
+    const own = gameId ? map[gameId] : null
+    if (own != null) return normalizeReportThemeId(own)
+    if (map.__legacy) return normalizeReportThemeId(map.__legacy)
+    return DEFAULT_REPORT_THEME
+  } catch { return DEFAULT_REPORT_THEME }
+}
+
+export function writeReportTheme(id, gameId) {
   const key = normalizeReportThemeId(id)
-  try { writeJSON(KEYS.REPORT_THEME, key) } catch { /* 存储失败不影响当前会话 */ }
+  if (!gameId) return key
+  try {
+    const map = readThemeMap()
+    delete map.__legacy
+    map[gameId] = key
+    writeJSON(KEYS.REPORT_THEME, map)
+  } catch { /* 存储失败不影响当前会话 */ }
   return key
 }

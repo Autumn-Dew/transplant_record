@@ -65,10 +65,13 @@ function fieldStyle(el, extra) {
 export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAllUndone, backgroundBase, onExported }) {
   // 导出/复制的进行中状态（'' | 'export' | 'copy'）与失败原因，供按钮显示反馈
   const busy = ref('')
+  // resources 可能是 ref([]) 也可能是普通数组，统一解包 ——
+  // 之前从 reactive 改成 ref 后忘了这里，导出会直接抛「resources is not iterable」
+  const resList = () => (resources && resources.value !== undefined ? resources.value : resources) || []
   const lastError = ref('')
 
   function fillEmpty() {
-    for (const r of resources) {
+    for (const r of resList()) {
       if (!r.label) r.label = '—'
       if (!r.before) r.before = '无'
       if (!r.after) r.after = '无'
@@ -76,7 +79,7 @@ export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAll
   }
 
   function restoreEmpty() {
-    for (const r of resources) {
+    for (const r of resList()) {
       if (r.label === '—') r.label = ''
       if (r.before === '无') r.before = ''
       if (r.after === '无') r.after = ''
@@ -110,7 +113,7 @@ export function useReportExport({ wrapRef, noteRef, planRef, resources, dailyAll
     if (noteRef.value && !noteRef.value.textContent.trim()) hide(noteRef.value.closest('.rp-card'))
     if (planRef.value && !planRef.value.textContent.trim()) hide(planRef.value.closest('.rp-card'))
     // 「今日获取资源」一项都不剩时，整块（连标题）不导出
-    if (!resources.length) hide(wrapRef.value.querySelector('.rp-res-card'))
+    if (!resList().length) hide(wrapRef.value.querySelector('.rp-res-card'))
 
     wrapRef.value.querySelectorAll('select').forEach(sel => {
       const span = document.createElement('span')

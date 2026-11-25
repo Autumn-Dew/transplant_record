@@ -20,14 +20,46 @@ export const CARD_WIDTH_LABEL = { full: '整行', half: '半宽' }
 /* ── 条目行：两种形态 ──
    check  按钮型：标签 + 「完成 / 未完成」（与日报里的「每日任务」一致）
    text   文本型：标签 + 一个输入框（与「理智剩余」一致，直接填数字或文字） */
-export const ROW_KINDS = ['check', 'text']
-export const ROW_KIND_LABEL = { check: '按钮', text: '文本' }
+/** 建立一个倒计时行：默认基准值 30、基准日为今天 */
+export function makeCountdownRow(label, today) {
+  return {
+    label: String(label || '倒计时').trim() || '倒计时',
+    kind: 'countdown',
+    // 初始为空：用户在那个框里填什么，就是今天的值
+    base: null,
+    baseDate: typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today)
+      ? today
+      : new Date().toISOString().slice(0, 10),
+  }
+}
+
+export const ROW_KINDS = ['check', 'text', 'countdown', 'oneshot', 'roll']
+export const ROW_KIND_LABEL = { check: '按钮', text: '文本', countdown: '计时', oneshot: '单次', roll: '顺延' }
 
 /**
  * 规范化条目行。兼容两种历史写法：
  *   '每日任务'                     → { label: '每日任务', kind: 'check' }
  *   { label: '理智剩余', kind: 'text' } → 原样保留
  */
+
+/**
+ * 算倒计时行的当前值：base 减去「基准日到今天」的天数。
+ * 跨天自动递减，不需要任何定时器 —— 每次渲染按当天日期重算。
+ * 减到 0 就停在 0（不会出现负数天数）。
+ */
+export function countdownValue(row, today) {
+  if (!row || row.kind !== 'countdown') return null
+  if (row.base == null || row.base === '') return null
+  const base = Number(row.base)
+  if (!Number.isFinite(base) || !row.baseDate) return null
+  const t = typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : ''
+  if (!t) return Math.max(0, base)
+  const a = Date.parse(row.baseDate + 'T00:00:00')
+  const b = Date.parse(t + 'T00:00:00')
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return Math.max(0, base)
+  const days = Math.floor((b - a) / 86400000)
+  return Math.max(0, base - days)
+}
 export function normalizeRows(list, { allowEmpty = false } = {}) {
   return (Array.isArray(list) ? list : [])
     .map(item => {
@@ -39,7 +71,25 @@ export function normalizeRows(list, { allowEmpty = false } = {}) {
       if (!item || typeof item !== 'object') return null
       const label = String(item.label == null ? '' : item.label).trim()
       if (!label && !allowEmpty) return null
-      const row = { label, kind: item.kind === 'text' ? 'text' : 'check' }
+      const kind = item.kind === 'text' ? 'text'
+        : item.kind === 'countdown' ? 'countdown'
+        : item.kind === 'oneshot' ? 'oneshot'
+        : item.kind === 'roll' ? 'roll'
+        : 'check'
+      const row = { label, kind }
+      // 倒计时行：基准值 + 基准日期，显示时按天数差自动递减
+      if (kind === 'countdown') {
+        // baseDate 是「这个数字是哪天填的」。没有它就没法递减，退化成文本行。
+        const baseDate = typeof item.baseDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.baseDate) ? item.baseDate : ''
+        if (!baseDate) {
+          row.kind = 'text'
+        } else {
+          row.baseDate = baseDate
+          // base 允许为 null：新建后还没填过数字，框里就是空的
+          const base = Number(item.base)
+          row.base = item.base == null || item.base === '' || !Number.isFinite(base) ? null : base
+        }
+      }
       // 日报里填的运行时状态（勾选 / 文本值）一并保留，避免改布局时被清掉
       if (item.done !== undefined) row.done = item.done !== false
       if (item.value !== undefined) row.value = String(item.value)

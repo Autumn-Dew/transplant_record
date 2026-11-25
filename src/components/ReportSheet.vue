@@ -33,6 +33,11 @@
         </span>
       </div>
 
+      <!-- 操作反馈：替代 alert，5 秒后自动消失 -->
+      <div class="rp-notice-row" v-if="notice">
+        <span class="rp-notice">{{ notice }}</span>
+      </div>
+
       <!-- 下半：备注左对齐，提示与日期右对齐 -->
       <div class="rp-toolbar-meta">
       <!-- 备注：和「今天的提示」同款输入框，不带标签；改动立刻写回项目 -->
@@ -68,19 +73,15 @@
         </span>
       </div>
 
-      <!-- 日报模板面板：改的是当前草稿，"存为全局预设"才写回目录配置 -->
+      <!-- 日报模板面板：改动即时落盘，对这个游戏的所有托管通用 -->
     <ReportTemplatePanel
       v-if="templatePanelOpen"
       :draft="currentTpl"
       :fields="REPORT_TEXT_FIELDS"
       :game-label="currentGameName"
       :game-id="reportGame"
-      :save-style="saveGlobalStyle"
-      :save-title="saveGlobalTitle"
-      :save-label="templateText('btnSaveGlobal', '存为全局预设')"
       @close="templatePanelOpen = false"
       @reset="resetTemplate"
-      @save-global="saveTemplateAsGlobal"
     />
 
     <!-- 汇报外观：点击后从右侧滑出侧边弹窗（版式与「项目详情」窗口一致），
@@ -88,7 +89,15 @@
     </div>
 
     <div class="rp-body">
-      <div class="rp-wrap" ref="wrapRef" :class="`rp-theme-${reportTheme.id}`" :style="{ background: reportBg.bg }">
+      <div
+      class="rp-wrap"
+      ref="wrapRef"
+      :class="[
+        `rp-theme-${reportTheme.id}`,
+        reportBg && reportBg.skinId ? `rp-bg-skin-${reportBg.skinId}` : '',
+      ]"
+      :style="reportBg && reportBg.bg ? { background: reportBg.bg } : null"
+    >
         <!-- Title -->
         <div class="rp-title-row">
           <div class="rp-title" contenteditable ref="titleRef">{{ titleText }}</div>
@@ -137,33 +146,50 @@
                   <template v-for="(t, i) in currentRows.daily" :key="'d-' + i">
                   <div v-if="t.visible !== false" class="rp-task-row rp-task-grid">
                     <span class="rp-task-label">{{ t.label }}</span>
-                    <template v-if="t.kind !== 'text'">
-                      <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                      <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    <!-- 倒计时：就一个框。填多少就是今天多少，明天自动少一 -->
+                    <span v-if="t.kind === 'countdown'" class="rp-countdown">
+                      <input
+                        type="number"
+                        class="rp-inp rp-cd-inp"
+                        :value="cdValueOf(t)"
+                        placeholder="填写"
+                        @change="setCountdown(t, $event.target.value)"
+                      />
+                      <span class="rp-cd-unit">天</span>
+                    </span>
+                    <!-- 顺延：两个格子，跨天自动把「变更后」挪成「变更前」 -->
+                    <template v-else-if="t.kind === 'roll'">
+                      <input
+                        :value="rollOf(t).before"
+                        class="rp-inp"
+                        placeholder="变更前"
+                        @input="setRollValue(t, 'before', $event.target.value)"
+                      />
+                      <input
+                        :value="rollOf(t).after"
+                        class="rp-inp"
+                        placeholder="变更后"
+                        @input="setRollValue(t, 'after', $event.target.value)"
+                      />
                     </template>
-                    <input v-else v-model="t.value" class="rp-inp rp-cell-wide" placeholder="填写" />
+                    <!-- 单次：只在这份日报里有效，切走 / 重开就清空，不写任何存储 -->
+                    <input
+                      v-else-if="t.kind === 'oneshot'"
+                      :value="t.value"
+                      class="rp-inp rp-cell-wide"
+                      placeholder="填写"
+                      @input="t.value = $event.target.value"
+                    />
+                    <template v-else-if="t.kind !== 'text'">
+                      <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" :checked="t.done === true" @change="setRowState('daily', t.label, { done: true })" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_d_' + i" :checked="t.done === false" @change="setRowState('daily', t.label, { done: false })" /><span class="rp-radio-box"></span>未完成</label>
+                    </template>
+                    <input v-else :value="t.value" class="rp-inp rp-cell-wide" placeholder="填写" @input="setRowState('daily', t.label, { value: $event.target.value })" />
                   </div>
                   </template>
 
-                  <!-- AK / 终末地：理智剩余 + 线索传递 -->
-                  <template v-if="reportGame === 'ak' || reportGame === 'endfield'">
-                    <div class="rp-task-row rp-task-grid">
-                      <span class="rp-task-label">{{ templateText('rowSanity', '理智剩余') }}</span>
-                      <input v-if="reportGame === 'ak'" type="number" v-model.number="sanityLeft" class="rp-inp rp-cell-wide" min="0" />
-                      <input v-else type="number" v-model.number="efSanityLeft" class="rp-inp rp-cell-wide" min="0" />
-                    </div>
-                    <div class="rp-task-row rp-task-grid">
-                      <span class="rp-task-label">{{ templateText('rowClue', '线索传递') }}</span>
-                      <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="好友位已送完" /><span class="rp-radio-box"></span>好友位已送完</label>
-                      <label class="rp-radio"><input type="radio" :name="uid + '_clue'" v-model="clueValue" value="" /><span class="rp-radio-box"></span>无</label>
-                    </div>
-                  </template>
-
-                  <!-- 异环：本性像素剩余 -->
-                  <div class="rp-task-row rp-task-grid" v-if="reportGame === 'nte'">
-                    <span class="rp-task-label">{{ templateText('rowPixel', '本性像素剩余') }}</span>
-                    <input type="number" v-model.number="ntePixelLeft" class="rp-inp rp-cell-wide" min="0" />
-                  </div>
+                  <!-- 日常行不再内置：需要就在模板面板「+ 添加任务」自己加，
+                       自己加的行同样会落盘，跨天继承。 -->
 
                 </div>
               </div>
@@ -177,41 +203,46 @@
                   <template v-for="(t, i) in currentRows.weekly" :key="'w-' + i">
                   <div v-if="t.visible !== false" class="rp-task-row rp-task-grid">
                     <span class="rp-task-label">{{ t.label }}</span>
-                    <template v-if="t.kind !== 'text'">
-                      <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                      <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" v-model="t.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                    <span v-if="t.kind === 'countdown'" class="rp-countdown">
+                      <input
+                        type="number"
+                        class="rp-inp rp-cd-inp"
+                        :value="cdValueOf(t)"
+                        placeholder="填写"
+                        @change="setCountdown(t, $event.target.value)"
+                      />
+                      <span class="rp-cd-unit">天</span>
+                    </span>
+                    <template v-else-if="t.kind === 'roll'">
+                      <input :value="rollOf(t).before" class="rp-inp" placeholder="变更前" @input="setRollValue(t, 'before', $event.target.value)" />
+                      <input :value="rollOf(t).after" class="rp-inp" placeholder="变更后" @input="setRollValue(t, 'after', $event.target.value)" />
                     </template>
-                    <input v-else v-model="t.value" class="rp-inp rp-cell-wide" placeholder="填写" />
+                    <input
+                      v-else-if="t.kind === 'oneshot'"
+                      :value="t.value"
+                      class="rp-inp rp-cell-wide"
+                      placeholder="填写"
+                      @input="t.value = $event.target.value"
+                    />
+                    <template v-else-if="t.kind !== 'text'">
+                      <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" :checked="t.done === true" @change="setRowState('weekly', t.label, { done: true })" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="uid + '_w_' + i" :checked="t.done === false" @change="setRowState('weekly', t.label, { done: false })" /><span class="rp-radio-box"></span>未完成</label>
+                    </template>
+                    <input v-else :value="t.value" class="rp-inp rp-cell-wide" placeholder="填写" @input="setRowState('weekly', t.label, { value: $event.target.value })" />
                   </div>
                   </template>
-
-                  <!-- 异环：送礼 + 都市体力剩余 -->
-                  <template v-if="reportGame === 'nte'">
-                    <div class="rp-task-row rp-task-grid">
-                      <span class="rp-task-label">{{ templateText('rowGift', '送礼') }}</span>
-                      <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                      <label class="rp-radio"><input type="radio" :name="uid + '_gift'" v-model="nteGiftDone" :value="false" /><span class="rp-radio-box"></span>未完成</label>
-                    </div>
-                    <div class="rp-task-row rp-task-grid">
-                      <span class="rp-task-label">{{ templateText('rowStamina', '都市体力剩余') }}</span>
-                      <input type="number" v-model.number="nteStaminaLeft" class="rp-inp rp-cell-wide" min="0" />
-                    </div>
-                  </template>
-
                 </div>
               </div>
             </template>
-
-
             <!-- 今日获取资源（不再有备注列） -->
             <template v-else-if="card.kind === 'resources'">
               <div class="rp-card-head">{{ templateText('cardResources', '今日获取资源') }}</div>
               <div class="rp-card-body">
                 <div class="rp-tasks">
                   <div v-for="(r, i) in resources" :key="i" class="rp-task-row rp-task-grid rp-res-row">
-                    <input v-model="r.label" class="rp-inp" placeholder="资源名" />
-                    <input v-model="r.before" class="rp-inp" placeholder="变更前" />
-                    <input v-model="r.after" class="rp-inp" placeholder="变更后" />
+                    <input :value="r.label" class="rp-inp rp-res-name" placeholder="资源名" readonly title="资源名在「模板 → 今日获取资源」里增删" />
+                    <input :value="r.before" class="rp-inp" placeholder="变更前" @input="setResState(r.label, { before: $event.target.value })" />
+                    <input :value="r.after" class="rp-inp" placeholder="变更后" @input="setResState(r.label, { after: $event.target.value })" />
                   </div>
                 </div>
               </div>
@@ -259,10 +290,10 @@
                   <div v-if="line.visible !== false" class="rp-task-row rp-task-grid">
                     <input v-model="line.label" class="rp-inp rp-free-inp" :placeholder="`第 ${i + 1} 行`" />
                     <template v-if="line.kind !== 'text'">
-                      <label class="rp-radio"><input type="radio" :name="`${uid}_c_${card.id}_${i}`" v-model="line.done" :value="true" /><span class="rp-radio-box"></span>完成</label>
-                      <label class="rp-radio"><input type="radio" :name="`${uid}_c_${card.id}_${i}`" v-model="line.done" :value="false" /><span class="rp-radio-box"></span>未完成</label>
+                      <label class="rp-radio"><input type="radio" :name="`${uid}_c_${card.id}_${i}`" :checked="customDone(card, i) === true" @change="setCustomRow(card, i, { done: true })" /><span class="rp-radio-box"></span>完成</label>
+                      <label class="rp-radio"><input type="radio" :name="`${uid}_c_${card.id}_${i}`" :checked="customDone(card, i) === false" @change="setCustomRow(card, i, { done: false })" /><span class="rp-radio-box"></span>未完成</label>
                     </template>
-                    <input v-else v-model="line.value" class="rp-inp rp-cell-wide rp-free-inp" placeholder="填写" />
+                    <input v-else :value="customValue(card, i)" class="rp-inp rp-cell-wide rp-free-inp" placeholder="填写" @input="setCustomRow(card, i, { value: $event.target.value })"
                   </div>
                   </template>
                 </div>
@@ -294,54 +325,79 @@
           <p class="rp-look-tip">「浅 / 暗」表示内容面板倾向；每套主题都有独立承载面，可与任意画布背景组合。</p>
           <div class="rp-look-wrap">
             <div class="rp-look-row">
-              <button
-                v-for="t in REPORT_THEMES"
-                :key="t.id"
-                class="rp-theme-card"
-                :class="{ active: reportThemeId === t.id }"
-                :title="`${t.label} · ${t.hint}`"
-                @click="setReportTheme(t.id)"
+              <div
+                v-for="t in allThemes"
+                :key="'t-' + t.id"
+                class="rp-skin-cell"
               >
-                <!-- 缩略图用与画布同一套主题变量渲染，能看出标题 / 信息栏 / 卡片头的实际外观 -->
-                <span class="rp-theme-thumb" :class="`rp-theme-${t.id}`">
-                  <span class="rtt-title"></span>
-                  <span class="rtt-meta"></span>
-                  <span class="rtt-card">
-                    <span class="rtt-head"></span>
-                    <span class="rtt-body"></span>
+                <button
+                  class="rp-theme-card"
+                  :class="{ active: reportThemeId === t.id }"
+                  :title="`${t.label} · ${t.hint}`"
+                  @click="setReportTheme(t.id)"
+                >
+                  <span class="rp-theme-thumb" :class="`rp-theme-${t.id}`">
+                    <span class="rtt-title"></span>
+                    <span class="rtt-meta"></span>
+                    <span class="rtt-card">
+                      <span class="rtt-head"></span>
+                      <span class="rtt-body"></span>
+                    </span>
                   </span>
-                </span>
-                <span class="rp-opt-row">
-                  <span class="rp-opt-name">{{ t.label }}</span>
-                  <span class="rp-opt-tone" :class="`tone-${t.tone}`" :title="t.tone === 'dark' ? '暗色内容面板：自带深色承载面' : '浅色内容面板：自带浅色承载面'">{{ t.tone === 'dark' ? '暗' : '浅' }}</span>
-                </span>
-              </button>
+                  <span class="rp-opt-row">
+                    <span class="rp-opt-name">{{ t.label }}</span>
+                    <span class="rp-opt-tone" :class="`tone-${t.tone}`">{{ t.tone === 'dark' ? '暗' : '浅' }}</span>
+                  </span>
+                </button>
+                <button
+                  v-if="t.skinId"
+                  class="rp-skin-del"
+                  title="删除这套导入的皮肤"
+                  @click.stop="removeSkin(t.skinId)"
+                >×</button>
+              </div>
             </div>
           </div>
 
           <p class="detail-section">画布背景 · 只决定底层，不改内容样式</p>
           <div class="rp-look-wrap">
             <div class="rp-look-row">
-              <button
-                v-for="b in REPORT_BACKGROUNDS"
-                :key="b.id"
-                class="rp-bg-card"
-                :class="{ active: reportBgId === b.id }"
-                :title="`${b.label} · ${b.hint}`"
-                @click="setReportBg(b.id)"
+              <div
+                v-for="b in allBgs"
+                :key="'b-' + b.id"
+                class="rp-skin-cell"
               >
-                <span class="rp-bg-thumb" :style="{ background: b.bg }"></span>
-                <span class="rp-opt-row">
-                  <span class="rp-opt-name">{{ b.label }}</span>
-                  <span class="rp-opt-tone" :class="`tone-${bgTone(b)}`" :title="bgTone(b) === 'dark' ? '深色画布：配「暗」主题不会出现浅墨字压在浅底上' : '浅色画布'">{{ bgTone(b) === 'dark' ? '深' : '浅' }}</span>
-                </span>
-              </button>
+                <button
+                  class="rp-bg-card"
+                  :class="{ active: reportBgId === b.id }"
+                  :title="`${b.label} · ${b.hint}`"
+                  @click="setReportBg(b.id)"
+                >
+                  <span
+                    class="rp-bg-thumb"
+                    :class="b.skinId ? `rp-bg-skin-${b.skinId}` : ''"
+                    :style="b.bg ? { background: b.bg } : null"
+                  ></span>
+                  <span class="rp-opt-row">
+                    <span class="rp-opt-name">{{ b.label }}</span>
+                    <span class="rp-opt-tone" :class="`tone-${bgTone(b)}`">{{ bgTone(b) === 'dark' ? '暗' : '浅' }}</span>
+                  </span>
+                </button>
+                <button
+                  v-if="b.skinId"
+                  class="rp-skin-del"
+                  title="删除这套导入的皮肤"
+                  @click.stop="removeSkin(b.skinId)"
+                >×</button>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- 汇报外观下面 · 右侧独立按钮：经典简报 + 纯白底（原本是列表里的两张首卡） -->
         <div class="rp-look-foot">
+          <button class="rp-classic-btn" @click="exportLook" title="把当前外观导出成 .json 皮肤包；内置外观也能导出，导出的 CSS 可以直接改">导出外观</button>
+          <button class="rp-classic-btn" @click="importSkin" title="选一个 .json 皮肤包导入；导入后可在列表里直接套用或删除">导入皮肤</button>
           <button
             class="rp-classic-btn"
             :class="{ active: isClassicLook }"
@@ -382,7 +438,9 @@ import { findGame, gameKeyOf, gameNameOf, usableGames } from '@/domain/games.js'
 import { reportPresetFor } from '@/domain/report-presets.js'
 import { normalizeReportLayout, normalizeRows } from '@/domain/report-layout.js'
 import { readReportDrafts, writeReportDrafts, clearReportDraft } from '@/data/report-draft.js'
-import { REPORT_TEXT_FIELDS } from '@/domain/report-template.js'
+import { readCountdownMap, writeCountdown, countdownToday } from '@/data/report-countdown.js'
+import { readRuntimeMap, writeRuntime } from '@/data/report-runtime.js'
+import { REPORT_TEXT_FIELDS, fillReportVars } from '@/domain/report-template.js'
 import { updateGame } from '@/services/gameService.js'
 import { updateProject } from '@/services/projectService.js'
 import { KEYS, readJSON, writeJSON } from '@/data/storage.js'
@@ -391,9 +449,11 @@ import { readWeekdayMarks, writeWeekdayMarks, WEEKDAY_NAMES, WEEKDAY_ORDER, toda
 import { copyText as copyToClipboard } from '@/utils/clipboard.js'
 import { readCopyTextEnabled, COPY_BTN_EVENT } from '@/data/report-copy-btn.js'
 import { warn } from '@/utils/devlog.js'
+import { readSkins, writeSkins, parseSkinPackage, scopeSkinCss, skinThemeClass, skinBgClass } from '@/data/report-skins.js'
 import { REPORT_THEMES, CLASSIC_REPORT_THEME, readReportTheme, writeReportTheme, findReportTheme } from '@/data/report-themes.js'
 import { useConfirmClick, CONFIRM_TIMES } from '@/composables/useConfirmClick.js'
 import { APP_SIGN } from '@/data/app-info.js'
+import { downloadBlob } from '@/utils/clipboard.js'
 import { usePageEnter } from '@/composables/usePageEnter.js'
 import { useReportExport } from '@/composables/useReportExport.js'
 
@@ -437,8 +497,14 @@ const todayDate = todayDateText()
 // 「复制文字」按钮默认隐藏，在设置里打开才显示
 const copyTextEnabled = ref(readCopyTextEnabled())
 function onCopyBtnChanged() { copyTextEnabled.value = readCopyTextEnabled() }
-onMounted(() => window.addEventListener(COPY_BTN_EVENT, onCopyBtnChanged))
-onUnmounted(() => window.removeEventListener(COPY_BTN_EVENT, onCopyBtnChanged))
+onMounted(() => {
+  window.addEventListener(COPY_BTN_EVENT, onCopyBtnChanged)
+  mountSkinStyles()
+})
+onUnmounted(() => {
+  window.removeEventListener(COPY_BTN_EVENT, onCopyBtnChanged)
+  clearSkinStyles()
+})
 
 // ── 纯文字版日报（紧凑版）──
 //   抬头一行、任务各一行内联，不用分隔线也不留空行，粘贴到聊天窗口更省屏。
@@ -487,14 +553,17 @@ function buildTextReport() {
   const pushExtra = (v, label) => {
     if (v !== '' && v != null) extra.push(label + ' ' + v)
   }
-  if (reportGame.value === 'ak') pushExtra(sanityLeft.value, templateText('rowSanity', '理智剩余'))
-  else if (reportGame.value === 'endfield') pushExtra(efSanityLeft.value, templateText('rowSanity', '理智剩余'))
-  else if (reportGame.value === 'nte') pushExtra(ntePixelLeft.value, templateText('rowPixel', '本性像素剩余'))
-  if (clueValue.value) extra.push(templateText('rowClue', '线索传递') + ' ' + clueValue.value)
+  // 倒计时行：进度里带上「标签 N天」（值按托管项目取）
+  for (const row of currentRows.value.daily || []) {
+    if (row && row.kind === 'countdown' && row.visible !== false) {
+      const v = cdValueOf(row)
+      if (v !== '' && v != null) extra.push(row.label + ' ' + v + '天')
+    }
+  }
   if (extra.length) lines.push('进度：' + extra.join(' · '))
 
   // 今日获取：A 1200→1500 · B 80→120
-  const res = resources
+  const res = (resources.value || [])
     .filter(r => r && r.label)
     .map(r => {
       const before = r.before === '' || r.before == null ? '—' : r.before
@@ -524,16 +593,172 @@ function patchWeekday(i, patch) {
 }
 function setWeekdayTip(i, v) { patchWeekday(i, { tip: String(v || '') }) }
 
+// ── 导入的自定义皮肤 ──
+// 每套皮肤 = 一套主题 + 一套背景，CSS 在挂载时注入 <style>，删除时一起摘掉。
+const customSkins = ref(readSkins())
+const skinStyles = new Map()
+function clearSkinStyles() {
+  skinStyles.forEach(el => el.remove())
+  skinStyles.clear()
+}
+function mountSkinStyles() {
+  clearSkinStyles()
+  for (const k of customSkins.value) {
+    if (k.theme && k.theme.css) {
+      const el = document.createElement('style')
+      el.setAttribute('data-report-skin', 'theme:' + k.id)
+      el.textContent = scopeSkinCss(k.theme.css, skinThemeClass(k.id))
+      document.head.appendChild(el)
+      skinStyles.set('theme:' + k.id, el)
+    }
+    if (k.background && k.background.css) {
+      const el = document.createElement('style')
+      el.setAttribute('data-report-skin', 'bg:' + k.id)
+      el.textContent = scopeSkinCss(k.background.css, skinBgClass(k.id))
+      document.head.appendChild(el)
+      skinStyles.set('bg:' + k.id, el)
+    }
+  }
+}
+// 皮肤被导入 / 删除后重新注入
+watch(customSkins, () => mountSkinStyles(), { deep: true })
+
+// 自定义主题 / 背景转成与内置预设同样的形状，id 前缀 skin- 让类名对上 rp-theme-skin-<id>
+const customThemes = computed(() => customSkins.value.filter(k => k.theme).map(k => ({
+  id: 'skin-' + k.id, label: k.theme.label, tone: k.theme.tone,
+  hint: '导入的皮肤「' + k.name + '」', family: 'custom', skinId: k.id,
+})))
+const customBgs = computed(() => customSkins.value.filter(k => k.background).map(k => ({
+  id: 'skin-' + k.id, label: k.background.label, tone: k.background.tone,
+  hint: '导入的皮肤「' + k.name + '」', bg: '', skinId: k.id,
+})))
+const allThemes = computed(() => [...REPORT_THEMES, ...customThemes.value])
+const allBgs = computed(() => [...REPORT_BACKGROUNDS, ...customBgs.value])
+
+// 外观按游戏分开存：切游戏时重新读该游戏上次选的那套
 const reportBgId = ref(readReportBg())
-const reportBg = computed(() => findReportBg(reportBgId.value))
+const reportBg = computed(() => customBgs.value.find(b => b.id === reportBgId.value) || findReportBg(reportBgId.value) || CLASSIC_REPORT_BG)
 const reportThemeId = ref(readReportTheme())
-const reportTheme = computed(() => findReportTheme(reportThemeId.value))
+// 自定义皮肤优先：findReportTheme 对 skin- id 会回落到经典，必须先查自定义表
+const reportTheme = computed(() => customThemes.value.find(t => t.id === reportThemeId.value) || findReportTheme(reportThemeId.value) || CLASSIC_REPORT_THEME)
 const stylePanelOpen = ref(false)
 function setReportBg(id) {
-  reportBgId.value = writeReportBg(id)
+  reportBgId.value = writeReportBg(id, reportGame.value)
 }
+// ── 导入皮肤包 ──
+// 导出当前外观为皮肤包 JSON。
+//   · 当前用的是导入的皮肤 → 原样导出（无损往返）
+//   · 当前用的是内置主题   → 从计算样式里读 --rt-* 变量，生成等价 CSS，
+//     这样内置外观也能被导出、改、再导入，不用手抄 30 多个变量。
+const RT_VAR_NAMES = [
+  '--rt-canvas', '--rt-ink', '--rt-ink-dim',
+  '--rt-title-bg', '--rt-title-fg', '--rt-tab-edge', '--rt-tab-fg', '--rt-tab-on-bg', '--rt-tab-on-fg',
+  '--rt-card-bg', '--rt-card-edge', '--rt-head-bg', '--rt-head-fg', '--rt-head-rule',
+  '--rt-meta-bg', '--rt-meta-fg', '--rt-meta-edge', '--rt-meta-bar',
+  '--rt-inp-bg', '--rt-inp-fg', '--rt-inp-edge',
+  '--rt-radio', '--rt-radio-checked', '--rt-accent',
+  '--rt-row-rule', '--rt-row-alt', '--rt-img-edge', '--rt-btn-edge', '--rt-btn-on-bg', '--rt-btn-on-fg',
+]
+
+function safeFilePart(text) {
+  return String(text || '').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 40) || '外观'
+}
+
+function exportLook() {
+  // 当前选中的是不是导入的皮肤？是就原样导出
+  const own = customSkins.value.find(k =>
+    ('skin-' + k.id) === reportThemeId.value || ('skin-' + k.id) === reportBgId.value)
+  if (own && own.theme && own.background) {
+    const pkg = {
+      type: 'transplant-report-skin', version: 1, name: own.name,
+      theme: own.theme, background: own.background,
+    }
+    downloadBlob(new Blob([JSON.stringify(pkg, null, 2)], { type: 'application/json' }),
+      safeFilePart(own.name) + '-外观.json')
+    return
+  }
+
+  // 内置外观：从画布的计算样式反推一份等价 CSS
+  const wrap = document.querySelector('.rp-wrap')
+  if (!wrap) { flashNotice('找不到画布，无法导出外观'); return }
+  const cs = getComputedStyle(wrap)
+
+  const varLines = RT_VAR_NAMES
+    .map(name => {
+      const v = cs.getPropertyValue(name).trim()
+      return v ? '  ' + name + ': ' + v + ';' : ''
+    })
+    .filter(Boolean)
+  const NL = '\n'
+  const themeCss = ':scope {' + NL + varLines.join(NL) + NL + '}'
+
+  const pick = (name) => cs.getPropertyValue(name).trim()
+  const bgCss = [
+    ':scope {',
+    '  background-color: ' + (cs.backgroundColor || '#ffffff') + ';',
+    cs.backgroundImage && cs.backgroundImage !== 'none' ? '  background-image: ' + cs.backgroundImage + ';' : '',
+    cs.backgroundSize && cs.backgroundSize !== 'auto' ? '  background-size: ' + cs.backgroundSize + ';' : '',
+    cs.backgroundPosition ? '  background-position: ' + cs.backgroundPosition + ';' : '',
+    cs.backgroundRepeat ? '  background-repeat: ' + cs.backgroundRepeat + ';' : '',
+    '}',
+  ].filter(Boolean).join(NL)
+
+  const themeLabel = (reportTheme.value && reportTheme.value.label) || '外观'
+  const bgLabel = (reportBg.value && reportBg.value.label) || '背景'
+  const pkg = {
+    type: 'transplant-report-skin',
+    version: 1,
+    name: themeLabel + ' + ' + bgLabel,
+    theme: {
+      label: themeLabel,
+      tone: (reportTheme.value && reportTheme.value.tone) || 'light',
+      css: themeCss,
+    },
+    background: {
+      label: bgLabel,
+      tone: (reportBg.value && reportBg.value.tone) || 'light',
+      css: bgCss,
+    },
+  }
+  downloadBlob(new Blob([JSON.stringify(pkg, null, 2)], { type: 'application/json' }),
+    safeFilePart(themeLabel) + '-外观.json')
+}
+
+function importSkin() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json,application/json'
+  input.onchange = async () => {
+    const file = input.files && input.files[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      let raw; try { raw = JSON.parse(text) } catch { flashNotice('这个文件不是合法 JSON'); return }
+      const res = parseSkinPackage(raw)
+      if (!res.ok) { flashNotice('皮肤包有问题：' + res.error); return }
+      customSkins.value = writeSkins([...customSkins.value, res.skin])
+      // 导入后直接套上，方便立刻看到效果
+      if (res.skin.theme) setReportTheme('skin-' + res.skin.id)
+      else if (res.skin.background) setReportBg('skin-' + res.skin.id)
+    } catch (e) {
+      flashNotice('读文件失败：' + (e && e.message ? e.message : e))
+    }
+  }
+  input.click()
+}
+
+function removeSkin(skinId) {
+  const k = customSkins.value.find(x => x.id === skinId)
+  if (!k) return
+  const themeId = 'skin-' + skinId
+  if (reportThemeId.value === themeId && k.theme) setReportTheme(CLASSIC_REPORT_THEME.id)
+  if (reportBgId.value === themeId && k.background) setReportBg(CLASSIC_REPORT_BG.id)
+  customSkins.value = writeSkins(customSkins.value.filter(x => x.id !== skinId))
+  flashNotice('已删除皮肤「' + k.name + '」')
+}
+
 function setReportTheme(id) {
-  reportThemeId.value = writeReportTheme(id)
+  reportThemeId.value = writeReportTheme(id, reportGame.value)
 }
 /* 经典外观：主题与背景各是一张卡片列表，经典简报 + 纯白底从列表里拿出去单放，
    这一颗按钮就是「一键回到最初的样子」。 */
@@ -841,30 +1066,133 @@ function scheduleDraftSave() {
 // ── 任务行：由草稿的 daily/weekly 生成，勾选状态按游戏缓存 ──
 const rowsByGame = reactive({})
 
-function buildRows(items, kind, prev) {
+function buildRows(items, kind) {
   // items 可能是旧格式的字符串数组，normalizeRows 统一成 { label, kind, visible }
+  // 数据（勾选 / 文本）一律从按托管的运行时表取，模板只管这一行存不存在、叫什么、什么类型
   return normalizeRows(items).map(row => {
-    const old = prev && prev[kind] ? prev[kind].find(r => r.label === row.label) : null
-    // visible / kind 一律以模板为准：old 只是上一轮的填写状态缓存（勾选、值），不含这两项
-    return old
-      ? { ...old, label: row.label, kind: row.kind, visible: row.visible }
-      : { label: row.label, kind: row.kind, visible: row.visible, done: true, value: '' }
+    const base = { label: row.label, kind: row.kind, visible: row.visible }
+    if (row.kind === 'countdown') return base
+    // 单次行：每天都是新的，不读也不写存储
+    if (row.kind === 'oneshot') return { ...base, value: '' }
+    if (row.kind === 'roll') return base
+    const st = rowState(kind, row.label) || {}
+    if (row.kind === 'text') return { ...base, value: st.value == null ? '' : String(st.value) }
+    return { ...base, done: st.done !== false }
   })
 }
 
 function syncRows(gameId) {
   if (!gameId) return
   const tpl = draftFor(gameId)
-  const prev = rowsByGame[gameId]
   rowsByGame[gameId] = {
-    daily: buildRows(tpl.daily || [], 'daily', prev),
-    weekly: buildRows(tpl.weekly || [], 'weekly', prev),
+    daily: buildRows(tpl.daily || [], 'daily'),
+    weekly: buildRows(tpl.weekly || [], 'weekly'),
   }
 }
 
 function rowsFor(gameId) {
   if (!rowsByGame[gameId]) syncRows(gameId)
   return rowsByGame[gameId] || { daily: [], weekly: [] }
+}
+
+// ── 倒计时的值：按托管项目分开，不同托管的数据不串 ──
+// 勾选 / 文本 / 资源数字：全部按托管项目存，模板只管「有哪些行」
+const rtMap = ref(readRuntimeMap())
+const rtOf = computed(() => {
+  const own = rtMap.value[selectedTaskId.value || '__none']
+  return own && typeof own === 'object' ? own : {}
+})
+/** 某一行的运行时状态 { done, value } */
+// 自定义卡片的行：label 可能是空的，所以用「卡片 id # 行序」当键
+function customKey(card, i) {
+  return '__custom:' + (card && card.id ? card.id : '') + '#' + i
+}
+function customDone(card, i) {
+  const st = rowState('custom', customKey(card, i)) || {}
+  return st.done !== false
+}
+function customValue(card, i) {
+  const st = rowState('custom', customKey(card, i)) || {}
+  return st.value == null ? '' : String(st.value)
+}
+function setCustomRow(card, i, patch) {
+  setRowState('custom', customKey(card, i), patch)
+}
+
+function rowState(kind, label) {
+  const rows = rtOf.value.rows || {}
+  const bucket = rows[kind] || {}
+  return bucket[label] || null
+}
+function setRowState(kind, label, patch) {
+  rtMap.value = writeRuntime(selectedTaskId.value, { rows: { [kind]: { [label]: patch } } })
+  syncRows(reportGame.value)
+}
+/** 某个资源的变更前 / 变更后 */
+/** 顺延行的两个格子，跟资源行用同一份存储（按行名） */
+function rollOf(row) {
+  const st = resState(row && row.label) || {}
+  return {
+    before: st.before == null ? '' : String(st.before),
+    after: st.after == null ? '' : String(st.after),
+  }
+}
+/** 写入一格，顺带记「哪天填的」，跨天时 hydrate 会自动前移 */
+function setRollValue(row, field, value) {
+  if (!row) return
+  const today = localToday()
+  const st = resState(row.label) || {}
+  const next = {
+    before: st.before == null ? '' : String(st.before),
+    after: st.after == null ? '' : String(st.after),
+  }
+  // 跨天了先前移，再写新值，免得把昨天的「变更后」写成今天的
+  if (st.date && st.date !== today && next.after !== '') {
+    next.before = next.after
+    next.after = ''
+  }
+  next[field] = value
+  rtMap.value = writeRuntime(selectedTaskId.value, {
+    resources: { [row.label]: { ...next, date: today } },
+  })
+  syncRows(reportGame.value)
+}
+
+function resState(label) {
+  const res = rtOf.value.resources || {}
+  return res[label] || null
+}
+function setResState(label, patch) {
+  rtMap.value = writeRuntime(selectedTaskId.value, {
+    resources: { [label]: { ...patch, date: localToday() } },
+  })
+  syncRows(reportGame.value)
+}
+
+const cdMap = ref(readCountdownMap())
+const cdOf = computed(() => {
+  // 没选托管时用 __none 桶，跟勾选 / 资源一致 —— 填了不能丢
+  const own = cdMap.value[selectedTaskId.value || '__none']
+  return own && typeof own === 'object' ? own : {}
+})
+/** 今天的显示值：填过才有数字，没填过是空 */
+// 换托管项目时重新读这一份倒计时
+watch(selectedTaskId, () => {
+  cdMap.value = readCountdownMap()
+  rtMap.value = readRuntimeMap()
+  syncRows(reportGame.value)
+})
+
+function cdValueOf(row) {
+  if (!row) return ''
+  const v = countdownToday(cdOf.value[row.label], todayRef.value)
+  return v == null ? '' : v
+}
+/** 改数字：把新值和「今天」一起记下，明天再从新值往下减 */
+function setCountdown(row, raw) {
+  const n = Number(raw)
+  const next = raw === '' || !Number.isFinite(n) ? null : n
+  cdMap.value = writeCountdown(selectedTaskId.value, row.label, next, localToday())
 }
 
 const currentRows = computed(() => rowsFor(reportGame.value))
@@ -891,29 +1219,6 @@ function setTplText(key, value) {
 // ── 模板面板 ──
 const templatePanelOpen = ref(false)
 
-// 「存为全局预设」：把当前草稿写回该游戏的 game.report（四次确认）
-const saveGlobalCfm = useConfirmClick()
-const saveGlobalStyle = computed(() => saveGlobalCfm.styleOf('save-global'))
-const saveGlobalTitle = computed(() => saveGlobalCfm.titleOf('save-global', '存为全局预设'))
-function saveTemplateAsGlobal() {
-  if (!saveGlobalCfm.trigger('save-global')) return
-  const game = findGame(gamesRepo.state.value, reportGame.value)
-  if (!game) return
-  const tpl = currentTpl.value
-  const preset = presetOf(game.id)
-  updateGame(game.id, {
-    report: {
-      daily: [...(tpl.daily || [])],
-      weekly: [...(tpl.weekly || [])],
-      resources: [...(tpl.resources || [])],
-      // 汇报人：草稿里改过就用草稿，否则保留原值
-      author: tpl.author !== undefined ? String(tpl.author).trim() : preset.author,
-      text: { ...(tpl.text || {}) },
-      // 卡片顺序 / 宽度 / 自定义卡片一并存为全局
-      layout: normalizeReportLayout(tpl.layout).map(c => ({ ...c })),
-    },
-  })
-}
 
 // 「恢复默认」：清掉该游戏的草稿，回到全局预设
 function resetTemplate() {
@@ -925,35 +1230,81 @@ function resetTemplate() {
   delete rowsByGame[id]
   syncRows(id)
 }
+/**
+ * 模板占位符的取值表。见 domain/report-template.js 的 REPORT_VARIABLES：
+ * 文案里写 {day} {left} {game} 这类变量，渲染时换成当前值，
+ * 于是同一份模板能随天数变化，不用维护多套。
+ */
+// 外观按游戏分开存：切游戏时换成那个游戏上次选的那套（各游戏互不影响）。
+// immediate 是必需的 —— setup 阶段 reportGame 还是空串，等它被赋值后要立刻套用。
+watch(() => reportGame.value, (id) => {
+  if (!id) return
+  reportThemeId.value = readReportTheme(id)
+  reportBgId.value = readReportBg(id)
+}, { immediate: true })
+
+const reportVars = computed(() => {
+  const task = selectedTask.value;
+  const hp = task ? hostProgress(task) : null;
+  const today = todayRef.value || localToday();
+  const dt = new Date(today + 'T00:00:00');
+  return {
+    sign: currentAuthor.value,
+    day: hp ? hp.dayIndex : curDay.value,
+    left: task ? (daysLeftTo(task) ?? '') : '',
+    total: hp ? hp.totalDays : '',
+    date: today,
+    md: today ? today.slice(5) : '',
+    weekday: Number.isFinite(dt.getTime()) ? (WEEKDAY_NAMES[dt.getDay()] || '') : '',
+    game: currentGameName.value,
+    project: (task && task.name) || '',
+    start: (task && task.host && task.host.startDate) || '',
+    end: (task && task.host && task.host.endDate) || '',
+  };
+});
+
 function templateText(key, fallback = '') {
-  const v = tplText.value[key]
-  return v == null ? fallback : v
+  const v = tplText.value[key];
+  return fillReportVars(v == null ? fallback : v, reportVars.value);
 }
 
 // ── 标题：走模板文案（每个游戏各一份），{sign} 替换成当前汇报人 ──
 // 放在 templateText 之后：immediate watch 会立刻求值，提前定义会读到未初始化的 tplText。
 const titleText = computed(() => {
-  const raw = templateText('titleTpl', '{sign}的每日汇报')
-  return String(raw).replace(/\{sign\}/g, currentAuthor.value)
+  // templateText 已经做过占位符替换（含 {sign}），这里不用再替换一次
+  return templateText('titleTpl', '{sign}的每日汇报')
 })
 // 模板里改了标题 / 换了游戏 → 同步到 DOM（标题本身仍可直接点着改，手改只在当前会话有效）
 watch(titleText, (text) => setTitle(text), { immediate: true })
 
-const resources = reactive([
-  { label: '龙门币', before: '', after: '' },
-  { label: '合成玉', before: '', after: '' },
-])
+// 资源名属于模板（在模板面板增删改），数字属于这个托管
+const resources = ref([])
+function hydrateResources() {
+  const tpl = draftFor(reportGame.value)
+  const labels = Array.isArray(tpl.resources) ? tpl.resources.filter(Boolean) : []
+  const today = localToday()
+  resources.value = labels.map(label => {
+    const st = resState(label) || {}
+    let before = st.before == null ? '' : String(st.before)
+    let after = st.after == null ? '' : String(st.after)
+    // ── 顺延（机制，不是按钮）──
+    // 上次填「变更后」是在更早的日子 → 它今天就成了「变更前」，变更后清空。
+    // 跨天第一次打开日报时自动发生，不需要点任何东西。
+    const filledOn = st.date || ''
+    if (after !== '' && filledOn && filledOn !== today) {
+      before = after
+      after = ''
+      writeRuntime(selectedTaskId.value, { resources: { [label]: { before, after: '', date: today } } })
+    }
+    return { label, before, after }
+  })
+}
+watch([selectedTaskId, rtMap, reportGame, drafts], () => hydrateResources(), { immediate: true, deep: true })
+// 顺延可能改了存储，读完同步一份到内存态，避免界面和落盘不一致
+watch(selectedTaskId, () => { rtMap.value = readRuntimeMap() }, { immediate: true })
 
 // 保存「变更后」→ 下次回填到「变更前」。仅在点击「导出图片 / 复制到剪切板」时触发（不再实时保存）
-function commitRoll() {
-  if (!selectedTaskId.value) return
-  const roll = loadRoll()
-  const entry = roll[selectedTaskId.value] || {}
-  // 仅当「变更后」非空才更新，空值保留上次数据
-  resources.forEach(r => { if (r.label && r.after !== '' && r.after != null) entry[r.label] = r.after })
-  roll[selectedTaskId.value] = entry
-  saveRoll(roll)
-}
+
 
 // ── 今日获取资源：默认项按游戏重建，并回填该项目上次记录的「变更后」 ──
 function defaultResourceLabels(gameId) {
@@ -961,15 +1312,17 @@ function defaultResourceLabels(gameId) {
   return reportPresetFor(gameId, game).resources
 }
 function resetResourcesForGame(game, roll = {}) {
-  resources.splice(0, resources.length)
-  defaultResourceLabels(game).forEach(label => {
-    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '' })
-  })
-  // 上次用过的自定义资源也补回来（换项目 / 换游戏后自己加的那几行不该消失）
+  const labels = [...defaultResourceLabels(game)]
   Object.keys(roll || {}).forEach(label => {
-    if (!label) return
-    if (resources.some(r => r.label === label)) return
-    resources.push({ label, before: roll[label] !== undefined ? roll[label] : '', after: '' })
+    if (label && !labels.includes(label)) labels.push(label)
+  })
+  resources.value = labels.map(label => {
+    const st = resState(label) || {}
+    return {
+      label,
+      before: st.before != null ? String(st.before) : (roll[label] !== undefined ? roll[label] : ''),
+      after: st.after != null ? String(st.after) : '',
+    }
   })
 }
 
@@ -983,7 +1336,7 @@ watch(reportGame, (game) => {
 // reportPresetFor 取不到预设 → 资源被初始化成空，之后不会再补。
 // 这里等目录就绪后再补一次；只在资源仍为空时补，不覆盖草稿里已有的内容。
 watch(() => gamesRepo.state.value.length, (n) => {
-  if (!n || resources.length) return
+  if (!n || resources.value.length) return
   const g = reportGame.value || (reportGames.value[0] ? reportGames.value[0].id : '')
   if (!g) return
   resetResourcesForGame(g, {})
@@ -1003,7 +1356,7 @@ watch(resources, () => {
     if (!id) return
     const roll = loadRoll()
     const entry = roll[id] || {}
-    resources.forEach(r => {
+    resources.value.forEach(r => {
       const v = (r.after !== '' && r.after != null) ? r.after : r.before
       if (r.label && v !== '' && v != null) entry[r.label] = v
     })
@@ -1048,11 +1401,11 @@ function resetAll() {
   nteStaminaLeft.value = ''
   nteGiftDone.value = true
   resetTemplate()
-  currentRows.value.daily.forEach(t => { t.done = true })
-  currentRows.value.weekly.forEach(t => { t.done = true })
-  resources.splice(0, resources.length)
+  currentRows.value.daily.forEach(t => { if (t.kind === 'check') setRowState('daily', t.label, { done: true }) })
+  currentRows.value.weekly.forEach(t => { if (t.kind === 'check') setRowState('weekly', t.label, { done: true }) })
+  resources.value = []
   defaultResourceLabels(reportGame.value).forEach(label => {
-    resources.push({ label, before: '', after: '' })
+    resources.value.push({ label, before: '', after: '' })
   })
   resetPlan()
   if (noteRef.value) noteRef.value.innerHTML = '<div></div>'
@@ -1101,8 +1454,18 @@ const { exportImage, shareImage, busy, lastError } = useReportExport({
   resources,
   dailyAllUndone,
   backgroundBase: () => reportBg.value.base,
-  onExported: () => commitRoll(),
+  onExported: () => {}, // 顺延改成手动按钮，导出不再自动改数据
 })
+
+// 按钮下方的红字提示：替代所有 alert / confirm，5 秒后自动消失
+const notice = ref('')
+let noticeTimer = 0
+function flashNotice(text) {
+  notice.value = String(text || '')
+  if (noticeTimer) clearTimeout(noticeTimer)
+  if (!notice.value) return
+  noticeTimer = setTimeout(() => { notice.value = ''; noticeTimer = 0 }, 5000)
+}
 onUnmounted(() => window.removeEventListener('tr-daily-reset-changed', refreshHosting))
 defineExpose({ refreshHosting })
 </script>
@@ -1255,8 +1618,12 @@ defineExpose({ refreshHosting })
   border-color: var(--state-border, var(--accent));
 }
 /* 一行四张：十二套主题 / 十三套背景都能在两屏内看完（说明文字在 title 提示里） */
-.rp-look-row > .rp-theme-card,
-.rp-look-row > .rp-bg-card { flex: 0 0 calc((100% - 18px) / 4); min-width: 0; }
+/* 四列宽度挂在 .rp-skin-cell 上：卡片外面套了一层（为了放删除按钮），
+   原来的直接子选择器 `.rp-look-row > .rp-theme-card` 不再命中，
+   宽度必须由包裹层承担，卡片自己撑满 cell。 */
+.rp-look-row > .rp-skin-cell { flex: 0 0 calc((100% - 18px) / 4); min-width: 0; }
+.rp-look-row > .rp-skin-cell > .rp-theme-card,
+.rp-look-row > .rp-skin-cell > .rp-bg-card { width: 100%; }
 /* 弹窗里的分区标题收紧一点，保证整屏可见 */
 .rp-look .detail-section { padding: 8px 0 3px; }
 /* ── 主题卡：缩略图由主题变量渲染，能看出标题带 / 信息栏 / 卡片头的实际外观 ── */
@@ -3472,5 +3839,35 @@ defineExpose({ refreshHosting })
 .rp-theme-st-inverse .rp-card-head { background: #111; color: #f4f1ea; box-shadow: inset 4px 0 0 #ebc226; }
 .rp-theme-st-inverse .rp-inp { background: #222; color: #f4f1ea; }
 
+
+/* 自定义皮肤卡：外面套一层相对定位，右上角放删除 */
+.rp-skin-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* 禁止被父级 flex 拉伸 —— 否则 absolute 的删除按钮以整行为参照，会飘到最右边 */
+  align-self: flex-start;
+}
+.rp-skin-del {
+  position: absolute; top: -5px; right: -5px; z-index: 2;
+  width: 16px; height: 16px; padding: 0; line-height: 1; cursor: pointer;
+  border: 1px solid var(--border-color); border-radius: 50%;
+  background: var(--bg-primary); color: var(--text-secondary);
+  font-size: 12px; display: flex; align-items: center; justify-content: center;
+}
+.rp-skin-del:hover { background: #D14343; border-color: #D14343; color: #fff; }
+
+/* 倒计时行：数值右对齐、单位小字 */
+.rp-countdown { display: inline-flex; align-items: baseline; gap: 2px; justify-self: start; }
+.rp-cd-inp { width: 92px !important; text-align: center; font-variant-numeric: tabular-nums; }
+.rp-cd-unit { font-size: 10px; color: var(--text-secondary); }
+
+/* 操作反馈：按钮下方的红字，5 秒后自动消失 */
+.rp-notice-row { padding: 2px 0 0; }
+.rp-notice {
+  display: inline-block;
+  font-size: 12px; line-height: 1.4;
+  color: #D14343;
+}
 </style>
 

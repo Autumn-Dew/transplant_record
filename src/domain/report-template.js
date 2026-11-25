@@ -26,14 +26,6 @@ export const REPORT_TEXT_FIELDS = [
     { key: 'cardNote', label: '备注卡片', def: '备注' },
     { key: 'cardShots', label: '截图卡片', def: '截图' },
   ] },
-  { group: '专属行标签', placement: 'card', items: [
-    // games：只有这些游戏才有这一行（模板面板按当前游戏过滤，避免出现用不到的字段）
-    { key: 'rowSanity', label: '理智剩余', def: '理智剩余', games: ['ak', 'endfield'] },
-    { key: 'rowClue', label: '线索传递', def: '线索传递', games: ['ak', 'endfield'] },
-    { key: 'rowPixel', label: '本性像素剩余', def: '本性像素剩余', games: ['nte'] },
-    { key: 'rowGift', label: '送礼', def: '送礼', games: ['nte'] },
-    { key: 'rowStamina', label: '都市体力剩余', def: '都市体力剩余', games: ['nte'] },
-  ] },
   { group: '按钮与新增项', items: [
     { key: 'btnExport', label: '导出图片', def: '导出图片' },
     { key: 'btnCopy', label: '复制到剪切板', def: '复制到剪切板' },
@@ -44,7 +36,6 @@ export const REPORT_TEXT_FIELDS = [
     { key: 'btnAddTask', label: '添加日常任务', def: '+ 添加任务' },
     { key: 'btnAddWeekly', label: '添加周常', def: '+ 添加周常' },
     { key: 'btnAddResource', label: '添加资源', def: '+ 添加资源' },
-    { key: 'btnSaveGlobal', label: '存为全局预设', def: '存为全局预设' },
     { key: 'btnTemplate', label: '模板按钮', def: '模板' },
 
   ] },
@@ -79,4 +70,42 @@ export function mergeReportText(...layers) {
     for (const key of Object.keys(norm)) out[key] = norm[key]
   }
   return out
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   可用的占位符变量
+
+   模板文案里写 {day} {left} 这类花括号变量，渲染时自动替换成当前值。
+   这样同一份模板能「随天数变化」，不用维护多套模板。
+
+   替换发生在 ReportSheet 的 templateText() 里 —— 所有文案字段
+   （标题、托管信息、卡片标题、按钮文字…）一次全生效。
+   写错的变量名会原样保留，不会变成空白，方便看出拼错了。
+   ══════════════════════════════════════════════════════════════════ */
+export const REPORT_VARIABLES = [
+  { key: 'sign', label: '汇报人', sample: 'Autumn' },
+  { key: 'day', label: '托管第几天', sample: '12' },
+  { key: 'left', label: '剩余天数', sample: '18' },
+  { key: 'total', label: '托管总天数', sample: '30' },
+  { key: 'date', label: '今天日期', sample: '2026-11-17' },
+  { key: 'md', label: '月-日', sample: '11-17' },
+  { key: 'weekday', label: '星期几', sample: '星期一' },
+  { key: 'game', label: '游戏名', sample: '明日方舟' },
+  { key: 'project', label: '托管项目', sample: '日常托管' },
+  { key: 'start', label: '托管开始日', sample: '2026-11-06' },
+  { key: 'end', label: '托管结束日', sample: '2026-12-05' },
+];
+
+/** 把模板文案里的 {var} 替换成实际值；未知变量原样保留 */
+export function fillReportVars(text, vars) {
+  const src = String(text == null ? '' : text);
+  if (!src || src.indexOf('{') < 0) return src;
+  const table = vars && typeof vars === 'object' ? vars : {};
+  return src.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (whole, key) => {
+    if (!Object.prototype.hasOwnProperty.call(table, key)) return whole;
+    const v = table[key];
+    // 没有值时保留变量原文：比留一片空白更容易看出「这里没数据」
+    if (v == null || v === '') return whole;
+    return String(v);
+  });
 }

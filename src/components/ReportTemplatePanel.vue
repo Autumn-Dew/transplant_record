@@ -1,12 +1,11 @@
 <template>
   <div class="modal-mask" @click.self="emit('close')">
     <div class="edit-popup rp-tpl-popup" role="dialog" aria-modal="true" aria-label="日报模板">
-      <h4>日报模板（临时修改）</h4>
+      <h4>日报模板</h4>
       <p class="rp-tpl-hint">
         <strong v-if="gameLabel">{{ gameLabel }}</strong>
         的模板 —— <strong>每个游戏各一份</strong>，切日报顶部的游戏页签就是切模板。
-        这里改的是<strong>当前这份日报</strong>的模板，会存成草稿（重启后仍在）；
-        想让它对该游戏的所有时候生效请点「存为全局预设」，点「恢复默认」回到全局预设。
+        这里的改动立刻生效并保存，对<strong>这个游戏的所有托管</strong>通用。
       </p>
 
       <div class="rp-tpl-body">
@@ -67,10 +66,10 @@
                 <input class="rp-tpl-inp" :value="item.label" placeholder="这一项的名字" @input="setRowLabel(card.kind, ri, $event.target.value)" />
                 <button
                   class="rp-tpl-mini"
-                  :class="{ on: item.kind === 'text' }"
-                  :title="item.kind === 'text' ? '文本型：日报里直接填内容；点一下改回按钮型' : '按钮型：日报里是完成 / 未完成；点一下改文本型'"
-                  @click="setRowKind(card.kind, ri, item.kind === 'text' ? 'check' : 'text')"
-                >{{ item.kind === 'text' ? '文本' : '按钮' }}</button>
+                  :class="{ on: true }"
+                  :title="'点一下切换：按钮 → 文本 → 计时 → 单次 → 顺延 → 按钮'"
+                  @click="cycleRowKind(card.kind, ri)"
+                >{{ rowKindLabel(item.kind) }}</button>
                 <button
                   class="rp-tpl-mini rp-tpl-hide"
                   :class="{ off: item.visible === false }"
@@ -81,14 +80,6 @@
               </div>
               <button class="rp-tpl-add" @click="addRow(card.kind)">+ 添加{{ card.kind === 'daily' ? '日常任务' : '周常' }}</button>
 
-              <!-- 专属行（理智剩余 / 送礼…）就画在日常卡里，标签也在这里改 -->
-              <template v-if="card.kind === 'daily' && specialRowFields.length">
-                <div class="rp-tpl-sub-title">专属行标签（本游戏固定行）</div>
-                <label class="rp-tpl-field" v-for="item in specialRowFields" :key="item.key">
-                  <span class="rp-tpl-label">{{ item.label }}</span>
-                  <input class="rp-tpl-inp" :value="textOf(item.key, item.def)" @input="setText(item.key, $event.target.value)" />
-                </label>
-              </template>
             </div>
 
             <!-- 今日获取资源：默认项 -->
@@ -127,6 +118,25 @@
           <button class="rp-tpl-add" @click="addCard">+ 添加卡片</button>
         </div>
 
+        <!-- 可用占位符变量：点一下把 {var} 插到最近编辑的输入框 -->
+        <div class="rp-tpl-group">
+          <div class="rp-tpl-group-title">可用变量</div>
+          <p class="rp-tpl-hint-fixed">
+            在任意文案里写这些花括号变量，渲染时自动换成当前值 —— 同一份模板就能随天数变化。
+            点一下直接插到上面最后聚焦的输入框里。
+          </p>
+          <div class="rp-var-chips">
+            <button
+              v-for="v in variables"
+              :key="v.key"
+              type="button"
+              class="rp-var-chip"
+              :title="`${v.label}　例：${v.sample}`"
+              @click="insertVar(v.key)"
+            >{{ '{' + v.key + '}' }}</button>
+          </div>
+        </div>
+
         <!-- 文案字段（较长，放在最后，两列排版） -->
         <div class="rp-tpl-group" v-for="grp in visibleFields" :key="grp.group">
           <div class="rp-tpl-group-title">{{ grp.group }}</div>
@@ -141,6 +151,7 @@
                 class="rp-tpl-inp"
                 :value="textOf(item.key, item.def)"
                 @input="setText(item.key, $event.target.value)"
+                @focus="rememberInput"
               />
             </label>
           </div>
@@ -149,13 +160,8 @@
 
       <div class="edit-actions rp-tpl-actions">
         <button class="cancel-btn" @click="emit('close')">关闭</button>
-        <button class="cancel-btn" @click="emit('reset')" title="清掉这份草稿，回到「数据管理」里的全局预设">恢复默认</button>
-        <button
-          class="save-btn"
-          :style="saveStyle"
-          :title="saveTitle"
-          @click="emit('save-global')"
-        >{{ saveLabel }}</button>
+        <button class="cancel-btn" @click="emit('reset')" title="把这套模板恢复成默认值">恢复默认</button>
+
       </div>
     </div>
   </div>
@@ -166,16 +172,33 @@
 // 「存为全局预设」由父组件执行（需要四次点击确认 + 写回 game.report）。
 import { computed } from 'vue'
 import { appendCustomCard, moveCard, removeCard, patchCard, normalizeRows } from '@/domain/report-layout.js'
+import { REPORT_VARIABLES } from '@/domain/report-template.js'
+// 可用占位符变量（定义在 domain/report-template.js，与渲染端共用同一份）
+const variables = REPORT_VARIABLES
+// 最近聚焦的文案输入框：点变量 chip 时插到它光标处
+let lastInput = null
+function rememberInput(e) { lastInput = e.target }
+function insertVar(key) {
+  const token = '{' + key + '}'
+  const el = lastInput
+  if (!el || typeof el.value !== 'string') return
+  const start = el.selectionStart ?? el.value.length
+  const end = el.selectionEnd ?? el.value.length
+  const next = el.value.slice(0, start) + token + el.value.slice(end)
+  el.value = next
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.focus()
+  const pos = start + token.length
+  try { el.setSelectionRange(pos, pos) } catch { /* 某些类型不支持选区 */ }
+}
+
 const props = defineProps({
   draft: { type: Object, required: true },
   fields: { type: Array, default: () => [] },
   gameLabel: { type: String, default: '' },
   gameId: { type: String, default: '' },
-  saveStyle: { type: Object, default: () => ({}) },
-  saveTitle: { type: String, default: '' },
-  saveLabel: { type: String, default: '存为全局预设' },
 })
-const emit = defineEmits(['close', 'reset', 'save-global'])
+const emit = defineEmits(['close', 'reset'])
 
 function textOf(key, fallback) {
   const v = props.draft.text ? props.draft.text[key] : undefined
@@ -232,6 +255,46 @@ function setRowKind(kind, index, value) {
   if (next[index]) next[index].kind = value === 'text' ? 'text' : 'check'
   props.draft[kind] = next
 }
+// ── 行类型三态：按钮 → 文本 → 倒计时 ──
+const ROW_CYCLE = ['check', 'text', 'countdown', 'oneshot', 'roll']
+const ROW_LABEL = { check: '按钮', text: '文本', countdown: '计时', oneshot: '单次', roll: '顺延' }
+function rowKindLabel(kind) { return ROW_LABEL[kind] || '按钮' }
+function cycleRowKind(kind, index) {
+  const next = rawRows(kind)
+  const row = next[index]
+  if (!row) return
+  // 直接用当前 kind 找下一档。以前这里写死了「只认 check/text/countdown」，
+  // 于是 oneshot 和 roll 都被当成 check，循环会从「单次」跳回「文本」，永远切不到「顺延」。
+  const cur = ROW_CYCLE.includes(row.kind) ? row.kind : 'check'
+  row.kind = ROW_CYCLE[(ROW_CYCLE.indexOf(cur) + 1) % ROW_CYCLE.length]
+  if (row.kind === 'countdown') {
+    if (!Number.isFinite(Number(row.base))) row.base = null
+    if (!row.baseDate) row.baseDate = new Date().toISOString().slice(0, 10)
+  }
+  props.draft[kind] = next
+}
+function setRowBase(kind, index, value) {
+  const next = rawRows(kind)
+  if (!next[index]) return
+  const n = Number(value)
+  next[index].base = Number.isFinite(n) ? n : 0
+  props.draft[kind] = next
+}
+function setRowBaseDate(kind, index, value) {
+  const next = rawRows(kind)
+  if (!next[index]) return
+  next[index].baseDate = value
+  props.draft[kind] = next
+}
+function previewCountdown(row) {
+  const base = Number(row && row.base)
+  if (!Number.isFinite(base) || !row.baseDate) return '—'
+  const a = Date.parse(row.baseDate + 'T00:00:00')
+  const b = Date.parse(new Date().toISOString().slice(0, 10) + 'T00:00:00')
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return base
+  return Math.max(0, base - Math.floor((b - a) / 86400000))
+}
+
 function addRow(kind) {
   props.draft[kind] = [...rowsOf(kind), { label: kind === 'daily' ? '新任务' : '新周常', kind: 'check' }]
 }
@@ -254,11 +317,6 @@ const visibleFields = computed(() =>
     .filter(grp => grp.items.length > 0),
 )
 
-// 「专属行标签」：渲染在日常卡内部（这些行本来就画在日常卡里）
-const specialRowFields = computed(() => {
-  const grp = (props.fields || []).find(g => g.group === '专属行标签')
-  return grp ? gameItems(grp.items) : []
-})
 
 function removeRow(kind, index) {
   const next = rowsOf(kind)
@@ -405,4 +463,34 @@ function removeLine(id, index) {
 
 .rp-tpl-add:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); }
 .rp-tpl-actions { margin-top: 12px; gap: 8px; }
+
+/* 可用变量 chips */
+.rp-var-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.rp-var-chip {
+  height: 22px; padding: 0 7px; cursor: pointer;
+  border: 1px solid var(--border-color); background: var(--bg-secondary);
+  color: var(--text-primary); font-family: var(--font-mono); font-size: 10px; line-height: 1;
+}
+.rp-var-chip:hover { background: var(--btn-hover-bg); color: var(--btn-hover-text); border-color: var(--btn-hover-bg); }
+
+/* 倒计时行的基准值 / 基准日 / 预览 */
+.rp-tpl-cd { display: inline-flex; align-items: center; gap: 4px; }
+.rp-tpl-cd-none { font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
+
+
+/* 行编辑：名字输入框让出空间，类型/显示/删除三个按钮不被挤掉 */
+.rp-tpl-row { flex-wrap: wrap; align-items: center; gap: 4px; }
+.rp-tpl-row > .rp-tpl-inp { flex: 1 1 120px; min-width: 90px; }
+.rp-tpl-row > .rp-tpl-del { flex: 0 0 auto; }
+/* 类型切换按钮：五个档位（按钮/文本/计时/单次/顺延）都占同一格，
+   锁死 60px 且禁止换行，避免某一档的字被挤没 */
+.rp-tpl-row > .rp-tpl-mini:first-of-type {
+  flex: 0 0 60px; min-width: 60px; max-width: 60px;
+  white-space: nowrap; overflow: hidden; text-overflow: clip;
+  text-align: center;
+}
+.rp-tpl-row > .rp-tpl-mini:not(:first-of-type) { flex: 0 0 auto; }
+
+/* 只剩两颗按钮了：靠右排，恢复默认不贴着窗口边 */
+.rp-tpl-actions { justify-content: flex-end; gap: 8px; }
 </style>
